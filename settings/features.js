@@ -1,9 +1,9 @@
 const features = {
   "antiLink": true,
   "antiCall": true,
-  "antiSpam": true,
+  "antiSpam": false,
   "autoRead": true,
-  "autoBio": true,
+  "autoBio": false,
   "maintenance": false,
   "allowPrivate": true,
   "welcomeMsg": true,
