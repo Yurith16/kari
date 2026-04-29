@@ -1,8 +1,8 @@
 import { getAudio } from '../utils/audio-api.js'
 
 export default {
-  command: ['play', 'ytmp3'],
-  tag: 'Ytmp3',
+  command: ['play'],
+  tag: 'play',
   categoria: 'descargas',
   owner: false,
   group: false,

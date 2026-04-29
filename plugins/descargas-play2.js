@@ -1,8 +1,8 @@
 import { getVideo } from '../utils/video-api.js'
 
 export default {
-  command: ['play2', 'ytmp4'],
-  tag: 'Ytmp4',
+  command: ['play2'],
+  tag: 'play2',
   categoria: 'descargas',
   owner: false,
   group: false,
