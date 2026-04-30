@@ -1,5 +1,6 @@
 // plugins/ytmp4.js
 
+import yts from 'yt-search'
 import axios from 'axios'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -10,7 +11,7 @@ import { join } from 'path'
 const execFileAsync = promisify(execFile)
 
 export default {
-  command: ['ytmp4'],
+  command: 'ytmp4',
   tag: 'ytmp4',
   categoria: 'descargas',
   owner: false,
@@ -30,21 +31,43 @@ export default {
     try {
       await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
 
-      let videoUrl, titulo, channel
+      let video, videoUrl
 
       if (isUrl) {
         videoUrl = query
       } else {
-        const searchRes = await fetch(`https://api.princetechn.com/api/search/yts?apikey=prince&query=${encodeURIComponent(query)}`)
-        const searchJson = await searchRes.json()
+        const results = await yts(query)
+        video = results.videos?.[0]
 
-        if (!searchJson.success || !searchJson.results?.length) {
+        if (!video) {
           return sock.sendMessage(from, { text: '🌱 No se encontraron resultados.' }, { quoted: msg })
         }
 
-        videoUrl = searchJson.results[0].url
-        titulo = searchJson.results[0].title
-        channel = searchJson.results[0].author?.name
+        videoUrl = video.url
+      }
+
+      // Mostrar detalles primero
+      if (!isUrl && video) {
+        const txt = `🌱 *Título:* ${video.title}\n` +
+          `🌱 *Canal:* ${video.author?.name || 'Desconocido'}\n` +
+          `🌱 *Duración:* ${video.duration?.timestamp || 'N/A'}\n` +
+          `🌱 *Vistas:* ${(video.views || 0).toLocaleString()}\n` +
+          `🌱 *Publicado:* ${video.ago || 'Reciente'}\n` +
+          `🌱 *Enlace:* ${video.url}\n\n` +
+          `⬇️ *Descargando...*`
+
+        try {
+          const imgRes = await axios.get(video.thumbnail || video.image, {
+            responseType: 'arraybuffer',
+            timeout: 10000
+          })
+          await sock.sendMessage(from, {
+            image: Buffer.from(imgRes.data),
+            caption: txt
+          }, { quoted: msg })
+        } catch {
+          await sock.sendMessage(from, { text: txt }, { quoted: msg })
+        }
       }
 
       const { data } = await axios.get(
@@ -57,14 +80,10 @@ export default {
         return sock.sendMessage(from, { text: '🌱 No se pudo descargar el video.' }, { quoted: msg })
       }
 
-      // 360p por defecto
       const downloadUrl = info.video
       if (!downloadUrl) {
         return sock.sendMessage(from, { text: '🌱 No se encontró video en 360p.' }, { quoted: msg })
       }
-
-      const title = info.title || titulo || 'video'
-      const canal = info.channel || channel || ''
 
       await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
 
@@ -74,7 +93,7 @@ export default {
       })
       const rawBuffer = Buffer.from(videoRes.data)
 
-      // Convertir a MP4
+      // Copia pura sin re-encodeo + faststart
       const tmpInput = join(tmpdir(), `${Date.now()}_in.mp4`)
       const tmpOutput = join(tmpdir(), `${Date.now()}_out.mp4`)
 
@@ -82,11 +101,7 @@ export default {
 
       await execFileAsync('ffmpeg', [
         '-i', tmpInput,
-        '-c:v', 'libx264',
-        '-preset', 'ultrafast',
-        '-crf', '23',
-        '-c:a', 'aac',
-        '-b:a', '128k',
+        '-c', 'copy',
         '-movflags', '+faststart',
         '-threads', '0',
         '-y',
@@ -108,6 +123,8 @@ export default {
 
       await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
 
+      const title = info.title || video?.title || 'video'
+      const canal = info.channel || video?.author?.name || ''
       const fileName = `${title}.mp4`.replace(/[\\/:*?"<>|]/g, '')
 
       await sock.sendMessage(from, {

@@ -2,7 +2,7 @@ import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { logger, delay }           from '../utils/helpers.js'
 import { checkSpam }               from '../utils/spam.js'
 import { commands }                from './plugins.js'
-import { getGroup, isMuted, trackActivity, updateGroupName } from './sqlite.js'
+import { getGroup, isMuted, isBanned, trackActivity, updateGroupName } from './sqlite.js'
 
 const LINK_RE = /(?:https?:\/\/)?(?:www\.)?(?:chat\.whatsapp\.com|wa\.me|t\.me|telegram\.(?:me|dog|org))\/\S+/i
 
@@ -67,19 +67,33 @@ async function stepAntiLink(ctx, sock, msg) {
 
 async function stepMute(ctx, sock, msg) {
   if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin) return false
-  if (!isMuted(ctx.from, ctx.userNum))            return false
+  // Verificar con userNum resuelto Y con número limpio del sender original
+  const senderNum = cleanNumber(ctx.sender)
+  if (!isMuted(ctx.from, ctx.userNum) && !isMuted(ctx.from, senderNum)) return false
   try {
+    // Eliminar cualquier tipo de mensaje — texto, imagen, video, documento, sticker
     await sock.sendMessage(ctx.from, {
-      delete: { remoteJid: ctx.from, fromMe: false, id: msg.key.id, participant: ctx.sender }
+      delete: {
+        remoteJid:   ctx.from,
+        fromMe:      false,
+        id:          msg.key.id,
+        participant: ctx.sender
+      }
     })
   } catch {}
-  return true
+  return true  // corta el flujo siempre, sin responder nada
 }
 
 async function stepGuards(ctx, sock, msg) {
   const feat = global.features || {}
   const msgs = global.messages || {}
   const bot  = global.bot     || {}
+
+  // Ban global
+  if (!ctx.isOwner && isBanned(ctx.userNum)) {
+    await sock.sendMessage(ctx.from, { text: msgs.bannedWarn }, { quoted: msg })
+    return true
+  }
 
   if (feat.maintenance && !ctx.isOwner) {
     await sock.sendMessage(ctx.from, { text: msgs.maintenance }, { quoted: msg })

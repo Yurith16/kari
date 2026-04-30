@@ -97,4 +97,24 @@ const _getTopActivity = db.prepare(`SELECT user, msgs FROM activity WHERE group_
 export function trackActivity(groupId, user) { _trackActivity.run(groupId, user) }
 export function getTopActivity(groupId, limit = 10) { return _getTopActivity.all(groupId, limit) }
 
+
+// ─── Ban global ───────────────────────────────────────────────────────────────
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS banned (
+    user       TEXT PRIMARY KEY,
+    banned_at  INTEGER DEFAULT (unixepoch())
+  );
+`)
+
+const _ban      = db.prepare(`INSERT OR IGNORE INTO banned (user) VALUES (?)`)
+const _unban    = db.prepare(`DELETE FROM banned WHERE user = ?`)
+const _isBanned = db.prepare(`SELECT 1 FROM banned WHERE user = ?`)
+const _getBanned = db.prepare(`SELECT user FROM banned ORDER BY banned_at DESC`)
+
+export function banUser(user)    { _ban.run(user) }
+export function unbanUser(user)  { _unban.run(user) }
+export function isBanned(user)   { return !!_isBanned.get(user) }
+export function getBanned()      { return _getBanned.all().map(r => r.user) }
+
 export default db
