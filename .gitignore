@@ -74,21 +74,6 @@ build/
 out/
 
 
-# Archivos de YouTube
-*.mp3
-*.mp4
-*.webm
-
-# Archivos de media descargados
-downloads/
-media/
-*.mp3
-*.mp4
-*.webm
-*.jpg
-*.jpeg
-*.png
-
 # Configuración personal
 config.local.js
 config.dev.js
