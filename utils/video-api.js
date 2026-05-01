@@ -1,31 +1,9 @@
+// utils/video-api.js
+
 import axios from 'axios'
 import fg from 'fg-senna'
 
-// ─── API: Apinexus v2 mp4 (primera opción) ────────────────
-
-export async function getVideoApinexusV2(url) {
-  const response = await fetch('https://panel.apinexus.fun/api/youtube/v2/mp4', {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json', 
-      'x-api-key': 'antbx21e5jhac' 
-    },
-    body: JSON.stringify({ url })
-  })
-
-  const res = await response.json()
-
-  if (res && res.success && res.data?.video) {
-    return {
-      url: res.data.video,
-      title: res.data.titulo,
-      thumb: null
-    }
-  }
-  throw new Error('Apinexus v2 mp4 falló')
-}
-
-// ─── SCRAPER: ytmp3.gs (segundo método) ────────────────────
+// ─── SCRAPER: ytmp3.gs (primer método) ────────────────────
 
 const _sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 const _ts = () => Math.floor(Date.now() / 1000)
@@ -113,7 +91,7 @@ export async function getVideoYtmp3gs(url) {
   }
 }
 
-// ─── API: FG-Senna ──────────────────────────────────────
+// ─── API: FG-Senna (segundo método) ──────────────────────
 
 export async function getVideoFgSenna(url) {
   const qualities = ['360p', '480p', '720p', '240p', '144p']
@@ -197,13 +175,12 @@ export async function getVideoOkatsu(url) {
 // ─── Lista de APIs en orden de prioridad ──────────────────
 
 export const videoApis = [
-  { name: 'Apinexus v2 mp4',  get: getVideoApinexusV2    },
-  { name: 'ytmp3.gs scraper', get: getVideoYtmp3gs       },
-  { name: 'FG-Senna',         get: getVideoFgSenna       },
-  { name: 'Sylphy',           get: getVideoSylphy        },
-  { name: 'EliteProTech',     get: getVideoEliteProTech  },
-  { name: 'Yupra',            get: getVideoYupra         },
-  { name: 'Okatsu',           get: getVideoOkatsu        }
+  { name: 'ytmp3.gs scraper', get: getVideoYtmp3gs      },
+  { name: 'FG-Senna',         get: getVideoFgSenna      },
+  { name: 'Sylphy',           get: getVideoSylphy       },
+  { name: 'EliteProTech',     get: getVideoEliteProTech },
+  { name: 'Yupra',            get: getVideoYupra        },
+  { name: 'Okatsu',           get: getVideoOkatsu       }
 ]
 
 // ─── Función principal ────────────────────────────────────

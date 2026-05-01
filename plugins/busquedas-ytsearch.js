@@ -3,10 +3,10 @@
 import yts from 'yt-search'
 import axios from 'axios'
 
-const EMOJIS = ['🌱', '🍃', '🌿', '🪴', '🌵']
+const activeUsers = new Map()
 
 export default {
-  command:   'yts',
+  command:   ['yts', 'ytsearch', 'buscar'],
   tag:       'yts',
   categoria: 'busqueda',
   owner:     false,
@@ -14,65 +14,63 @@ export default {
   nsfw:      false,
 
   async execute(sock, msg, { from, args }) {
-    if (!args.length) {
-      await sock.sendMessage(from, {
-        text: '🌱 *¿Qué deseas buscar en YouTube?*'
-      }, { quoted: msg })
+    const userId = msg.key.participant || from
+
+    if (activeUsers.has(userId)) return
+
+    if (!args[0]) {
+      await sock.sendMessage(from, { react: { text: '🫢', key: msg.key } })
+      await sock.sendMessage(from, { text: '> ¿Qué deseas buscar en YouTube? 🍃' }, { quoted: msg })
       return
     }
 
-    const query = args.join(' ')
+    activeUsers.set(userId, true)
+    await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
-
+      const query = args.join(' ')
       const results = await yts(query)
-      const videos = results.videos?.slice(0, 5)
 
-      if (!videos?.length) {
-        return await sock.sendMessage(from, {
-          text: '🌱 No se encontraron resultados.'
-        }, { quoted: msg })
+      if (!results?.videos?.length) {
+        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+        await sock.sendMessage(from, { text: '> No encontré nada oíste 🫢' }, { quoted: msg })
+        return
       }
 
-      for (let i = 0; i < videos.length; i++) {
-        const v = videos[i]
-        const emoji = EMOJIS[i] || '🌱'
+      const videos = results.videos.slice(0, 5)
 
-        const txt = `${emoji} *Título:* ${v.title}\n` +
-          `${emoji} *Canal:* ${v.author?.name || 'Desconocido'}\n` +
-          `${emoji} *Duración:* ${v.duration?.timestamp || 'N/A'}\n` +
-          `${emoji} *Vistas:* ${(v.views || 0).toLocaleString()}\n` +
-          `${emoji} *Publicado:* ${v.ago || 'Reciente'}\n` +
-          `${emoji} *Enlace:* ${v.url}`
+      for (let i = 0; i < videos.length; i++) {
+        const video = videos[i]
+        const { title, author, duration, views, ago, url, thumbnail } = video
+
+        const videoDetails = `> 🎵 *「🌱」 ${title}*\n\n` +
+          `> 🍃 *Canal:* » ${author.name}\n` +
+          `> ⚘ *Duración:* » ${duration.timestamp}\n` +
+          `> 🌼 *Vistas:* » ${(views || 0).toLocaleString()}\n` +
+          `> 🍀 *Publicado:* » ${ago || 'Reciente'}\n` +
+          `> 🌿 *Enlace:* » ${url}`
 
         try {
-          const imgRes = await axios.get(v.thumbnail || v.image, {
-            responseType: 'arraybuffer',
-            timeout: 10000
-          })
           await sock.sendMessage(from, {
-            image: Buffer.from(imgRes.data),
-            caption: txt
-          }, { quoted: i === 0 ? msg : undefined })
-        } catch {
-          await sock.sendMessage(from, {
-            text: txt
-          }, { quoted: i === 0 ? msg : undefined })
-        }
+            image: { url: thumbnail },
+            caption: videoDetails
+          }, { quoted: msg })
 
-        if (i < videos.length - 1) {
-          await new Promise(r => setTimeout(r, 1500))
+          if (i < videos.length - 1) {
+            await new Promise(r => setTimeout(r, 1500))
+          }
+        } catch (err) {
+          console.log(`Error enviando video: ${err.message}`)
         }
       }
 
       await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
     } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, {
-        text: global.messages?.error || '⚠️ Oh no, hubo un error en mi sistema. Intenta de nuevo.'
-      }, { quoted: msg })
+      console.error('Error YTS:', err.message)
+      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+    } finally {
+      activeUsers.delete(userId)
     }
   }
 }

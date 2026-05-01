@@ -1,10 +1,10 @@
-// plugins/tiktok.js
+// plugins/tiktok2.js
 
 import axios from 'axios'
 
 export default {
-  command: ['tiktok', 'tk', 'tt'],
-  tag: 'Tiktok',
+  command: ['tiktok', 'tt', 'tk'],
+  tag: 'tiktok',
   categoria: 'descargas',
   owner: false,
   group: false,
@@ -19,7 +19,7 @@ export default {
 
     const url = args[0]
 
-    if (!url.includes('tiktok.com') && !url.includes('vt.tiktok.com')) {
+    if (!url.includes('tiktok.com')) {
       return sock.sendMessage(from, {
         text: '🌱 *Ingresa una URL válida de TikTok*'
       }, { quoted: msg })
@@ -28,27 +28,23 @@ export default {
     try {
       await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
 
-      const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/tiktok?url=${encodeURIComponent(url)}`
-      const { data } = await axios.get(apiUrl, { timeout: 30000 })
+      const { data } = await axios.get(
+        `https://nayan-video-downloader.vercel.app/tikdown?url=${encodeURIComponent(url)}`,
+        { timeout: 30000 }
+      )
 
-      if (!data.status || !data.data) {
-        return sock.sendMessage(from, { text: '🌱 No se pudo descargar.' }, { quoted: msg })
+      const info = data?.data
+      if (!data?.status || !info?.video) {
+        return sock.sendMessage(from, { text: '🌱 No se pudo descargar el video.' }, { quoted: msg })
       }
-
-      const { video, author } = data.data
-      const videoUrl = video
-
-      if (!videoUrl) {
-        return sock.sendMessage(from, { text: '🌱 No se encontró video.' }, { quoted: msg })
-      }
-
-      const autor = author?.nickname || author?.unique_id || ''
 
       await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
 
-      const videoRes = await fetch(videoUrl)
-      if (!videoRes.ok) throw new Error('Error al descargar buffer')
-      const videoBuffer = Buffer.from(await videoRes.arrayBuffer())
+      const videoRes = await axios.get(info.video, {
+        responseType: 'arraybuffer',
+        timeout: 120000
+      })
+      const videoBuffer = Buffer.from(videoRes.data)
 
       await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
 
@@ -56,17 +52,17 @@ export default {
 
       if (sizeMB < 50) {
         await sock.sendMessage(from, {
-          video: videoBuffer,
-          caption: autor
+          video: videoBuffer
         }, { quoted: msg })
       } else {
         await sock.sendMessage(from, {
           document: videoBuffer,
           mimetype: 'video/mp4',
-          fileName: 'tiktok.mp4',
-          caption: autor
+          fileName: 'tiktok.mp4'
         }, { quoted: msg })
       }
+
+      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
     } catch (err) {
       console.error(err)

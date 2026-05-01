@@ -4,30 +4,30 @@ import axios from 'axios'
 import * as cheerio from 'cheerio'
 
 export default {
-  command: ['mediafire', 'mf'],
-  tag: 'mediafire',
+  command:   ['mediafire', 'mf'],
+  tag:       'mediafire',
   categoria: 'descargas',
-  owner: false,
-  group: false,
-  nsfw: false,
+  owner:     false,
+  group:     false,
+  nsfw:      false,
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {
-      return sock.sendMessage(from, {
-        text: '🌱 *Ingresa una URL de MediaFire*'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { react: { text: '🫢', key: msg.key } })
+      await sock.sendMessage(from, { text: '> Ingresa un enlace de MediaFire 🍃' }, { quoted: msg })
+      return
     }
 
     const url = args[0]
 
     if (!url.includes('mediafire.com')) {
-      return sock.sendMessage(from, {
-        text: '🌱 *Ingresa una URL válida de MediaFire*'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { react: { text: '🫢', key: msg.key } })
+      await sock.sendMessage(from, { text: '> Ingresa un enlace válido de MediaFire 🍃' }, { quoted: msg })
+      return
     }
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
       const res = await axios.get(url, {
         headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -43,7 +43,9 @@ export default {
       }
 
       if (!downloadLink) {
-        return sock.sendMessage(from, { text: '🌱 No se pudo obtener el enlace de descarga.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+        await sock.sendMessage(from, { text: '> No se pudo obtener el enlace de descarga 🍃' }, { quoted: msg })
+        return
       }
 
       const fileName = $('.filename').text().trim() || 'archivo'
@@ -61,9 +63,9 @@ export default {
       }
 
       if (sizeMB > 500) {
-        return sock.sendMessage(from, {
-          text: `🌱 *El archivo pesa ${sizeText}, excede el límite de 500 MB*`
-        }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        await sock.sendMessage(from, { text: `> El archivo pesa *${sizeText}*, excede el límite de 500 MB 🍃` }, { quoted: msg })
+        return
       }
 
       await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
@@ -76,18 +78,19 @@ export default {
 
       await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
 
-      await sock.sendMessage(from, {
+      const sentMsg = await sock.sendMessage(from, {
         document: fileBuffer,
         fileName: fileName,
         mimetype: 'application/octet-stream',
-        caption: `📁 *${fileName}*\n📦 ${sizeText}`
+        caption: `> ${fileName}\n> ${sizeText} 🍃`
       }, { quoted: msg })
+
+      await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
+      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
     } catch (err) {
       console.error(err)
-      await sock.sendMessage(from, {
-        text: global.messages?.error || '⚠️ Oh no, hubo un error en mi sistema. Intenta de nuevo.'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
     }
   }
 }

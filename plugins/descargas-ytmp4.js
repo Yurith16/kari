@@ -1,14 +1,28 @@
-// plugins/play2.js
+// plugins/ytmp4.js
 
-import axios from 'axios'
 import yts from 'yt-search'
+import axios from 'axios'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+import { writeFile, readFile, unlink } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { getVideo } from '../utils/video-api.js'
+
+const execFileAsync = promisify(execFile)
 
 const activeUsers = new Map()
 
+function limpiarUrl(url) {
+  return url
+    .replace(/m\.youtube\.com|music\.youtube\.com|www\.youtube\.com|youtube\.com\/shorts|youtu\.be/, 'youtube.com/watch')
+    .split('&feature=')[0]
+    .split('?si=')[0]
+}
+
 export default {
-  command:   'play2',
-  tag:       'play2',
+  command:   'ytmp4',
+  tag:       'ytmp4',
   categoria: 'descargas',
   owner:     false,
   group:     false,
@@ -29,11 +43,15 @@ export default {
     await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
     try {
-      let videoUrl = args[0]
-      let searchData = null
+      const input = args.join(' ')
+      const isUrl = /^https?:\/\//.test(input)
 
-      if (!videoUrl.match(/youtu/gi)) {
-        const search = await yts(`${args.join(' ')} video`)
+      let videoUrl, searchData
+
+      if (isUrl) {
+        videoUrl = limpiarUrl(input)
+      } else {
+        const search = await yts(`${input} video`)
         const video = search.videos.find(v => v.type === 'video') || search.videos[0]
         if (!video) throw new Error('Video no encontrado')
 
@@ -43,7 +61,6 @@ export default {
 
       let downloadUrl = null
       let title = searchData?.title || 'Video de YouTube'
-      let videoThumb = searchData?.thumbnail || global.bot?.defaultImg
 
       // Intentar primero con Nayan
       try {
@@ -65,7 +82,6 @@ export default {
         if (result?.url) {
           downloadUrl = result.url
           title = result.title || title
-          videoThumb = result.thumb || videoThumb
         }
       }
 
@@ -75,9 +91,34 @@ export default {
         return
       }
 
-      const head = await axios.head(downloadUrl, { timeout: 10000 }).catch(() => null)
-      const sizeBytes = parseInt(head?.headers?.['content-length'] || 0)
-      const sizeMB = sizeBytes > 0 ? parseFloat((sizeBytes / 1024 / 1024).toFixed(2)) : 0
+      await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+
+      const videoRes = await axios.get(downloadUrl, {
+        responseType: 'arraybuffer',
+        timeout: 120000
+      })
+      const rawBuffer = Buffer.from(videoRes.data)
+
+      const tmpInput = join(tmpdir(), `${Date.now()}_in.mp4`)
+      const tmpOutput = join(tmpdir(), `${Date.now()}_out.mp4`)
+
+      await writeFile(tmpInput, rawBuffer)
+
+      await execFileAsync('ffmpeg', [
+        '-i', tmpInput,
+        '-c', 'copy',
+        '-movflags', '+faststart',
+        '-threads', '0',
+        '-y',
+        tmpOutput
+      ])
+
+      const mp4Buffer = await readFile(tmpOutput)
+
+      await unlink(tmpInput).catch(() => {})
+      await unlink(tmpOutput).catch(() => {})
+
+      const sizeMB = mp4Buffer.length / (1024 * 1024)
 
       if (sizeMB > 400) {
         await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
@@ -85,35 +126,23 @@ export default {
         return
       }
 
+      await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+
       const botName = global.bot?.name || 'Midori-Hana'
       const cleanName = `${title.substring(0, 30).replace(/[<>:"/\\|?*]/g, '')} - ${botName}.mp4`
 
       const sentMsg = await sock.sendMessage(from, {
-        document: { url: downloadUrl },
+        document: mp4Buffer,
         mimetype: 'video/mp4',
         fileName: cleanName,
-        caption: ` `,
-        contextInfo: {
-          forwardingScore: 9999999,
-          isForwarded: true,
-          externalAdReply: {
-            showAdAttribution: false,
-            renderLargerThumbnail: false,
-            title: title,
-            body: botName,
-            containsAutoReply: true,
-            mediaType: 1,
-            thumbnailUrl: videoThumb,
-            sourceUrl: videoUrl
-          }
-        }
+        caption: ` `
       }, { quoted: msg })
 
-      if (sentMsg) await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
+      await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
       await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
     } catch (err) {
-      console.error('Error en Play2:', err.message)
+      console.error('Error en ytmp4:', err.message)
       await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
     } finally {
       activeUsers.delete(userId)

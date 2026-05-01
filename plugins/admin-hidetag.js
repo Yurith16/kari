@@ -1,5 +1,5 @@
 export default {
-  command:   'hidetag',
+  command:   'tag',
   tag:       'tag (mencionar a todos)',
   categoria: 'admin',
   owner:     false,

@@ -3,26 +3,28 @@
 import axios from 'axios'
 
 export default {
-  command: ['fb', 'facebook'],
-  tag: 'Facebook',
+  command:   ['facebook', 'fb', 'fbdl'],
+  tag:       'facebook',
   categoria: 'descargas',
-  owner: false,
-  group: false,
-  nsfw: false,
+  owner:     false,
+  group:     false,
+  nsfw:      false,
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {
-      return sock.sendMessage(from, {
+      await sock.sendMessage(from, {
         text: '🌱 *Ingresa una URL de Facebook*'
       }, { quoted: msg })
+      return
     }
 
     const url = args[0]
 
     if (!url.includes('facebook.com') && !url.includes('fb.com') && !url.includes('fb.watch')) {
-      return sock.sendMessage(from, {
+      await sock.sendMessage(from, {
         text: '🌱 *Ingresa una URL válida de Facebook*'
       }, { quoted: msg })
+      return
     }
 
     try {
@@ -32,47 +34,53 @@ export default {
       const { data } = await axios.get(apiUrl, { timeout: 30000 })
 
       if (!data.status || !data.data) {
-        return sock.sendMessage(from, { text: '🌱 No se pudo descargar el video.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+        await sock.sendMessage(from, { text: '> No se pudo descargar el video 🍃' }, { quoted: msg })
+        return
       }
 
       const videoUrl = data.data.high || data.data.low
       if (!videoUrl) {
-        return sock.sendMessage(from, { text: '🌱 No se encontró video en ese enlace.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+        await sock.sendMessage(from, { text: '> No se encontró video en ese enlace 🍃' }, { quoted: msg })
+        return
       }
 
       const titulo = data.data.title || 'Facebook'
 
       await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
 
-      const videoRes = await fetch(videoUrl)
-      if (!videoRes.ok) throw new Error('Error al descargar buffer')
-      const videoBuffer = Buffer.from(await videoRes.arrayBuffer())
+      const videoRes = await axios.get(videoUrl, {
+        responseType: 'arraybuffer',
+        timeout: 120000
+      })
+      const videoBuffer = Buffer.from(videoRes.data)
 
       await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
 
       const sizeMB = videoBuffer.length / (1024 * 1024)
 
       if (sizeMB < 50) {
-        // Video nativo
-        await sock.sendMessage(from, {
+        const sentMsg = await sock.sendMessage(from, {
           video: videoBuffer,
-          caption: `🎬 *${titulo}*`
+          caption: `> ${titulo} 🍃`
         }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
       } else {
-        // Documento
-        await sock.sendMessage(from, {
+        const sentMsg = await sock.sendMessage(from, {
           document: videoBuffer,
           mimetype: 'video/mp4',
           fileName: `${titulo}.mp4`,
-          caption: `🎬 *${titulo}*`
+          caption: `> ${titulo} 🍃`
         }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
       }
+
+      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
     } catch (err) {
       console.error(err)
-      await sock.sendMessage(from, {
-        text: global.messages?.error || '⚠️ Oh no, hubo un error en mi sistema. Intenta de nuevo.'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
     }
   }
 }

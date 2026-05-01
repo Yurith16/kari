@@ -1,38 +1,55 @@
 import { getGroup } from '../core/sqlite.js'
+import { toBold }   from '../utils/helpers.js'
 
 export default {
-  command: 'config',
-  owner:   false,
-  group:   false,
+  command:   'config',
+  tag:       'config',
+  categoria: 'main',
+  owner:     false,
+  group:     false,
+  nsfw:      false,
 
   async execute(sock, msg, { from, isOwner, isAdmin, isGroup }) {
     const f    = global.features || {}
-    const icon = (val) => val ? '🟢 on' : '⚪ off'
+    const on   = (val) => val === true || val === 1 ? '🟢 on' : '⚪ off'
+    const div  = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-    // Features globales
-    const global_list = [
-      `├ antiCall:     ${icon(f.antiCall)}`,
-      `├ autoRead:     ${icon(f.autoRead)}`,
-      `├ autoBio:      ${icon(f.autoBio)}`,
-      `├ antiSpam:     ${icon(f.antiSpam)}`,
-      `├ allowPrivate: ${icon(f.allowPrivate)}`,
-      `└ maintenance:  ${icon(f.maintenance)}`,
-    ].join('\n')
+    // Owner en privado o en grupo — muestra globales
+    // Admin en grupo — muestra solo del grupo
+    // Owner en grupo — muestra ambos
 
-    let group_list = '  Solo disponible en grupos.'
-    if (isGroup) {
-      const cfg = getGroup(from)
-      group_list = [
-        `├ antiLink:   ${icon(cfg.antiLink)}`,
-        `├ welcomeMsg: ${icon(cfg.welcomeMsg)}`,
-        `├ goodbyeMsg: ${icon(cfg.goodbyeMsg)}`,
-        `├ nsfw:       ${icon(cfg.nsfw)}`,
-        `└ adminMode:  ${icon(cfg.adminMode)}`,
-      ].join('\n')
+    let txt = `╭─〔 ${toBold('CONFIGURACION')} 〕\n│\n`
+
+    if (isOwner) {
+      txt += `│ ${toBold('Globales')}\n`
+      txt += `│ ${div}\n`
+      txt += `│ ✦ antiCall     ${on(f.antiCall)}\n`
+      txt += `│ ✦ autoRead     ${on(f.autoRead)}\n`
+      txt += `│ ✦ autoBio      ${on(f.autoBio)}\n`
+      txt += `│ ✦ antiSpam     ${on(f.antiSpam)}\n`
+      txt += `│ ✦ allowPrivate ${on(f.allowPrivate)}\n`
+      txt += `│ ✦ maintenance  ${on(f.maintenance)}\n`
+      txt += `│\n`
     }
 
-    await sock.sendMessage(from, {
-      text: `⚙️ *Configuración actual*\n\n🔒 *Globales (owner):*\n${global_list}\n\n👮 *Este grupo (admin):*\n${group_list}\n\n📌 Cambia con *.enable* o *.disable*`
-    }, { quoted: msg })
+    if (isGroup && (isOwner || isAdmin)) {
+      const cfg = getGroup(from)
+      txt += `│ ${toBold('Este grupo')}\n`
+      txt += `│ ${div}\n`
+      txt += `│ ✦ antiLink   ${on(cfg.antiLink)}\n`
+      txt += `│ ✦ welcomeMsg ${on(cfg.welcomeMsg)}\n`
+      txt += `│ ✦ goodbyeMsg ${on(cfg.goodbyeMsg)}\n`
+      txt += `│ ✦ nsfw       ${on(cfg.nsfw)}\n`
+      txt += `│ ✦ adminMode  ${on(cfg.adminMode)}\n`
+      txt += `│\n`
+    }
+
+    if (!isOwner && !isAdmin) {
+      await sock.sendMessage(from, { text: global.messages?.notAdmin }, { quoted: msg })
+      return
+    }
+
+    txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
+    await sock.sendMessage(from, { text: txt }, { quoted: msg })
   }
 }

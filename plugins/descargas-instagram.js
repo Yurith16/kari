@@ -3,26 +3,28 @@
 import axios from 'axios'
 
 export default {
-  command: ['ig', 'instagram'],
-  tag: 'Instagram',
+  command:   ['ig', 'instagram'],
+  tag:       'instagram',
   categoria: 'descargas',
-  owner: false,
-  group: false,
-  nsfw: false,
+  owner:     false,
+  group:     false,
+  nsfw:      false,
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {
-      return sock.sendMessage(from, {
+      await sock.sendMessage(from, {
         text: '🌱 *Ingresa una URL de Instagram*'
       }, { quoted: msg })
+      return
     }
 
     const url = args[0]
 
     if (!url.includes('instagram.com')) {
-      return sock.sendMessage(from, {
+      await sock.sendMessage(from, {
         text: '🌱 *Ingresa una URL válida de Instagram*'
       }, { quoted: msg })
+      return
     }
 
     try {
@@ -32,7 +34,9 @@ export default {
       const { data } = await axios.get(apiUrl, { timeout: 30000 })
 
       if (!data.status || !data.data?.length) {
-        return sock.sendMessage(from, { text: '🌱 No se pudo descargar.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+        await sock.sendMessage(from, { text: '> No se pudo descargar 🍃' }, { quoted: msg })
+        return
       }
 
       const media = data.data[0]
@@ -40,44 +44,51 @@ export default {
       const tipo = media.type
 
       if (!mediaUrl) {
-        return sock.sendMessage(from, { text: '🌱 No se encontró contenido.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+        await sock.sendMessage(from, { text: '> No se encontró contenido 🍃' }, { quoted: msg })
+        return
       }
 
       await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
 
-      const mediaRes = await fetch(mediaUrl)
-      if (!mediaRes.ok) throw new Error('Error al descargar buffer')
-      const mediaBuffer = Buffer.from(await mediaRes.arrayBuffer())
+      const mediaRes = await axios.get(mediaUrl, {
+        responseType: 'arraybuffer',
+        timeout: 120000
+      })
+      const mediaBuffer = Buffer.from(mediaRes.data)
 
       await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
 
       const sizeMB = mediaBuffer.length / (1024 * 1024)
 
       if (tipo === 'image') {
-        await sock.sendMessage(from, {
-          image: mediaBuffer,
-          caption: '📷 *Instagram*'
+        const sentMsg = await sock.sendMessage(from, {
+          image: mediaBuffer
         }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
       } else {
         if (sizeMB < 50) {
-          await sock.sendMessage(from, {
-            video: mediaBuffer,
-            caption: '🎬 *Instagram*'
+          const sentMsg = await sock.sendMessage(from, {
+            video: mediaBuffer
           }, { quoted: msg })
+          await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
         } else {
-          await sock.sendMessage(from, {
+          const sentMsg = await sock.sendMessage(from, {
             document: mediaBuffer,
             mimetype: 'video/mp4',
-            fileName: 'instagram.mp4',
-            caption: '🎬 *Instagram*'
+            fileName: 'instagram.mp4'
           }, { quoted: msg })
+          await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
         }
       }
 
+      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+
     } catch (err) {
       console.error(err)
+      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
       await sock.sendMessage(from, {
-        text: global.messages?.error || '⚠️ Oh no, hubo un error en mi sistema. Intenta de nuevo.'
+        text: global.messages?.error || '> Error en el sistema 🍃'
       }, { quoted: msg })
     }
   }

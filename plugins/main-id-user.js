@@ -1,5 +1,6 @@
 export default {
   command: 'id',
+  tag: 'id', 
   owner:   true,
   group:   false,
 

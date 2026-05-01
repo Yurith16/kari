@@ -1,3 +1,5 @@
+// utils/kar-api.js
+
 import axios from 'axios'
 import fg from 'fg-senna'
 
@@ -47,30 +49,6 @@ export async function getAudioApinexusV1(url) {
     }
   }
   throw new Error('Apinexus v1 falló')
-}
-
-// ─── API: Apinexus v3 (tercera opción) ────────────────────
-
-export async function getAudioApinexusV3(url) {
-  const response = await fetch('https://panel.apinexus.fun/api/youtube/v3/mp3', {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json', 
-      'x-api-key': 'antbx21e5jhac' 
-    },
-    body: JSON.stringify({ url })
-  })
-
-  const res = await response.json()
-
-  if (res && res.success && res.data?.audio) {
-    return {
-      url: res.data.audio,
-      title: res.data.titulo,
-      thumb: null
-    }
-  }
-  throw new Error('Apinexus v3 falló')
 }
 
 // ─── SCRAPER: ytmp3.gs ────────────────────────────────────
@@ -306,7 +284,6 @@ export async function getAudioFgSenna(url) {
 export const audioApis = [
   { name: 'Apinexus v2',        get: getAudioApinexusV2   },
   { name: 'Apinexus v1',        get: getAudioApinexusV1   },
-  { name: 'Apinexus v3',        get: getAudioApinexusV3   },
   { name: 'ytmp3.gs scraper',   get: getAudioYtmp3gs      },
   { name: 'PrinceTech yta',     get: getAudioPrinceYta    },
   { name: 'PrinceTech ytmp3',   get: getAudioPrinceYtmp3  },

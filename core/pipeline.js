@@ -42,8 +42,15 @@ async function resolveContext(sock, msg) {
   let isAdmin = false
   if (isGroup) {
     try {
-      const meta = await sock.groupMetadata(from)
-      isAdmin = meta.participants.some(p => cleanNumber(p.id) === userNum && p.admin)
+      const meta      = await sock.groupMetadata(from)
+      const senderRaw = cleanNumber(sender) // número sin resolver (puede ser @lid)
+      isAdmin = meta.participants.some(p =>
+        p.admin && (
+          cleanNumber(p.id) === userNum ||   // número real resuelto
+          p.id === sender ||                  // JID exacto
+          cleanNumber(p.id) === senderRaw    // número del @lid sin resolver
+        )
+      )
       if (meta.subject) updateGroupName(from, meta.subject)
     } catch {}
   }
@@ -56,7 +63,7 @@ async function resolveContext(sock, msg) {
 async function stepAntiLink(ctx, sock, msg) {
   if (!global.features?.antiLink)                 return false
   if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin) return false
-  if (!ctx.groupCfg?.antiLink)                    return false
+  if (!ctx.groupCfg?.antiLink || ctx.groupCfg?.antiLink !== 1)    return false
   if (!LINK_RE.test(extractText(msg)))            return false
   try {
     await sock.sendMessage(ctx.from, { delete: msg.key })
@@ -107,7 +114,7 @@ async function stepGuards(ctx, sock, msg) {
     return true
   }
 
-  if (ctx.isGroup && ctx.groupCfg?.adminMode && !ctx.isOwner && !ctx.isAdmin) {
+  if (ctx.isGroup && ctx.groupCfg?.adminMode === 1 && !ctx.isOwner && !ctx.isAdmin) {
     await sock.sendMessage(ctx.from, { text: msgs.adminOnly }, { quoted: msg })
     return true
   }
@@ -142,7 +149,7 @@ async function dispatch(ctx, sock, msg) {
   const cmd = commands.get(cmdName.toLowerCase())
   if (!cmd) return
 
-  if (cmd.nsfw && ctx.isGroup && !ctx.groupCfg?.nsfw && !ctx.isOwner) {
+  if (cmd.nsfw && ctx.isGroup && ctx.groupCfg?.nsfw !== 1 && !ctx.isOwner) {
     await sock.sendMessage(ctx.from, { text: global.messages?.nsfwDisabled }, { quoted: msg })
     return
   }
