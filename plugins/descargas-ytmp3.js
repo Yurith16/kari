@@ -97,7 +97,8 @@ export default {
       })
       const rawBuffer = Buffer.from(audioRes.data)
 
-      const tmpInput = join(tmpdir(), `${Date.now()}_in.m4a`)
+      // SIEMPRE convertir a MP3
+      const tmpInput = join(tmpdir(), `${Date.now()}_in.tmp`)
       const tmpOutput = join(tmpdir(), `${Date.now()}_out.mp3`)
 
       await writeFile(tmpInput, rawBuffer)

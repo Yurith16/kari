@@ -96,22 +96,17 @@ export default {
 
       await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
 
-      let finalBuffer
+      // Descargar el audio a archivo temporal
+      tempFile = path.join(TEMP_DIR, `${Date.now()}.tmp`)
+      const response = await fetch(audioUrl)
+      const buffer = Buffer.from(await response.arrayBuffer())
+      fs.writeFileSync(tempFile, buffer)
 
-      if (needsConversion) {
-        tempFile = path.join(TEMP_DIR, `${Date.now()}.tmp`)
-        const response = await fetch(audioUrl)
-        const buffer = Buffer.from(await response.arrayBuffer())
-        fs.writeFileSync(tempFile, buffer)
+      // SIEMPRE convertir a MP3
+      convertedFile = path.join(TEMP_DIR, `${Date.now()}.mp3`)
+      await execPromise(`"${ffmpegPath}" -i "${tempFile}" -acodec libmp3lame -ab 128k -ar 44100 -preset ultrafast "${convertedFile}" 2>/dev/null`)
 
-        convertedFile = path.join(TEMP_DIR, `${Date.now()}.mp3`)
-        await execPromise(`"${ffmpegPath}" -i "${tempFile}" -acodec libmp3lame -ab 128k -ar 44100 -preset ultrafast "${convertedFile}" 2>/dev/null`)
-
-        finalBuffer = fs.readFileSync(convertedFile)
-      } else {
-        const response = await fetch(audioUrl)
-        finalBuffer = Buffer.from(await response.arrayBuffer())
-      }
+      const finalBuffer = fs.readFileSync(convertedFile)
 
       const finalSizeMB = (finalBuffer.length / 1024 / 1024).toFixed(2)
       const botName = global.bot?.name || 'Midori-Hana'

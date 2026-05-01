@@ -3,6 +3,13 @@
 import axios from 'axios'
 import yts from 'yt-search'
 import { getVideo } from '../utils/video-api.js'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+import { writeFile, readFile, unlink } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
+
+const execFileAsync = promisify(execFile)
 
 const activeUsers = new Map()
 
@@ -75,9 +82,36 @@ export default {
         return
       }
 
-      const head = await axios.head(downloadUrl, { timeout: 10000 }).catch(() => null)
-      const sizeBytes = parseInt(head?.headers?.['content-length'] || 0)
-      const sizeMB = sizeBytes > 0 ? parseFloat((sizeBytes / 1024 / 1024).toFixed(2)) : 0
+      await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+
+      // Descargar video
+      const videoRes = await axios.get(downloadUrl, {
+        responseType: 'arraybuffer',
+        timeout: 120000
+      })
+      const rawBuffer = Buffer.from(videoRes.data)
+
+      // Convertir a MP4 sin re-encodeo (copia pura + faststart)
+      const tmpInput = join(tmpdir(), `${Date.now()}_in.mp4`)
+      const tmpOutput = join(tmpdir(), `${Date.now()}_out.mp4`)
+
+      await writeFile(tmpInput, rawBuffer)
+
+      await execFileAsync('ffmpeg', [
+        '-i', tmpInput,
+        '-c', 'copy',
+        '-movflags', '+faststart',
+        '-threads', '0',
+        '-y',
+        tmpOutput
+      ])
+
+      const mp4Buffer = await readFile(tmpOutput)
+
+      await unlink(tmpInput).catch(() => {})
+      await unlink(tmpOutput).catch(() => {})
+
+      const sizeMB = mp4Buffer.length / (1024 * 1024)
 
       if (sizeMB > 400) {
         await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
@@ -85,11 +119,13 @@ export default {
         return
       }
 
+      await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+
       const botName = global.bot?.name || 'Midori-Hana'
       const cleanName = `${title.substring(0, 30).replace(/[<>:"/\\|?*]/g, '')} - ${botName}.mp4`
 
       const sentMsg = await sock.sendMessage(from, {
-        document: { url: downloadUrl },
+        document: mp4Buffer,
         mimetype: 'video/mp4',
         fileName: cleanName,
         caption: ` `,
