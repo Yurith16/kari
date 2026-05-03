@@ -1,5 +1,3 @@
-// plugins/twitter.js
-
 import axios from 'axios'
 
 function toNum(number) {
@@ -16,26 +14,20 @@ export default {
   categoria: 'descargas',
   owner: false,
   group: false,
-  nsfw: false,
 
   async execute(sock, msg, { from, args }) {
-    if (!args.length) {
-      return sock.sendMessage(from, {
-        text: '🌱 *Ingresa una URL de Twitter/X*'
-      }, { quoted: msg })
-    }
-
     const url = args[0]
 
-    if (!url.includes('twitter.com') && !url.includes('x.com')) {
-      return sock.sendMessage(from, {
-        text: '🌱 *Ingresa una URL válida de Twitter/X*'
+    if (!url || (!url.includes('twitter.com') && !url.includes('x.com'))) {
+      await sock.sendMessage(from, {
+        text: '✦ Ingresa una URL de Twitter/X.\n\nEjemplo: *.x https://x.com/user/status/123*'
       }, { quoted: msg })
+      return
     }
 
-    try {
-      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
+    try {
       const normalized = url
         .replace(/x\.com/, 'twitter.com')
         .replace('twitter.com', 'api.vxtwitter.com')
@@ -43,21 +35,26 @@ export default {
       const { data } = await axios.get(normalized, { timeout: 30000 })
 
       if (!data?.media_extended?.length) {
-        return sock.sendMessage(from, { text: '🌱 No se encontró contenido multimedia.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+        await sock.sendMessage(from, { text: '✦ No se encontró contenido multimedia.' }, { quoted: msg })
+        return
       }
 
       const autor = data.user_name || ''
       const user = data.user_screen_name || ''
-      const caption = `🌱 ${autor} (@${user})\n❤️ ${toNum(data.likes)}`
+      const caption = `✦ *${autor}* (@${user})\n✦ ❤️ ${toNum(data.likes)}`
+
+      await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
 
       for (const item of data.media_extended) {
         const isVideo = item.type === 'video' || item.type === 'gif'
-        const mediaRes = await axios.get(item.url, { responseType: 'arraybuffer', timeout: 600000 })
+        const mediaRes = await axios.get(item.url, { responseType: 'arraybuffer', timeout: 60000 })
         const mediaBuffer = Buffer.from(mediaRes.data)
         const sizeMB = mediaBuffer.length / (1024 * 1024)
 
         if (isVideo) {
-          if (sizeMB < 50) {
+          await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+          if (sizeMB < 80) {
             await sock.sendMessage(from, {
               video: mediaBuffer,
               caption
@@ -66,7 +63,7 @@ export default {
             await sock.sendMessage(from, {
               document: mediaBuffer,
               mimetype: 'video/mp4',
-              fileName: 'twitter.mp4',
+              fileName: `twitter_${Date.now()}.mp4`,
               caption
             }, { quoted: msg })
           }
@@ -81,10 +78,8 @@ export default {
       await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
     } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, {
-        text: global.messages?.error || '⚠️ Oh no, hubo un error en mi sistema. Intenta de nuevo.'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+      await sock.sendMessage(from, { text: global.messages?.error || '✦ Error al procesar el enlace.' }, { quoted: msg })
     }
   }
 }

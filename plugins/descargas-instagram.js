@@ -1,5 +1,3 @@
-// plugins/instagram.js
-
 import axios from 'axios'
 
 export default {
@@ -8,46 +6,32 @@ export default {
   categoria: 'descargas',
   owner:     false,
   group:     false,
-  nsfw:      false,
 
   async execute(sock, msg, { from, args }) {
-    if (!args.length) {
-      await sock.sendMessage(from, {
-        text: '🌱 *Ingresa una URL de Instagram*'
-      }, { quoted: msg })
-      return
-    }
-
     const url = args[0]
 
-    if (!url.includes('instagram.com')) {
+    if (!url || !url.includes('instagram.com')) {
       await sock.sendMessage(from, {
-        text: '🌱 *Ingresa una URL válida de Instagram*'
+        text: '✦ Ingresa una URL de Instagram.\n\nEjemplo: *.ig https://www.instagram.com/reel/abcde123*'
       }, { quoted: msg })
       return
     }
 
-    try {
-      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
+    try {
       const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/igdl?url=${encodeURIComponent(url)}`
       const { data } = await axios.get(apiUrl, { timeout: 30000 })
 
       if (!data.status || !data.data?.length) {
         await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        await sock.sendMessage(from, { text: '> No se pudo descargar 🍃' }, { quoted: msg })
+        await sock.sendMessage(from, { text: global.messages?.error || '✦ No se pudo obtener el contenido.' }, { quoted: msg })
         return
       }
 
       const media = data.data[0]
       const mediaUrl = media.url
       const tipo = media.type
-
-      if (!mediaUrl) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        await sock.sendMessage(from, { text: '> No se encontró contenido 🍃' }, { quoted: msg })
-        return
-      }
 
       await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
 
@@ -56,40 +40,33 @@ export default {
         timeout: 120000
       })
       const mediaBuffer = Buffer.from(mediaRes.data)
+      const sizeMB = mediaBuffer.length / (1024 * 1024)
 
       await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
 
-      const sizeMB = mediaBuffer.length / (1024 * 1024)
-
       if (tipo === 'image') {
-        const sentMsg = await sock.sendMessage(from, {
+        await sock.sendMessage(from, {
           image: mediaBuffer
         }, { quoted: msg })
-        await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
       } else {
-        if (sizeMB < 50) {
-          const sentMsg = await sock.sendMessage(from, {
+        if (sizeMB <= 50) {
+          await sock.sendMessage(from, {
             video: mediaBuffer
           }, { quoted: msg })
-          await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
         } else {
-          const sentMsg = await sock.sendMessage(from, {
+          await sock.sendMessage(from, {
             document: mediaBuffer,
             mimetype: 'video/mp4',
-            fileName: 'instagram.mp4'
+            fileName: `instagram_${Date.now()}.mp4`
           }, { quoted: msg })
-          await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
         }
       }
 
       await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
     } catch (err) {
-      console.error(err)
       await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      await sock.sendMessage(from, {
-        text: global.messages?.error || '> Error en el sistema 🍃'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages?.error || '✦ Error al procesar la descarga.' }, { quoted: msg })
     }
   }
 }

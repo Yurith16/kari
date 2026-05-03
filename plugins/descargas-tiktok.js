@@ -1,74 +1,81 @@
-// plugins/tiktok2.js
-
-import axios from 'axios'
-
 export default {
-  command: ['tiktok', 'tt', 'tk'],
-  tag: 'tiktok',
+  command:   'tiktok',
+  tag:       'tiktok',
   categoria: 'descargas',
-  owner: false,
-  group: false,
-  nsfw: false,
+  owner:     false,
+  group:     false,
+  nsfw:      false,
 
   async execute(sock, msg, { from, args }) {
-    if (!args.length) {
-      return sock.sendMessage(from, {
-        text: '🌱 *Ingresa una URL de TikTok*'
-      }, { quoted: msg })
-    }
-
     const url = args[0]
 
-    if (!url.includes('tiktok.com')) {
-      return sock.sendMessage(from, {
-        text: '🌱 *Ingresa una URL válida de TikTok*'
+    if (!url || !url.includes('tiktok.com')) {
+      await sock.sendMessage(from, {
+        text: '✦ Ingresa una URL de TikTok.\n\nEjemplo: *.tiktok https://www.tiktok.com/@user/video/123*'
       }, { quoted: msg })
+      return
     }
 
+    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+
     try {
-      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
+      const res  = await fetch('https://panel.apinexus.fun/api/tiktok/descargar', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': 'antbx21e5jhac' },
+        body:    JSON.stringify({ url })
+      })
+      const json = await res.json()
 
-      const { data } = await axios.get(
-        `https://nayan-video-downloader.vercel.app/tikdown?url=${encodeURIComponent(url)}`,
-        { timeout: 30000 }
-      )
-
-      const info = data?.data
-      if (!data?.status || !info?.video) {
-        return sock.sendMessage(from, { text: '🌱 No se pudo descargar el video.' }, { quoted: msg })
+      if (!json.success || !json.data?.videoUrl) {
+        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+        await sock.sendMessage(from, { text: global.messages?.error }, { quoted: msg })
+        return
       }
+
+      const { titulo, autor, likes, reproducciones, videoUrl, thumbnail } = json.data
 
       await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
 
-      const videoRes = await axios.get(info.video, {
-        responseType: 'arraybuffer',
-        timeout: 120000
-      })
-      const videoBuffer = Buffer.from(videoRes.data)
+      const videoRes    = await fetch(videoUrl)
+      const videoBuffer = Buffer.from(await videoRes.arrayBuffer())
+      const sizeMB      = videoBuffer.length / (1024 * 1024)
 
       await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
 
-      const sizeMB = videoBuffer.length / (1024 * 1024)
+      const caption = `✦ *${titulo}*\n` +
+        `✦ ${autor}  ·  ${(reproducciones / 1e6).toFixed(1)}M vistas  ·  ${(likes / 1e3).toFixed(1)}K likes`
 
-      if (sizeMB < 50) {
+      if (sizeMB <= 50) {
         await sock.sendMessage(from, {
-          video: videoBuffer
+          video:   videoBuffer,
+          caption
         }, { quoted: msg })
       } else {
         await sock.sendMessage(from, {
           document: videoBuffer,
           mimetype: 'video/mp4',
-          fileName: 'tiktok.mp4'
+          fileName: `${titulo.slice(0, 50).replace(/[\\/:*?"<>|]/g, '')}.mp4`,
+          caption,
+          ...(thumbnail ? {
+            contextInfo: {
+              externalAdReply: {
+                title:                 titulo,
+                body:                  global.bot?.name || 'Bot',
+                thumbnailUrl:          thumbnail,
+                sourceUrl:             url,
+                mediaType:             1,
+                renderLargerThumbnail: true
+              }
+            }
+          } : {})
         }, { quoted: msg })
       }
 
       await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
-    } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, {
-        text: global.messages?.error || '⚠️ Oh no, hubo un error en mi sistema. Intenta de nuevo.'
-      }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+      await sock.sendMessage(from, { text: global.messages?.error }, { quoted: msg })
     }
   }
 }

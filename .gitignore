@@ -21,6 +21,8 @@ logs/
 
 # Base de datos (si usas SQLite, etc.)
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 database/*.json

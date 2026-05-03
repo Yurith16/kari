@@ -1,242 +1,116 @@
 import axios from 'axios'
-import yts from 'yt-search'
-import { getVideo } from '../utils/video-api.js'
-import { execFile } from 'child_process'
-import { promisify } from 'util'
-import { writeFile, readFile, unlink } from 'fs/promises'
-import { existsSync } from 'fs'
-import { tmpdir } from 'os'
-import { join } from 'path'
+import { CookieJar } from 'tough-cookie'
+import { wrapper } from 'axios-cookiejar-support'
+import ytSearch from 'yt-search'
 
-const execFileAsync = promisify(execFile)
-const activeUsers   = new Map()
+const BASE = 'https://app.ytdown.to'
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
-async function downloadWithRetry(url, timeout = 600000) {
-  const response = await axios.get(url, {
-    responseType:     'arraybuffer',
-    timeout,
-    maxContentLength: Infinity,
-    maxBodyLength:    Infinity
-  })
-  return Buffer.from(response.data)
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+const HEADERS = {
+  'Content-Type': 'application/x-www-form-urlencoded',
+  'x-requested-with': 'XMLHttpRequest',
+  'Origin': BASE,
+  'Referer': BASE + '/en23/',
 }
 
-async function splitVideo(inputPath, totalPartes) {
-  const chunks = []
+async function postProxy(client, url) {
+  const body = new URLSearchParams({ url }).toString()
+  const { data } = await client.post(`${BASE}/proxy.php`, body, { headers: HEADERS })
+  return (typeof data === 'object' ? data : JSON.parse(data))?.api
+}
 
-  // Obtener duración real con ffprobe
-  let duration = 0
-  try {
-    const { stdout } = await execFileAsync('ffprobe', [
-      '-v', 'quiet', '-print_format', 'json', '-show_format', inputPath
-    ])
-    duration = parseFloat(JSON.parse(stdout).format?.duration) || 0
-  } catch {}
-
-  if (duration <= 0) return []
-
-  // Dividir duración en partes iguales — garantiza tamaños similares
-  const chunkDuration = duration / totalPartes
-  let startTime = 0
-
-  for (let i = 0; i < totalPartes; i++) {
-    const outPath = join(tmpdir(), `chunk_${Date.now()}_${i}.mp4`)
-    const dur     = i === totalPartes - 1
-      ? duration - startTime   // última parte toma el resto exacto
-      : chunkDuration
-
-    await execFileAsync('ffmpeg', [
-      '-i', inputPath,
-      '-ss', startTime.toFixed(3),
-      '-t',  dur.toFixed(3),
-      '-c',  'copy',
-      '-avoid_negative_ts', 'make_zero',
-      '-movflags', '+faststart',
-      '-threads', '0',
-      '-y',
-      outPath
-    ])
-
-    chunks.push(outPath)
-    startTime += chunkDuration
+async function poll(client, workerUrl) {
+  for (let i = 1; i <= 15; i++) {
+    const api = await postProxy(client, workerUrl)
+    if (api?.status === 'completed' && api.fileUrl) return api.fileUrl
+    if (api?.status === 'error') throw new Error('Worker error')
+    if (i < 15) await sleep(2500)
   }
-
-  return chunks
+  throw new Error('Tiempo agotado')
 }
 
 export default {
-  command:   'play2',
-  tag:       'play2',
+  command: ['play2','ytmp4'],
+  tag: 'descargas',
   categoria: 'descargas',
-  owner:     false,
-  group:     false,
-  nsfw:      false,
+  owner: false,
+  group: false,
 
   async execute(sock, msg, { from, args }) {
-    const userId = msg.key.participant || from
-    if (activeUsers.has(userId)) return
-
-    if (!args[0]) {
-      await sock.sendMessage(from, { react: { text: '🫢', key: msg.key } })
-      await sock.sendMessage(from, {
-        text: '✦ Ingresa el nombre o URL del video que deseas descargar.\n\nEjemplo: *.play2 despacito*'
-      }, { quoted: msg })
+    if (!args.length) {
+      await sock.sendMessage(from, { text: '✦ Ingresa el nombre o URL de un video de YouTube.' }, { quoted: msg })
       return
     }
 
-    activeUsers.set(userId, true)
+    const query = args.join(' ')
+    const isUrl = query.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]{11}/)
+
     await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
-    let tempInput  = null
-    let tempOutput = null
-    let chunkPaths = []
-
     try {
-      let videoUrl   = args[0]
-      let searchData = null
+      let videoUrl = query
+      let title, thumbnail
 
-      if (!videoUrl.match(/youtu/gi)) {
-        const search = await yts(`${args.join(' ')} video`)
-        const video  = search.videos.find(v => v.type === 'video') || search.videos[0]
-        if (!video) throw new Error('Video no encontrado')
-        videoUrl   = video.url
-        searchData = video
+      if (!isUrl) {
+        const search = await ytSearch(query)
+        if (!search.videos.length) return await sock.sendMessage(from, { text: '✦ No se encontraron resultados.' }, { quoted: msg })
+        videoUrl = search.videos[0].url
+        title = search.videos[0].title
+        thumbnail = search.videos[0].thumbnail
+      } else {
+        const videoId = isUrl[0].split('v=')[1] || isUrl[0].split('/').pop()
+        thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
       }
 
-      let downloadUrl = null
-      let title       = searchData?.title || 'Video de YouTube'
-      let videoThumb  = searchData?.thumbnail || global.bot?.defaultImg
+      const jar = new CookieJar()
+      const client = wrapper(axios.create({ jar, withCredentials: true, timeout: 30000, headers: { 'User-Agent': UA } }))
+      await client.get(`${BASE}/`)
 
-      // API 1: Nayan
-      try {
-        const { data } = await axios.get(
-          `https://nayan-video-downloader.vercel.app/ytdown?url=${encodeURIComponent(videoUrl)}`,
-          { timeout: 30000 }
-        )
-        if (data?.status && data?.data?.video) {
-          downloadUrl = data.data.video
-          title       = data.data.title || title
-        }
-      } catch {}
+      const api = await postProxy(client, videoUrl)
+      if (!api || api.status === 'error') throw new Error('API Error')
 
-      // API 2: video-api.js
-      if (!downloadUrl) {
-        const result = await getVideo(videoUrl)
-        if (result?.url) {
-          downloadUrl = result.url
-          title       = result.title || title
-          videoThumb  = result.thumb || videoThumb
-        }
-      }
+      title = title || api.title
 
-      if (!downloadUrl) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        await sock.sendMessage(from, { text: global.messages?.error }, { quoted: msg })
-        return
-      }
+      await sock.sendMessage(from, {
+        image: { url: thumbnail },
+        caption: `✦ *${title}*\n\nProcesando pedido...`
+      }, { quoted: msg })
+
+      let opciones = api.mediaItems.filter(m => m.mediaExtension?.toLowerCase() === 'mp4')
+      if (!opciones.length) throw new Error('No MP4 found')
+
+      let elegido = opciones.find(m => String(m.mediaRes).includes('360')) || 
+                    opciones.find(m => String(m.mediaRes).includes('480')) || 
+                    opciones[0]
 
       await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
 
-      tempInput         = join(tmpdir(), `${Date.now()}_in.mp4`)
-      const videoBuffer = await downloadWithRetry(downloadUrl)
-      await writeFile(tempInput, videoBuffer)
-
-      tempOutput = join(tmpdir(), `${Date.now()}_out.mp4`)
-      await execFileAsync('ffmpeg', [
-        '-i', tempInput,
-        '-c', 'copy',
-        '-movflags', '+faststart',
-        '-threads', '0',
-        '-y',
-        tempOutput
-      ])
-
-      const finalBuffer = await readFile(tempOutput)
-      const finalSizeMB = finalBuffer.length / (1024 * 1024)
-      const botName     = global.bot?.name || 'Midori-Hana'
+      const downloadUrl = await poll(client, elegido.mediaUrl)
+      const videoRes = await axios.get(downloadUrl, { responseType: 'arraybuffer' })
+      const videoBuffer = Buffer.from(videoRes.data)
+      const sizeMB = videoBuffer.length / (1024 * 1024)
 
       await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
 
-      if (finalSizeMB <= 400) {
-        // Sube directo — WhatsApp lo maneja sin problema
-        const cleanName = `${title.substring(0, 30).replace(/[<>:"/\\|?*]/g, '')} - ${botName}.mp4`
-        const sentMsg   = await sock.sendMessage(from, {
-          document: finalBuffer,
-          mimetype: 'video/mp4',
-          fileName: cleanName,
-          caption:  ' ',
-          contextInfo: {
-            forwardingScore: 9999999,
-            isForwarded:     true,
-            externalAdReply: {
-              showAdAttribution:    false,
-              renderLargerThumbnail: false,
-              title,
-              body:               botName,
-              containsAutoReply:  true,
-              mediaType:          1,
-              thumbnailUrl:       videoThumb,
-              sourceUrl:          videoUrl
-            }
-          }
-        }, { quoted: msg })
-        if (sentMsg) await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
-
-      } else {
-        // Calcular partes necesarias para que ninguna supere 300MB
-        const partes = Math.ceil(finalSizeMB / 300)
-
+      if (sizeMB > 80) {
         await sock.sendMessage(from, {
-          text: `⚠️ *El video pesa ${finalSizeMB.toFixed(0)} MB y será enviado en ${partes} partes. Un momento... 🌿*`
+          document: videoBuffer,
+          mimetype: 'video/mp4',
+          fileName: `${title.slice(0, 30)}.mp4`
         }, { quoted: msg })
-
-        await new Promise(r => setTimeout(r, 1500))
-
-        // Pasar partes calculadas para que cada chunk no supere 300MB
-        chunkPaths = await splitVideo(tempOutput, partes)
-
-        for (let i = 0; i < chunkPaths.length; i++) {
-          const chunkBuffer = await readFile(chunkPaths[i])
-          const cleanName   = `${title.substring(0, 20)}_parte${i + 1} - ${botName}.mp4`
-
-          const sentMsg = await sock.sendMessage(from, {
-            document: chunkBuffer,
-            mimetype: 'video/mp4',
-            fileName: cleanName,
-            caption:  `✦ ${title}\n✦ Parte ${i + 1} de ${chunkPaths.length} 🌿`,
-            contextInfo: {
-              forwardingScore: 9999999,
-              isForwarded:     true,
-              externalAdReply: {
-                showAdAttribution:    false,
-                renderLargerThumbnail: false,
-                title:              `${title} (${i + 1}/${chunkPaths.length})`,
-                body:               botName,
-                containsAutoReply:  true,
-                mediaType:          1,
-                thumbnailUrl:       videoThumb,
-                sourceUrl:          videoUrl
-              }
-            }
-          }, { quoted: msg })
-
-          if (sentMsg && i === 0) await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
-          await new Promise(r => setTimeout(r, 1500))
-        }
+      } else {
+        await sock.sendMessage(from, {
+          video: videoBuffer
+        }, { quoted: msg })
       }
 
       await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
     } catch (err) {
-      console.error('Error en Play2:', err.message)
       await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-    } finally {
-      if (tempInput  && existsSync(tempInput))  await unlink(tempInput).catch(() => {})
-      if (tempOutput && existsSync(tempOutput)) await unlink(tempOutput).catch(() => {})
-      for (const chunk of chunkPaths) {
-        if (existsSync(chunk)) await unlink(chunk).catch(() => {})
-      }
-      activeUsers.delete(userId)
+      await sock.sendMessage(from, { text: global.messages?.error || '✦ Hubo un problema con la descarga.' }, { quoted: msg })
     }
   }
 }

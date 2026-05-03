@@ -1,142 +1,106 @@
-// plugins/play.js
-
-import fs from 'fs'
-import path from 'path'
-import { exec } from 'child_process'
-import ffmpegPath from 'ffmpeg-static'
-import yts from 'yt-search'
 import axios from 'axios'
-import { getAudio } from '../utils/kar-api.js'
+import { CookieJar } from 'tough-cookie'
+import { wrapper } from 'axios-cookiejar-support'
+import ytSearch from 'yt-search'
 
-const TEMP_DIR = path.join(process.cwd(), 'tmp', 'audio')
-if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true })
+const BASE = 'https://app.ytdown.to'
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
-function execPromise(cmd) {
-  return new Promise((resolve, reject) => {
-    exec(cmd, (err) => (err ? reject(err) : resolve()))
-  })
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+const HEADERS = {
+  'Content-Type': 'application/x-www-form-urlencoded',
+  'x-requested-with': 'XMLHttpRequest',
+  'Origin': BASE,
+  'Referer': BASE + '/en23/',
+}
+
+async function postProxy(client, url) {
+  const body = new URLSearchParams({ url }).toString()
+  const { data } = await client.post(`${BASE}/proxy.php`, body, { headers: HEADERS })
+  return (typeof data === 'object' ? data : JSON.parse(data))?.api
+}
+
+async function poll(client, workerUrl) {
+  for (let i = 1; i <= 15; i++) {
+    const api = await postProxy(client, workerUrl)
+    if (api?.status === 'completed' && api.fileUrl) return api.fileUrl
+    if (api?.status === 'error') throw new Error('Worker error')
+    if (i < 15) await sleep(2500)
+  }
+  throw new Error('Tiempo agotado')
 }
 
 export default {
-  command:   ['play'],
-  tag:       'play',
+  command: ['play', 'ytmp3'],
+  tag: 'descargas',
   categoria: 'descargas',
-  owner:     false,
-  group:     false,
-  nsfw:      false,
+  owner: false,
+  group: false,
 
   async execute(sock, msg, { from, args }) {
-    if (!args[0]) {
-      await sock.sendMessage(from, { react: { text: '🫢', key: msg.key } })
-      await sock.sendMessage(from, { text: '> Ups!! Olvidaste colocar el nombre bb 🤭' }, { quoted: msg })
+    if (!args.length) {
+      await sock.sendMessage(from, { text: '✦ Ingresa el nombre o URL de la música.' }, { quoted: msg })
       return
     }
 
+    const query = args.join(' ')
+    const isUrl = query.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]{11}/)
+
     await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
-    let tempFile = null
-    let convertedFile = null
-
     try {
-      let videoUrl = args[0]
-      let videoTitle = ''
-      let duration = '0:00'
-      let ytThumb = ''
+      let videoUrl = query
+      let title, thumbnail
 
-      if (!videoUrl.match(/youtu/gi)) {
-        const search = await yts(args.join(' '))
-        const video = search.videos.find(v => v.type === 'video') || search.videos[0]
-
-        if (!video) throw new Error('No encontrado')
-        videoUrl = video.url
-        videoTitle = video.title
-        duration = video.timestamp
-        ytThumb = video.thumbnail
+      if (!isUrl) {
+        const search = await ytSearch(query)
+        if (!search.videos.length) return await sock.sendMessage(from, { text: '✦ No se encontraron resultados.' }, { quoted: msg })
+        videoUrl = search.videos[0].url
+        title = search.videos[0].title
+        thumbnail = search.videos[0].thumbnail
       } else {
-        const search = await yts({ videoId: videoUrl.split('v=')[1] || videoUrl.split('/').pop() })
-        ytThumb = search.thumbnail || search.image
-        videoTitle = search.title
-        duration = search.timestamp
+        const videoId = isUrl[0].split('v=')[1] || isUrl[0].split('/').pop()
+        thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
       }
 
-      let audioUrl = null
-      let title = videoTitle || 'audio'
-      let thumb = ytThumb || global.bot?.defaultImg
-      let needsConversion = false
+      const jar = new CookieJar()
+      const client = wrapper(axios.create({ jar, withCredentials: true, timeout: 30000, headers: { 'User-Agent': UA } }))
+      await client.get(`${BASE}/`)
 
-      // Intentar primero con Nayan
-      try {
-        const { data } = await axios.get(
-          `https://nayan-video-downloader.vercel.app/ytdown?url=${encodeURIComponent(videoUrl)}`,
-          { timeout: 30000 }
-        )
+      const api = await postProxy(client, videoUrl)
+      if (!api || api.status === 'error') throw new Error('API Error')
 
-        if (data?.status && data?.data?.audio) {
-          audioUrl = data.data.audio
-          title = data.data.title || title
-        }
-      } catch {}
+      title = title || api.title
 
-      // Si Nayan falló, usar kar-api.js
-      if (!audioUrl) {
-        const result = await getAudio(videoUrl)
-        if (result?.url) {
-          audioUrl = result.url
-          title = result.title || title
-          thumb = ytThumb || result.thumb || thumb
-          needsConversion = result.needsConversion || false
-        }
-      }
+      await sock.sendMessage(from, {
+        image: { url: thumbnail },
+        caption: `✦ *${title}*\n\nProcesando pedido...`
+      }, { quoted: msg })
 
-      if (!audioUrl) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        await sock.sendMessage(from, { text: '> No se pudo descargar el audio 🍃' }, { quoted: msg })
-        return
-      }
+      let opciones = api.mediaItems.filter(m => m.mediaExtension?.toLowerCase() === 'mp3')
+      if (!opciones.length) throw new Error('No MP3 found')
+
+      let elegido = opciones[0]
 
       await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
 
-      // Descargar el audio a archivo temporal
-      tempFile = path.join(TEMP_DIR, `${Date.now()}.tmp`)
-      const response = await fetch(audioUrl)
-      const buffer = Buffer.from(await response.arrayBuffer())
-      fs.writeFileSync(tempFile, buffer)
+      const downloadUrl = await poll(client, elegido.mediaUrl)
+      const audioRes = await axios.get(downloadUrl, { responseType: 'arraybuffer' })
+      const audioBuffer = Buffer.from(audioRes.data)
 
-      // SIEMPRE convertir a MP3
-      convertedFile = path.join(TEMP_DIR, `${Date.now()}.mp3`)
-      await execPromise(`"${ffmpegPath}" -i "${tempFile}" -acodec libmp3lame -ab 128k -ar 44100 -preset ultrafast "${convertedFile}" 2>/dev/null`)
+      await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
 
-      const finalBuffer = fs.readFileSync(convertedFile)
-
-      const finalSizeMB = (finalBuffer.length / 1024 / 1024).toFixed(2)
-      const botName = global.bot?.name || 'Midori-Hana'
-      const cleanName = `${title.substring(0, 30).replace(/[<>:"/\\|?*]/g, '')} - ${botName}`
-
-      const sentMsg = await sock.sendMessage(from, {
-        audio: finalBuffer,
-        mimetype: 'audio/mpeg',
-        fileName: `${cleanName}.mp3`,
-        contextInfo: {
-          externalAdReply: {
-            title: `🎵 ${title}`,
-            body: `${duration} • ${finalSizeMB} MB • YouTube`,
-            thumbnailUrl: thumb,
-            sourceUrl: videoUrl,
-            mediaType: 1,
-            renderLargerThumbnail: true
-          }
-        }
+      await sock.sendMessage(from, {
+        audio: audioBuffer,
+        mimetype: 'audio/mpeg'
       }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: '🍃', key: sentMsg.key } })
       await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
     } catch (err) {
-      console.error('Error en Play:', err.message)
       await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-    } finally {
-      if (tempFile && fs.existsSync(tempFile)) fs.unlinkSync(tempFile)
-      if (convertedFile && fs.existsSync(convertedFile)) fs.unlinkSync(convertedFile)
+      await sock.sendMessage(from, { text: global.messages?.error || '✦ Hubo un problema con la descarga.' }, { quoted: msg })
     }
   }
 }

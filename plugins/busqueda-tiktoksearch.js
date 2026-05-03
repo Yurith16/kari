@@ -25,9 +25,10 @@ export default {
       const { data } = await axios.post('https://tikwm.com/api/feed/search',
         new URLSearchParams({
           keywords: query,
-          count: '10',
+          count: '12',
           cursor: '0',
-          HD: '1'
+          HD: '1',
+          web: '1'
         }),
         {
           headers: {
@@ -43,11 +44,14 @@ export default {
         return sock.sendMessage(from, { text: '🌱 No se encontraron videos.' }, { quoted: msg })
       }
 
-      // Extraer todas las URLs válidas
+      // Extraer URLs válidas y completar rutas relativas
       const urlsValidas = []
       for (const v of videos) {
-        const url = v.play || v.wmplay || v.hdplay
-        if (url) urlsValidas.push({ url, v })
+        let url = v.play || v.wmplay || v.hdplay
+        if (!url) continue
+        // Completar URLs relativas
+        if (url.startsWith('/')) url = 'https://tikwm.com' + url
+        urlsValidas.push({ url, v })
       }
 
       if (!urlsValidas.length) {
@@ -58,7 +62,6 @@ export default {
       let enviados = 0
       let intentos = 0
 
-      // Seguir intentando hasta enviar 5 o agotar URLs
       while (enviados < 5 && intentos < urlsValidas.length) {
         const { url, v } = urlsValidas[intentos]
         intentos++
@@ -73,7 +76,6 @@ export default {
 
           if (sizeMB > 80 || sizeMB === 0) continue
 
-          // Crear álbum justo antes del primer video
           if (!albumKey) {
             const album = sock.generateWAMessageFromContent(from, {
               messageContextInfo: {},
@@ -89,7 +91,6 @@ export default {
                 }
               }
             }, {})
-
             await sock.relayMessage(from, album.message, { messageId: album.key.id })
             albumKey = album.key
           }
@@ -110,11 +111,9 @@ export default {
           }
 
           await sock.relayMessage(from, mediaMsg.message, { messageId: mediaMsg.key.id })
-
           enviados++
 
         } catch {
-          // Falló este video, intentar con el siguiente
           continue
         }
       }

@@ -1,106 +1,125 @@
-// plugins/pinterest.js
+// plugins/pinterestdl.js
 
 import axios from 'axios'
 
-const activeUsers = new Map()
+async function downloadPinterest(url) {
+  const pageRes = await axios.get('https://convertico.com/es/descargador-de-Pinterest/', {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:147.0) Gecko/20100101 Firefox/147.0'
+    },
+    timeout: 15000
+  })
 
-async function pinterestSearch(query) {
-  try {
-    const response = await axios.post('https://panel.apinexus.fun/api/pinterest/buscar', 
-      { query: query },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': 'antbx21e5jhac'
-        },
-        timeout: 20000
-      }
-    )
+  const cookies = pageRes.headers['set-cookie'] || []
+  const cookieStr = cookies.map(c => c.split(';')[0]).join('; ')
 
-    if (!response.data?.success || !response.data?.data?.imagenes) {
-      throw new Error('Sin resultados')
+  const html = pageRes.data
+  const tMatch = html.match(/t:\s*['"](\d+)['"]/)
+  const hMatch = html.match(/h:\s*['"]([a-f0-9]+)['"]/)
+
+  if (!tMatch || !hMatch) throw new Error('No se pudieron obtener los tokens de sesión')
+
+  const t = tMatch[1]
+  const h = hMatch[1]
+
+  const { data } = await axios.post(
+    'https://convertico.com/es/descargador-de-Pinterest/process.php',
+    { url, t, h },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:147.0) Gecko/20100101 Firefox/147.0',
+        'Origin': 'https://convertico.com',
+        'Referer': 'https://convertico.com/es/descargador-de-Pinterest/',
+        'Cookie': cookieStr
+      },
+      timeout: 30000
     }
+  )
 
-    const imagenes = response.data.data.imagenes.slice(0, 5)
+  if (!data.success) throw new Error('No se pudo obtener el contenido')
 
-    if (!imagenes.length) throw new Error('Sin resultados válidos')
-
-    return imagenes.map(url => ({ imageUrl: url }))
-
-  } catch (error) {
-    throw new Error('No se pudo obtener resultados')
+  return {
+    images: data.images || [],
+    videos: data.videos || [],
+    t,
+    h,
+    cookieStr
   }
 }
 
+async function downloadMedia(mediaUrl, t, h, cookieStr) {
+  const downloadUrl = `https://convertico.com/es/descargador-de-Pinterest/process.php?download=${Buffer.from(mediaUrl).toString('base64')}&filename=pin&t=${t}&h=${h}`
+
+  const response = await axios.get(downloadUrl, {
+    responseType: 'arraybuffer',
+    timeout: 120000,
+    maxRedirects: 5,
+    headers: { 'Cookie': cookieStr }
+  })
+
+  return Buffer.from(response.data)
+}
+
 export default {
-  command:   ['pinterest', 'pin'],
-  tag:       'pinterest',
-  categoria: 'busqueda',
+  command:   ['pinterestdl', 'pindl'],
+  tag:       'pinterestdl',
+  categoria: 'descargas',
   owner:     false,
   group:     false,
   nsfw:      false,
 
   async execute(sock, msg, { from, args }) {
-    const userId = msg.key.participant || from
-
-    if (activeUsers.has(userId)) return
-
-    if (!args[0]) {
-      await sock.sendMessage(from, { react: { text: '🫢', key: msg.key } })
-      await sock.sendMessage(from, { text: '> ¿Qué deseas buscar en Pinterest? 🍃' }, { quoted: msg })
-      return
+    if (!args.length) {
+      return sock.sendMessage(from, {
+        text: '🌱 *Ingresa una URL de Pinterest*\n\nEjemplo: *.pindl https://pin.it/vm3LEeeRU*'
+      }, { quoted: msg })
     }
 
-    activeUsers.set(userId, true)
-    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+    const url = args[0]
+    if (!url.includes('pin.it') && !url.includes('pinterest.com')) {
+      return sock.sendMessage(from, { text: '🌱 *Ingresa una URL válida de Pinterest*' }, { quoted: msg })
+    }
 
     try {
-      const query = args.join(' ')
-      const imagenes = await pinterestSearch(query)
+      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
 
-      if (!imagenes.length) throw new Error('Sin resultados')
+      const { images, videos, t, h, cookieStr } = await downloadPinterest(url)
 
-      const album = sock.generateWAMessageFromContent(from, {
-        messageContextInfo: {},
-        albumMessage: {
-          expectedImageCount: imagenes.length,
-          expectedVideoCount: 0,
-          contextInfo: {
-            remoteJid: msg.key.remoteJid,
-            fromMe: msg.key.fromMe,
-            stanzaId: msg.key.id,
-            participant: msg.key.participant || msg.key.remoteJid,
-            quotedMessage: msg.message,
-          }
-        }
-      }, {})
-
-      await sock.relayMessage(from, album.message, { messageId: album.key.id })
-
-      for (let i = 0; i < imagenes.length; i++) {
-        const img = imagenes[i]
-        const mediaMsg = await sock.generateWAMessage(from, {
-          image: { url: img.imageUrl },
-          caption: i === 0 ? `> Aquí tiene su pedido @${userId.split('@')[0]} 🍃` : '',
-          ...(i === 0 ? { mentions: [userId] } : {})
-        }, { upload: sock.waUploadToServer })
-
-        mediaMsg.message.messageContextInfo = {
-          messageAssociation: { associationType: 1, parentMessageKey: album.key }
-        }
-
-        await sock.relayMessage(from, mediaMsg.message, { messageId: mediaMsg.key.id })
-        await new Promise(resolve => setTimeout(resolve, 500))
+      if (!images.length && !videos.length) {
+        return sock.sendMessage(from, { text: '🌱 No se encontró contenido.' }, { quoted: msg })
       }
 
+      if (videos.length) {
+        const video = videos[0]
+        await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+        const videoBuffer = await downloadMedia(video.url, t, h, cookieStr)
+        await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+
+        const sizeMB = videoBuffer.length / (1024 * 1024)
+        if (sizeMB < 50) {
+          await sock.sendMessage(from, { video: videoBuffer }, { quoted: msg })
+        } else {
+          await sock.sendMessage(from, {
+            document: videoBuffer,
+            mimetype: 'video/mp4',
+            fileName: 'pinterest.mp4'
+          }, { quoted: msg })
+        }
+      } else if (images.length) {
+        const bestImage = images.find(i => i.quality === 'Original') || images[0]
+        await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+        const imgBuffer = await downloadMedia(bestImage.url, t, h, cookieStr)
+        await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+        await sock.sendMessage(from, { image: imgBuffer }, { quoted: msg })
+      }
+
+      await sock.sendMessage(from, { react: { text: '🍃', key: msg.key } })
       await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
     } catch (err) {
       console.error(err)
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-      await sock.sendMessage(from, { text: '> No se encontraron imágenes para esa búsqueda 🍃' }, { quoted: msg })
-    } finally {
-      activeUsers.delete(userId)
+      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
     }
   }
 }
