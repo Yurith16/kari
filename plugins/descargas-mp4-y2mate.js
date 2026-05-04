@@ -28,12 +28,13 @@ async function getApiKey() {
 }
 
 export default {
-  command: ['mp4', 'video', 'v'],
-  tag: 'descargas',
+  command: ['play2', 'ytmp4'],
+  tag: 'play2',
   categoria: 'descargas',
   owner: false,
   group: false,
   nsfw: false,
+  descripcion: 'Descarga videos de YouTube en MP4',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

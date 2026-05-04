@@ -68,6 +68,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Descarga imagenes y videos de pinterest',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

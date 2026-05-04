@@ -3,11 +3,12 @@ import { resolveTarget } from '../utils/target.js'
 
 export default {
   command:   'unwarn',
-  tag:       'unwarn (quitar adver)',
+  tag:       'unwarn',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Resetea las advertencias de un usuario',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

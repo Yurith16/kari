@@ -17,6 +17,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Extrae el audio de un video',
 
   async execute(sock, msg, { from }) {
     const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage

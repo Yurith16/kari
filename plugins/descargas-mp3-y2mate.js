@@ -15,12 +15,13 @@ async function getApiKey() {
 }
 
 export default {
-  command: ['mp3', 'a'],
-  tag: 'descargas',
+  command: ['play', 'ytmp3'],
+  tag: 'play',
   categoria: 'descargas',
   owner: false,
   group: false,
   nsfw: false,
+  descripcion: 'Descarga audio de YouTube en MP3',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

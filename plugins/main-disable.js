@@ -3,6 +3,7 @@ import { writeFileSync }  from 'fs'
 import { resolve }        from 'path'
 import { toBold }         from '../utils/helpers.js'
 
+// Solo owner — afectan el bot globalmente
 const OWNER_FEATURES = {
   anticall:     'antiCall',
   autoread:     'autoRead',
@@ -12,11 +13,12 @@ const OWNER_FEATURES = {
   antispam:     'antiSpam',
 }
 
+// Admin o owner — afectan solo el grupo
 const GROUP_FEATURES = {
   antilink:   'antiLink',
   welcomemsg: 'welcomeMsg',
   goodbyemsg: 'goodbyeMsg',
-  nsfw:       'nsfw',
+  nsfw:       'false',
   adminmode:  'adminMode',
 }
 
@@ -30,6 +32,7 @@ export default {
   command:   'disable',
   tag:       'disable',
   categoria: 'main',
+  descripcion: 'Desactiva un comando en el grupo',
   owner:     false,
   group:     false,
   nsfw:      false,

@@ -27,6 +27,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Convierte un sticker a imagen',
 
   async execute(sock, msg, { from }) {
     const userId = msg.key.participant || from

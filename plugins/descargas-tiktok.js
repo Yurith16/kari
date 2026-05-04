@@ -5,6 +5,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Descarga videos de TikTok sin marca de agua',
 
   async execute(sock, msg, { from, args }) {
     const url = args[0]

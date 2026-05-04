@@ -9,6 +9,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Muestra mensajes de vista única',
 
   async execute(sock, msg, { from }) {
     const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage

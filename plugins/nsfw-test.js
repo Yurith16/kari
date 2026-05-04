@@ -5,6 +5,7 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      true,
+  descripcion: 'Prueba el módulo NSFW',
 
   async execute(sock, msg, { from }) {
     await sock.sendMessage(from, {

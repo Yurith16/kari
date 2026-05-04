@@ -8,6 +8,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Restaura la base de datos',
 
   async execute(sock, msg, { from, args }) {
     const file = args[0]

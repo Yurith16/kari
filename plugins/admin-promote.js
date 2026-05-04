@@ -4,11 +4,12 @@ import { resolveTarget } from '../utils/target.js'
 
 export default {
   command:   'promote',
-  tag:       'promote (dar adm)',
+  tag:       'promote',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Asciende a un miembro a administrador',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

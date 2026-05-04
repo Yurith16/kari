@@ -2,6 +2,7 @@ export default {
   command:   ['mediafire', 'mf'],
   tag:       'mediafire',
   categoria: 'descargas',
+  descripcion: 'Descarga archivos de mediafire',
   owner:     false,
   group:     false,
 

@@ -31,6 +31,7 @@ export default {
   owner: false,
   group: false,
   nsfw: false,
+  descripcion: 'Identifica una canción por audio',
 
   async execute(sock, msg, { from }) {
     const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage

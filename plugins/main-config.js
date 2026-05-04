@@ -8,6 +8,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Muestra la configuración actual del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin, isGroup }) {
     const f    = global.features || {}

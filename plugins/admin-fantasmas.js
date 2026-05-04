@@ -13,6 +13,7 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Detecta y lista los miembros inactivos del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

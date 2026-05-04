@@ -15,6 +15,7 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Muestra los miembros más activos del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

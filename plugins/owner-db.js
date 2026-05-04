@@ -10,6 +10,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Respalda la base de datos del bot',
 
   async execute(sock, msg, { from }) {
     const dbFiles = ['midori.db', 'midori.db-shm', 'midori.db-wal']

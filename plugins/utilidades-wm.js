@@ -10,6 +10,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Agrega descripcion a stickers',
 
   async execute(sock, msg, { from, args }) {
     const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage

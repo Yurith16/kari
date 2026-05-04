@@ -32,9 +32,10 @@ async function poll(client, workerUrl) {
 }
 
 export default {
-  command: ['play2','ytmp4'],
-  tag: 'descargas',
+  command: ['mp4'],
+  tag: 'mp4',
   categoria: 'descargas',
+  descripcion: 'Descarga videos de YouTube en MP4',
   owner: false,
   group: false,
 

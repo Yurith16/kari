@@ -12,6 +12,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Busca videos en YouTube',
 
   async execute(sock, msg, { from, args }) {
     const userId = msg.key.participant || from

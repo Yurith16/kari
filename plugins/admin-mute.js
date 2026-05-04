@@ -3,11 +3,12 @@ import { resolveTarget } from '../utils/target.js'
 
 export default {
   command:   'mute',
-  tag:       'mute (silencia user)',
+  tag:       'mute',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Silencia a un usuario del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

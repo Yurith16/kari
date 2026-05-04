@@ -1,10 +1,11 @@
 export default {
   command:   'cerrar',
-  tag:       'cerrar (cierra grupo)',
+  tag:       'cerrar',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Cierra el grupo para que solo admins puedan escribir',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

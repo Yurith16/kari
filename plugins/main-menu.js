@@ -52,11 +52,13 @@ function getTime() {
   })
 }
 
-function buildCategoryBox(catName, cmds, prefix, bullet) {
+function buildCategoryBox(catName, cmds, descMap, prefix, bullet) {
   let txt = `╭─〔 ${toMono(catName.toUpperCase())} 〕\n`
   txt += `│\n`
   cmds.sort().forEach(cmd => {
     txt += `│ ${bullet} ${prefix}${cmd}\n`
+    const desc = descMap[cmd]
+    if (desc) txt += `> ╰ ${desc}\n`
   })
   txt += `│\n`
   txt += `╰─── ── ── ── ──\n`
@@ -67,6 +69,7 @@ export default {
   command:   'menu',
   tag:       'menu',
   categoria: 'main',
+  descripcion: 'Muestra todos los comandos disponibles',
   owner:     false,
   group:     false,
   nsfw:      false,
@@ -81,9 +84,10 @@ export default {
       const bullet = getBullet()
       const botName = bot.name || 'Bot'
 
-      const seen  = new Set()
-      const mapa  = {}
-      let   total = 0
+      const seen    = new Set()
+      const mapa    = {}   // { cat: [nombres] }
+      const descMap = {}   // { nombre: descripcion }
+      let   total   = 0
 
       for (const p of commands.values()) {
         if (!p.command || !p.categoria)              continue
@@ -96,6 +100,7 @@ export default {
         const cat = p.categoria || 'main'
         if (!mapa[cat]) mapa[cat] = []
         mapa[cat].push(name)
+        descMap[name] = p.descripcion || ''   // ← guardar descripción
         total++
       }
 
@@ -136,21 +141,21 @@ export default {
       // Categorías
       const orden = ['main', 'admin', 'owner', 'utilidad', 'descargas', 'diversion', 'busqueda', 'nsfw']
       const categoryMap = {
-        main: 'PRINCIPAL',
-        admin: 'ADMINISTRACIÓN',
-        owner: 'OWNER',
-        utilidad: 'HERRAMIENTAS',
+        main:      'PRINCIPAL',
+        admin:     'ADMINISTRACIÓN',
+        owner:     'OWNER',
+        utilidad:  'HERRAMIENTAS',
         descargas: 'DESCARGAS',
         diversion: 'DIVERSIÓN',
-        busqueda: 'BÚSQUEDAS',
-        nsfw: 'CONTENIDO +18'
+        busqueda:  'BÚSQUEDAS',
+        nsfw:      'CONTENIDO +18'
       }
 
       for (const cat of orden) {
         const cmds = mapa[cat]
         if (!cmds?.length) continue
         const nombre = categoryMap[cat] || cat.toUpperCase()
-        menuTxt += buildCategoryBox(nombre, cmds, prefix, bullet)
+        menuTxt += buildCategoryBox(nombre, cmds, descMap, prefix, bullet)
         menuTxt += '\n'
       }
 

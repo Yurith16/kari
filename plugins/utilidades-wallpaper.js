@@ -9,6 +9,7 @@ export default {
   owner: false,
   group: false,
   nsfw: false,
+  descripcion: 'Busca y envía wallpapers',
 
   async execute(sock, msg, { from }) {
     try {

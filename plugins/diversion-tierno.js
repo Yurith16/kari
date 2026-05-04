@@ -10,6 +10,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Envía un gif tierno',
 
   async execute(sock, msg, { from }) {
     const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''

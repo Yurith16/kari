@@ -5,6 +5,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Reinicia el bot',
 
   async execute(sock, msg, { from }) {
     await sock.sendMessage(from, { text: global.messages.botRestart }, { quoted: msg })

@@ -113,6 +113,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Mejora la resolución de una imagen',
 
   async execute(sock, msg, { from, args }) {
     const userId = msg.key.participant || from

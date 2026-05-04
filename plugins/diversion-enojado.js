@@ -10,6 +10,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Envía un gif de enojo',
 
   async execute(sock, msg, { from }) {
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo

@@ -2,11 +2,12 @@
 
 export default {
   command:   'link',
-  tag:       'link (url del grupo)',
+  tag:       'link',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Muestra el enlace de invitación del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

@@ -1,10 +1,11 @@
 export default {
   command:   'tag',
-  tag:       'tag (mencionar a todos)',
+  tag:       'tag',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Menciona a todos sin hacer spam',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

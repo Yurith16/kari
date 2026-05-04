@@ -3,11 +3,12 @@ const pendingConfirm = new Map()
 
 export default {
   command:   'revoke',
-  tag:       'revoke (reset link)',
+  tag:       'revoke',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Revoca y regenera el enlace de invitación',
 
   async execute(sock, msg, { from, sender, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

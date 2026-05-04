@@ -6,11 +6,12 @@ const _getMuted = db.prepare(`SELECT user FROM mutes WHERE group_id = ? ORDER BY
 
 export default {
   command:   'mutelist',
-  tag:       'mutelist (lista de mutes)',
+  tag:       'mutelist',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Muestra la lista de usuarios silenciados',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

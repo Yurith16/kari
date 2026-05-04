@@ -7,6 +7,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Desbanea a un usuario',
 
   async execute(sock, msg, { from, args }) {
     const num = args[0]?.replace(/\D/g, '')

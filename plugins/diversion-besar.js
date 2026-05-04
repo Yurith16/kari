@@ -2,8 +2,14 @@ import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
 export default {
-  command: ['besar', 'kiss'],
-  reaction: true,
+  command:   ['besar', 'kiss'],
+  tag:       'besar',
+  categoria: 'diversion',
+  owner:     false,
+  group:     false,
+  nsfw:      false,
+  descripcion: 'Envía un gif de besos',
+  
   execute: async (sock, msg, { from }) => {
     // 1. Extraemos prefijo y comando manualmente
     const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''

@@ -2,11 +2,12 @@ import { setGroupField } from '../core/sqlite.js'
 
 export default {
   command:   'adminmode',
-  tag:       'adminmode (solo a adm)',
+  tag:       'adminmode',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Activa/Desactiva el modo solo admins en el grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin, groupCfg }) {
     if (!isOwner && !isAdmin) {

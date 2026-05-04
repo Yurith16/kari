@@ -2,11 +2,12 @@ import { setGroupField } from '../core/sqlite.js'
 
 export default {
   command:   'nsfw',
-  tag:       'nsfw (para +18)',
+  tag:       'nsfw',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Activa o desactiva el contenido +18 en el grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin, groupCfg }) {
     if (!isOwner && !isAdmin) {

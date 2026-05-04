@@ -1,10 +1,11 @@
 export default {
   command:   'nombre',
-  tag:       'nombre (nombre de grupo)',
+  tag:       'nombre',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Cambia el nombre del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

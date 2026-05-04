@@ -5,6 +5,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Envía un mensaje a todos los grupos',
 
   async execute(sock, msg, { from, args }) {
     const texto = args.join(' ')

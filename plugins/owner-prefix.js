@@ -8,6 +8,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Cambia el prefijo del bot',
 
   async execute(sock, msg, { from, args }) {
     const np = args[0]

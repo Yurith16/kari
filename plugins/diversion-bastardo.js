@@ -11,6 +11,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Envía un gif de bastardo',
 
   async execute(sock, msg, { from, args }) {
     const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''

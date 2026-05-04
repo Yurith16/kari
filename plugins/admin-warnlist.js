@@ -4,11 +4,12 @@ const _getWarns = db.prepare(`SELECT user, count FROM warns WHERE group_id = ? A
 
 export default {
   command:   'warnlist',
-  tag:       'warnlist (lista baneados',
+  tag:       'warnlist',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Muestra la lista de usuarios con advertencias del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

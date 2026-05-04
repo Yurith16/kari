@@ -1,10 +1,11 @@
 export default {
   command:   'desc',
-  tag:       'desc (descripcion)',
+  tag:       'desc',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Cambia la descripción del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

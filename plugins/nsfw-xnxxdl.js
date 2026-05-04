@@ -5,6 +5,7 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      true,
+  descripcion: 'Descarga videos de XNXX',
 
   async execute(sock, msg, { from, args }) {
     const url = args[0]

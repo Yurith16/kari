@@ -4,6 +4,7 @@ export default {
   command:   ['ig', 'instagram'],
   tag:       'instagram',
   categoria: 'descargas',
+  descripcion: 'Descarga videos y fotos de instagram',
   owner:     false,
   group:     false,
 

@@ -9,6 +9,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Busca imágenes en Google',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

@@ -9,6 +9,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Descarga imágenes de Pinterest',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

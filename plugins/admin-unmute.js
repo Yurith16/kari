@@ -3,11 +3,12 @@ import { resolveTarget } from '../utils/target.js'
 
 export default {
   command:   'unmute',
-  tag:       'unmute (quitar mute)',
+  tag:       'unmute',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Quita el silencio a un usuario del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

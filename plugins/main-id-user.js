@@ -1,8 +1,12 @@
 export default {
-  command: 'id',
-  tag: 'id', 
-  owner:   true,
-  group:   false,
+  command:   'id',
+    tag:       'id',
+    categoria: 'main',
+    descripcion: 'Muestra el Id de usuario',
+    owner:     false,
+    group:     false,
+    nsfw:      false,
+
 
   async execute(sock, msg, { from, sender }) {
     try {

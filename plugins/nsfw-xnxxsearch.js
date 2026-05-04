@@ -5,6 +5,7 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      true,
+  descripcion: 'Busca videos en XNXX',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

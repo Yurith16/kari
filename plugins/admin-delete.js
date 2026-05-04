@@ -1,10 +1,11 @@
 export default {
   command:   'delete',
-  tag:       'delete (borra msj)',
+  tag:       'delete',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Elimina un mensaje del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

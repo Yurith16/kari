@@ -2,11 +2,12 @@ import { downloadMediaMessage } from '@whiskeysockets/baileys'
 
 export default {
   command:   'foto',
-  tag:       'foto (foto grupo)',
+  tag:       'foto',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Cambia la foto del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

@@ -38,6 +38,7 @@ export default {
   owner: false,
   group: false,
   nsfw: false,
+  descripcion: 'Crea logos con texto personalizado',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

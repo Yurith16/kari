@@ -15,6 +15,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Convierte imágenes o videos a sticker',
 
   async execute(sock, msg, { from }) {
     const quoted       = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage

@@ -32,9 +32,10 @@ async function poll(client, workerUrl) {
 }
 
 export default {
-  command: ['play', 'ytmp3'],
-  tag: 'descargas',
+  command: ['mp3'],
+  tag: 'mp3',
   categoria: 'descargas',
+  descripcion: 'Descarga audios de YouTube en MP3',
   owner: false,
   group: false,
 

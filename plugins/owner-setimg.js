@@ -8,6 +8,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Cambia la imagen por defecto del bot',
 
   async execute(sock, msg, { from, args }) {
     const url = args[0]

@@ -3,11 +3,12 @@ import { resolveTarget } from '../utils/target.js'
 
 export default {
   command:   'warn',
-  tag:       'warn (dar adver)',
+  tag:       'warn',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Advierte a un usuario del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

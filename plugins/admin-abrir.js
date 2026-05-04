@@ -5,6 +5,7 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Abre el grupo para que cualquiera pueda entrar',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

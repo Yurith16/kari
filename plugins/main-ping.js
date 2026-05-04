@@ -4,6 +4,7 @@ export default {
   command: 'ping',       // string o array: ['ping', 'p']
   tag: 'ping',           // nombre del comando para identificación
   categoria: 'main',     // categoría para organizar en el menú
+  descripcion: 'Muestra estadisticas del bot', 
   owner:   false,        // true = solo owner
   group:   false,        // true = solo en grupos
   nsfw:    false,        // true = requiere nsfw habilitado en el grupo

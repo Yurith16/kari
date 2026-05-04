@@ -9,6 +9,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Muestra informacion del bot',
 
   async execute(sock, msg, { from }) {
     const s   = Math.floor((Date.now() - startTime) / 1000)

@@ -7,6 +7,7 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Activa o desactiva el antilink en el grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin, groupCfg }) {
     if (!isOwner && !isAdmin) {

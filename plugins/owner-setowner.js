@@ -8,6 +8,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Cambia el número del dueño del bot',
 
   async execute(sock, msg, { from, args }) {
     const num = args[0]?.replace(/\D/g, '')

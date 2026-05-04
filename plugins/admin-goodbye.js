@@ -2,11 +2,12 @@ import { setGroupField } from '../core/sqlite.js'
 
 export default {
   command:   'goodbye',
-  tag:       'goodbye (despedidas)',
+  tag:       'goodbye',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'activa/desactiva y Configura el mensaje de despedida del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin, groupCfg }) {
     if (!isOwner && !isAdmin) {

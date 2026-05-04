@@ -9,6 +9,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Envía un reporte al dueño del bot',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

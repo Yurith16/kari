@@ -7,6 +7,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Muestra la lista de usuarios baneados',
 
   async execute(sock, msg, { from }) {
     const lista = getBanned()

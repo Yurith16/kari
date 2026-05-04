@@ -2,11 +2,12 @@ import { resolveTarget } from '../utils/target.js'
 
 export default {
   command:   'kick',
-  tag:       'kick (elimina user)',
+  tag:       'kick',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Expulsa a un usuario del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

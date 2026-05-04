@@ -12,6 +12,7 @@ export default {
   command: ['twitter', 'x', 'tw'],
   tag: 'twitter',
   categoria: 'descargas',
+  descripcion: 'Descarga imagenes y videos de twitter',
   owner: false,
   group: false,
 

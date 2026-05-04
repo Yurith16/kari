@@ -2,11 +2,12 @@ import { cleanNumber } from '../utils/jid.js'
 
 export default {
   command:   'tagall',
-  tag:       'tagall (mención all)',
+  tag:       'tagall',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Menciona a todos los miembros del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {

@@ -65,12 +65,13 @@ async function getInstagramArtist(username) {
 }
 
 export default {
-  command:   ['igstalk', 'instagramstalk', 'stalkig'],
+  command:   ['igstalk'],
   tag:       'igstalk',
   categoria: 'busqueda',
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Consulta información de un perfil de Instagram',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

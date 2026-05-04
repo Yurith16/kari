@@ -8,6 +8,7 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Muestra la lista de administradores del grupo',
 
   async execute(sock, msg, { from }) {
     try {

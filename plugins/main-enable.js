@@ -18,7 +18,8 @@ const GROUP_FEATURES = {
   antilink:   'antiLink',
   welcomemsg: 'welcomeMsg',
   goodbyemsg: 'goodbyeMsg',
-  nsfw:       'nsfw',
+  nsfw:       'false',
+  descripcion: 'Activa un comando en el grupo',
   adminmode:  'adminMode',
 }
 
@@ -32,6 +33,7 @@ export default {
   command:   'enable',
   tag:       'enable',
   categoria: 'main',
+  descripcion: 'Activa un comando en el grupo',
   owner:     false,
   group:     false,
   nsfw:      false,

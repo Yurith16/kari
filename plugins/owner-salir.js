@@ -5,6 +5,7 @@ export default {
   owner:     true,
   group:     false,
   nsfw:      false,
+  descripcion: 'Hace que el bot salga de un grupo',
 
   async execute(sock, msg, { from, args, isGroup }) {
     const groupId = args[0] || (isGroup ? from : null)

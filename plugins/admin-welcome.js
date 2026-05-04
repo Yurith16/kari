@@ -7,6 +7,7 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Activa/Desactiva y Configura el mensaje de bienvenida del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin, groupCfg }) {
     if (!isOwner && !isAdmin) {

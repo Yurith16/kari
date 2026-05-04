@@ -9,6 +9,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Consulta información de un perfil de TikTok',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

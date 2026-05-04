@@ -9,6 +9,7 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      true,
+  descripcion: 'Busca imágenes en Gelbooru',
 
   async execute(sock, msg, { from }) {
     await sock.sendMessage(from, { react: { text: '🍃', key: msg.key } })

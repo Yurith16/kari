@@ -2,6 +2,7 @@ export default {
   command:   ['fb', 'facebook'],
   tag:       'facebook',
   categoria: 'descargas',
+  descripcion: 'Descarga videos de facebook',
   owner:     false,
   group:     false,
 

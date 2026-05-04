@@ -11,6 +11,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Envía un gif lésbico',
 
   async execute(sock, msg, { from }) {
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo

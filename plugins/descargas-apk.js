@@ -16,6 +16,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
+  descripcion: 'Descarga APKs de uptodown',
 
   async execute(sock, msg, { from, args }) {
     const text = args.join(' ').trim()
