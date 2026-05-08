@@ -9,17 +9,21 @@ db.pragma('synchronous = NORMAL') // balance entre seguridad y velocidad
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS groups (
-    group_id   TEXT PRIMARY KEY,
-    name       TEXT DEFAULT '',
-    antiLink   INTEGER DEFAULT 0,
-    adminMode  INTEGER DEFAULT 0,
-    nsfw       INTEGER DEFAULT 0,
-    welcomeMsg INTEGER DEFAULT 0,
-    goodbyeMsg INTEGER DEFAULT 0,
+    group_id    TEXT PRIMARY KEY,
+    name        TEXT DEFAULT '',
+    antiLink    INTEGER DEFAULT 0,
+    adminMode   INTEGER DEFAULT 0,
+    nsfw        INTEGER DEFAULT 0,
+    welcomeMsg  INTEGER DEFAULT 0,
+    goodbyeMsg  INTEGER DEFAULT 0,
     welcomeText TEXT DEFAULT '',
     goodbyeText TEXT DEFAULT '',
-    updated_at INTEGER DEFAULT (unixepoch())
+    welcomeImg  TEXT DEFAULT '',
+    goodbyeImg  TEXT DEFAULT '',
+    updated_at  INTEGER DEFAULT (unixepoch())
   );
+
+
 
   CREATE TABLE IF NOT EXISTS warns (
     group_id TEXT,
@@ -43,6 +47,11 @@ db.exec(`
     PRIMARY KEY (group_id, user)
   );
 `)
+
+// Migración segura — agrega columnas si no existen
+for (const col of ['welcomeImg', 'goodbyeImg']) {
+  try { db.exec(`ALTER TABLE groups ADD COLUMN ${col} TEXT DEFAULT ''`) } catch {}
+}
 
 logger.info('SQLite', 'Base de datos lista ✦')
 

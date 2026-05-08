@@ -1,14 +1,15 @@
 import { muteUser } from '../core/sqlite.js'
 import { resolveTarget } from '../utils/target.js'
+import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 export default {
   command:   'mute',
   tag:       'mute',
   categoria: 'admin',
+  descripcion: 'Silencia a un usuario del grupo',
   owner:     false,
   group:     true,
   nsfw:      false,
-  descripcion: 'Silencia a un usuario del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {
@@ -22,9 +23,13 @@ export default {
       }, { quoted: msg })
       return
     }
-    muteUser(from, target.num)
+    const realJid  = await getRealJid(sock, target.jid, msg).catch(() => target.jid)
+    const num      = cleanNumber(realJid)
+    const jidFinal = `${num}@s.whatsapp.net`
+    muteUser(from, num)
     await sock.sendMessage(from, {
-      text: `✦ *+${target.num}* ha sido silenciado. Sus mensajes serán eliminados automáticamente hasta que se le quite el silencio.`
+      text: `🔇 @${num} ha sido silenciado. Sus mensajes serán eliminados automáticamente.`,
+      mentions: [jidFinal]
     }, { quoted: msg })
   }
 }

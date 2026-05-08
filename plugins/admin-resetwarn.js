@@ -1,30 +1,35 @@
 import { resetWarns } from '../core/sqlite.js'
 import { resolveTarget } from '../utils/target.js'
+import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 export default {
-  command:   'unwarn',
-  tag:       'unwarn',
+  command:   'delwarn',
+  tag:       'delwarn',
   categoria: 'admin',
+  descripcion: 'Elimina todas las advertencias de un usuario',
   owner:     false,
   group:     true,
   nsfw:      false,
-  descripcion: 'Resetea las advertencias de un usuario',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
-    const target = resolveTarget(msg, args)
-    if (!target) {
+    const target = await resolveTarget(sock, msg, args)
+    if (!target?.num) {
       await sock.sendMessage(from, {
-        text: '✦ Responde al mensaje del usuario, menciónalo o escribe su número.\n\nEjemplo: *.resetwarn 50412345678*'
+        text: '✦ Responde al mensaje del usuario, menciónalo o escribe su número.\n\nEjemplo: *.delwarn 50412345678*'
       }, { quoted: msg })
       return
     }
-    resetWarns(from, target.num)
+    const realJid  = await getRealJid(sock, target.jid, msg).catch(() => target.jid)
+    const num      = cleanNumber(realJid)
+    const jidFinal = `${num}@s.whatsapp.net`
+    resetWarns(from, num)
     await sock.sendMessage(from, {
-      text: `✦ Las advertencias de *+${target.num}* han sido reiniciadas correctamente.`
+      text: `✦ Las advertencias de @${num} han sido reiniciadas.`,
+      mentions: [jidFinal]
     }, { quoted: msg })
   }
 }
