@@ -98,6 +98,36 @@ export function trackActivity(groupId, user) { _trackActivity.run(groupId, user)
 export function getTopActivity(groupId, limit = 10) { return _getTopActivity.all(groupId, limit) }
 
 
+// ─── Historial de mensajes (para purge) ──────────────────────────────────────
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS msg_history (
+    group_id   TEXT,
+    msg_id     TEXT,
+    sender     TEXT,
+    sent_at    INTEGER DEFAULT (unixepoch()),
+    PRIMARY KEY (group_id, msg_id)
+  );
+`)
+
+// Mantener solo los últimos 500 mensajes por grupo — limpiar automáticamente
+const _saveMsg     = db.prepare(`INSERT OR IGNORE INTO msg_history (group_id, msg_id, sender, sent_at) VALUES (?,?,?,?)`)
+const _cleanOld    = db.prepare(`DELETE FROM msg_history WHERE group_id = ? AND msg_id NOT IN (SELECT msg_id FROM msg_history WHERE group_id = ? ORDER BY sent_at DESC LIMIT 500)`)
+const _getMsgsSince = db.prepare(`SELECT msg_id, sender FROM msg_history WHERE group_id = ? AND sent_at >= ? ORDER BY sent_at DESC`)
+const _getLastMsgs  = db.prepare(`SELECT msg_id, sender FROM msg_history WHERE group_id = ? ORDER BY sent_at DESC LIMIT ?`)
+const _deleteMsg    = db.prepare(`DELETE FROM msg_history WHERE group_id = ? AND msg_id = ?`)
+
+export function saveMsg(groupId, msgId, sender) {
+  _saveMsg.run(groupId, msgId, sender, Math.floor(Date.now() / 1000))
+  _cleanOld.run(groupId, groupId)
+}
+export function getMsgsSince(groupId, seconds) {
+  const since = Math.floor(Date.now() / 1000) - seconds
+  return _getMsgsSince.all(groupId, since)
+}
+export function getLastMsgs(groupId, limit) { return _getLastMsgs.all(groupId, limit) }
+export function deleteMsgFromHistory(groupId, msgId) { _deleteMsg.run(groupId, msgId) }
+
 // ─── Ban global ───────────────────────────────────────────────────────────────
 
 db.exec(`

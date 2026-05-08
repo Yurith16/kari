@@ -115,11 +115,16 @@ export async function startBot() {
         : (cfg.goodbyeText || global.bot?.goodbyeText || '')
 
       for (const p of participants) {
-        const pid = typeof p === 'string' ? p : (p.id || p.jid)
-        let realJid = pid
-        try { realJid = await getRealJid(sock, pid, { key: { remoteJid: id } }) } catch {}
-        const texto = plantilla.replace('@user', `@${pid.split('@')[0]}`)
-        await sock.sendMessage(id, { text: texto, mentions: [pid] })
+        const pid      = typeof p === 'string' ? p : (p.id || p.jid)
+        let realJid    = pid
+        try { realJid  = await getRealJid(sock, pid, { key: { remoteJid: id } }) } catch {}
+        const num      = cleanNumber(realJid)
+        const jidFinal = num ? `${num}@s.whatsapp.net` : pid
+        // Reemplaza @user con la mención — regex para ser case insensitive
+        // Limpiar caracteres Unicode invisibles que WhatsApp agrega alrededor de menciones
+        const plantillaLimpia = plantilla.replace(/[⁨⁩‎‏‪-‮]/g, '')
+        const texto = plantillaLimpia.replace(/@user/gi, `@${num || pid.split('@')[0]}`)
+        await sock.sendMessage(id, { text: texto, mentions: [jidFinal] })
       }
     } catch {}
   })

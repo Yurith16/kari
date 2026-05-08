@@ -7,20 +7,33 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      false,
-  descripcion: 'Activa/Desactiva y Configura el mensaje de bienvenida del grupo',
 
-  async execute(sock, msg, { from, args, isOwner, isAdmin, groupCfg }) {
+  async execute(sock, msg, { from, isOwner, isAdmin, groupCfg, prefix }) {
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
-    // Si hay texto después del comando, actualiza el mensaje personalizado
-    const texto = args.join(' ')
+
+    // Extraer texto completo conservando saltos de línea
+    const fullText = (
+      msg.message?.conversation ||
+      msg.message?.extendedTextMessage?.text || ''
+    )
+
+    // Quitar el comando del inicio y conservar todo lo demás con saltos
+    const cmdLine  = fullText.split('\n')[0]                    // primera línea con el comando
+    const firstLine = cmdLine.replace(/^[^\s]+\s*/, '')         // quitar .welcome del inicio
+    const resto     = fullText.split('\n').slice(1).join('\n')  // líneas siguientes
+    const texto     = (firstLine + (resto ? '\n' + resto : '')).trim()
+
     if (texto) {
       setGroupField(from, 'welcomeText', texto)
-      await sock.sendMessage(from, { text: `👋 Mensaje de bienvenida actualizado:\n\n${texto}` }, { quoted: msg })
+      await sock.sendMessage(from, {
+        text: `👋 Mensaje de bienvenida actualizado:\n\n${texto}`
+      }, { quoted: msg })
       return
     }
+
     const estado = groupCfg?.welcomeMsg
     setGroupField(from, 'welcomeMsg', estado ? 0 : 1)
     await sock.sendMessage(from, {

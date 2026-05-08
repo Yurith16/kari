@@ -7,19 +7,31 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      false,
-  descripcion: 'activa/desactiva y Configura el mensaje de despedida del grupo',
 
-  async execute(sock, msg, { from, args, isOwner, isAdmin, groupCfg }) {
+  async execute(sock, msg, { from, isOwner, isAdmin, groupCfg, prefix }) {
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
-    const texto = args.join(' ')
+
+    const fullText = (
+      msg.message?.conversation ||
+      msg.message?.extendedTextMessage?.text || ''
+    )
+
+    const cmdLine   = fullText.split('\n')[0]
+    const firstLine = cmdLine.replace(/^[^\s]+\s*/, '')
+    const resto     = fullText.split('\n').slice(1).join('\n')
+    const texto     = (firstLine + (resto ? '\n' + resto : '')).trim()
+
     if (texto) {
       setGroupField(from, 'goodbyeText', texto)
-      await sock.sendMessage(from, { text: `🍃 Mensaje de despedida actualizado:\n\n${texto}` }, { quoted: msg })
+      await sock.sendMessage(from, {
+        text: `🍃 Mensaje de despedida actualizado:\n\n${texto}`
+      }, { quoted: msg })
       return
     }
+
     const estado = groupCfg?.goodbyeMsg
     setGroupField(from, 'goodbyeMsg', estado ? 0 : 1)
     await sock.sendMessage(from, {

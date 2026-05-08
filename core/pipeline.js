@@ -2,9 +2,12 @@ import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { logger, delay }           from '../utils/helpers.js'
 import { checkSpam }               from '../utils/spam.js'
 import { commands }                from './plugins.js'
-import { getGroup, isMuted, isBanned, trackActivity, updateGroupName } from './sqlite.js'
+import { getGroup, isMuted, isBanned, trackActivity, updateGroupName, saveMsg } from './sqlite.js'
 
 const LINK_RE = /(?:https?:\/\/)?(?:www\.)?(?:chat\.whatsapp\.com|wa\.me|t\.me|telegram\.(?:me|dog|org))\/\S+/i
+
+// Caché global de @lid → número real (compartido con bot.js via global)
+if (!global.lidCache) global.lidCache = new Map()
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +37,10 @@ async function resolveContext(sock, msg) {
   let realJid = sender
   try { realJid = await getRealJid(sock, sender, msg) } catch {}
   const userNum = cleanNumber(realJid)
+  // Guardar en caché global para cuando el usuario salga del grupo
+  if (sender.endsWith('@lid') && userNum && userNum.length >= 8) {
+    global.lidCache.set(sender, `${userNum}@s.whatsapp.net`)
+  }
 
   const ownerNums = [global.bot?.ownerNumber].flat().map(n => cleanNumber(n))
   const isOwner   = fromMe || ownerNums.includes(userNum)
@@ -177,7 +184,10 @@ export async function handleMessage(sock, msg) {
   try {
     const ctx = await resolveContext(sock, msg)
 
-    if (ctx.isGroup && !ctx.fromMe) trackActivity(ctx.from, ctx.userNum)
+    if (ctx.isGroup && !ctx.fromMe) {
+      trackActivity(ctx.from, ctx.userNum)
+      if (msg.key?.id) saveMsg(ctx.from, msg.key.id, ctx.sender)
+    }
 
     if (await stepAntiLink(ctx, sock, msg)) return
     if (await stepMute(ctx, sock, msg))     return
