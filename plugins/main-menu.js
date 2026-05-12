@@ -129,7 +129,7 @@ export default {
       menuTxt += `│\n`
       menuTxt += `│ ✦ Bot       ·  +${bot.botNumber || ''}\n`
       menuTxt += `│ ✦ Dev       ·  ${bot.owner || ''}\n`
-      menuTxt += `│ ✦ Contacto  ·  +${bot.ownerNumber || ''}\n`
+      menuTxt += `│ ✦ Owners  ·  +${bot.ownerNumber || ''}\n`
       menuTxt += `│ ✦ Prefijo   ·  ${prefix}\n`
       menuTxt += `│ ✦ Activo    ·  ${uptime()}\n`
       menuTxt += `│ ✦ Grupos    ·  ${grupos}\n`

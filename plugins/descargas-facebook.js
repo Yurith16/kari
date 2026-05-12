@@ -1,67 +1,38 @@
-export default {
-  command:   ['fb2', 'facebook2'],
-  tag:       'facebook2',
-  categoria: 'descargas',
-  descripcion: 'Descarga videos de facebook',
-  owner:     false,
-  group:     false,
+import { execSync } from 'node:child_process';
+import { existsSync, mkdirSync } from 'node:fs';
+import readline from 'node:readline';
 
-  async execute(sock, msg, { from, args }) {
-    const url = args[0]
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const ask = (q) => new Promise(r => rl.question(q, r));
 
-    if (!url || (!url.includes('facebook.com') && !url.includes('fb.watch'))) {
-      await sock.sendMessage(from, {
-        text: '✦ Ingresa una URL de Facebook.\n\nEjemplo: *.fb https://www.facebook.com/watch?v=123*'
-      }, { quoted: msg })
-      return
-    }
+console.log('🎬 YOUTUBE MP3 DOWNLOADER');
+const VIDEO_URL = (await ask('URL del video: ')).trim();
+rl.close();
 
-    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+const params = new URLSearchParams({ url: VIDEO_URL, ajax: '1', lang: 'en' });
 
-    try {
-      const res = await fetch('https://panel.apinexus.fun/api/facebook/descargar', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': 'antbx21e5jhac' },
-        body:    JSON.stringify({ url })
-      })
-      const json = await res.json()
+const res = execSync(`curl -s --max-time 25 'https://kfvid.com/mates/en/analyze/ajax?retry=undefined&platform=youtube&mhash=1ed739acd9b3168b' \
+  -X POST \
+  -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0' \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -H 'X-Requested-With: XMLHttpRequest' \
+  -H 'Origin: https://kfvid.com' \
+  -H 'Referer: https://kfvid.com/youtube-video-downloader' \
+  --data-raw '${params.toString()}'`, { encoding: 'utf-8' });
 
-      if (!json.success || !json.data) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        await sock.sendMessage(from, { text: global.messages?.error || '✦ No se pudo obtener el video.' }, { quoted: msg })
-        return
-      }
+const json = JSON.parse(res);
+if (json.status !== 'success' || !json.result.includes('Audio')) throw new Error('Error API');
 
-      const { titulo, duracion, hd, sd } = json.data
-      const duracionMinutos = duracion / 60
+const allUrls = [...json.result.matchAll(/data-url='(https:\/\/[^']*?)'/g)];
+let match = allUrls.find(m => m[1].includes('itag=251')) || allUrls.find(m => m[1].includes('itag=140'));
+if (!match) throw new Error('No se encontró audio');
 
-      const videoUrl = duracionMinutos > 30 ? (sd || hd) : (hd || sd)
+const finalUrl = match[1].replace(/&amp;/g, '&');
+const ext = finalUrl.includes('mime=audio%2Fmp4') || match[1].includes('itag=140') ? '.mp3' : '.opus';
 
-      await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
-
-      const videoRes = await fetch(videoUrl)
-      const videoBuffer = Buffer.from(await videoRes.arrayBuffer())
-      const sizeMB = videoBuffer.length / (1024 * 1024)
-
-      await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
-
-      if (sizeMB > 80) {
-        await sock.sendMessage(from, {
-          document: videoBuffer,
-          mimetype: 'video/mp4',
-          fileName: `${titulo.slice(0, 30)}.mp4`
-        }, { quoted: msg })
-      } else {
-        await sock.sendMessage(from, {
-          video: videoBuffer
-        }, { quoted: msg })
-      }
-
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
-
-    } catch (err) {
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      await sock.sendMessage(from, { text: global.messages?.error || '✦ Error en el servidor de Facebook.' }, { quoted: msg })
-    }
-  }
-}
+if (!existsSync('./descargas')) mkdirSync('./descargas');
+const out = `./descargas/yt_audio${ext}`;
+console.log('Descargando...');
+execSync(`ffmpeg -y -loglevel error -user_agent "Mozilla/5.0" -i "${finalUrl}" -c copy "${out}"`, { stdio: 'inherit' });
+console.log('✅', out);

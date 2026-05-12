@@ -1,82 +1,67 @@
+import { execSync } from 'node:child_process';
+import { existsSync, mkdirSync, unlinkSync, statSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+
+const DOWNLOAD_DIR = resolve('media/tiktok');
+if (!existsSync(DOWNLOAD_DIR)) mkdirSync(DOWNLOAD_DIR, { recursive: true });
+
 export default {
-  command:   'tiktok',
-  tag:       'tiktok',
+  command: ['tiktok', 'tt'],
+  tag: 'tiktok',
   categoria: 'descargas',
-  owner:     false,
-  group:     false,
-  nsfw:      false,
-  descripcion: 'Descarga videos de TikTok sin marca de agua',
+  owner: false,
+  group: false,
+  nsfw: false,
+  descripcion: 'Descarga videos de TikTok en calidad HD',
 
   async execute(sock, msg, { from, args }) {
-    const url = args[0]
+    if (!args[0]) return sock.sendMessage(from, {
+      text: `✦ *Ingresa la URL del video de TikTok que deseas descargar.*`
+    }, { quoted: msg });
 
-    if (!url || !url.includes('tiktok.com')) {
-      await sock.sendMessage(from, {
-        text: '✦ Ingresa una URL de TikTok.\n\nEjemplo: *.tiktok https://www.tiktok.com/@user/video/123*'
-      }, { quoted: msg })
-      return
-    }
-
-    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+    const videoUrl = args[0];
+    let localFilePath = null;
 
     try {
-      const res  = await fetch('https://panel.apinexus.fun/api/tiktok/descargar', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': 'antbx21e5jhac' },
-        body:    JSON.stringify({ url })
-      })
-      const json = await res.json()
+      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } });
 
-      if (!json.success || !json.data?.videoUrl) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        await sock.sendMessage(from, { text: global.messages?.error }, { quoted: msg })
-        return
-      }
+      const Q = encodeURIComponent(videoUrl);
+      const res = execSync(`curl -s --max-time 20 'https://www.tikwm.com/api/' \
+        -X POST \
+        -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0' \
+        -H 'Accept: application/json' \
+        -H 'Content-Type: application/x-www-form-urlencoded' \
+        -H 'X-Requested-With: XMLHttpRequest' \
+        -H 'Origin: https://www.tikwm.com' \
+        -H 'Referer: https://www.tikwm.com/es/' \
+        --data-raw 'url=${Q}&count=12&cursor=0&web=1&hd=1'`, { encoding: 'utf-8' });
 
-      const { titulo, autor, likes, reproducciones, videoUrl, thumbnail } = json.data
+      const json = JSON.parse(res);
+      if (json.code !== 0 || !json.data) throw new Error('Error API');
 
-      await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+      const descripcion = json.data.title || '';
+      const finalUrl = json.data.hdplay ? `https://www.tikwm.com${json.data.hdplay}` : `https://www.tikwm.com${json.data.play}`;
 
-      const videoRes    = await fetch(videoUrl)
-      const videoBuffer = Buffer.from(await videoRes.arrayBuffer())
-      const sizeMB      = videoBuffer.length / (1024 * 1024)
+      const fileName = `tiktok_${Date.now()}.mp4`;
+      localFilePath = join(DOWNLOAD_DIR, fileName);
 
-      await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+      execSync(`ffmpeg -y -loglevel error -user_agent "Mozilla/5.0" -i "${finalUrl}" -c copy "${localFilePath}"`, { stdio: 'inherit' });
 
-      const caption = `✦ *${titulo}*\n` +
-        `✦ ${autor}  ·  ${(reproducciones / 1e6).toFixed(1)}M vistas  ·  ${(likes / 1e3).toFixed(1)}K likes`
+      const stats = statSync(localFilePath);
+      const caption = descripcion ? `📝 *${descripcion}*` : '';
 
-      if (sizeMB <= 50) {
-        await sock.sendMessage(from, {
-          video:   videoBuffer,
-          caption
-        }, { quoted: msg })
-      } else {
-        await sock.sendMessage(from, {
-          document: videoBuffer,
-          mimetype: 'video/mp4',
-          fileName: `${titulo.slice(0, 50).replace(/[\\/:*?"<>|]/g, '')}.mp4`,
-          caption,
-          ...(thumbnail ? {
-            contextInfo: {
-              externalAdReply: {
-                title:                 titulo,
-                body:                  global.bot?.name || 'Bot',
-                thumbnailUrl:          thumbnail,
-                sourceUrl:             url,
-                mediaType:             1,
-                renderLargerThumbnail: true
-              }
-            }
-          } : {})
-        }, { quoted: msg })
-      }
+      await sock.sendMessage(from, stats.size > 80*1024*1024 
+        ? { document: { url: localFilePath }, mimetype: 'video/mp4', fileName, caption }
+        : { video: { url: localFilePath }, caption },
+        { quoted: msg });
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } });
 
-    } catch {
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      await sock.sendMessage(from, { text: global.messages?.error }, { quoted: msg })
+    } catch (e) {
+      console.error('Error TikTok:', e.message);
+      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } });
+    } finally {
+      if (localFilePath && existsSync(localFilePath)) try { unlinkSync(localFilePath); } catch {}
     }
   }
-}
+};
