@@ -27,7 +27,7 @@ export default {
 
       if (!lista.length) {
         await sock.sendMessage(from, {
-          text: '✦ Aún no hay actividad registrada en este grupo.'
+          text: '🌿 Aún no hay actividad registrada, nadie ha hablado todavía.'
         }, { quoted: msg })
         return
       }
@@ -37,7 +37,6 @@ export default {
       const total    = members.length
       const div      = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-      // Mapear número → JID real del grupo para las menciones
       const numToJid = {}
       members.forEach(m => {
         const num = cleanNumber(m.id)
@@ -45,7 +44,7 @@ export default {
       })
 
       const mentions = []
-      let txt = `╭─〔 ${toBold('RANKING DE ACTIVIDAD')} 〕\n`
+      let txt = `╭─〔 ${toBold('🌸 RANKING DE ACTIVIDAD')} 〕\n`
       txt += `│\n`
       txt += `│ ${div}\n`
 
@@ -57,7 +56,7 @@ export default {
       })
 
       txt += `│\n`
-      txt += `│ ${toBold('Participantes activos')}: ${lista.length} / ${total}\n`
+      txt += `│ ✨ ${lista.length} de ${total} personitas han hablado\n`
       txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })

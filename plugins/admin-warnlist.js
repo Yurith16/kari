@@ -22,7 +22,7 @@ export default {
 
     if (!lista.length) {
       await sock.sendMessage(from, {
-        text: '✦ No hay usuarios con advertencias activas en este grupo.'
+        text: '🌸 Todo en paz, nadie tiene avisos pendientes.'
       }, { quoted: msg })
       return
     }
@@ -30,12 +30,12 @@ export default {
     const mentions = lista.map(r => `${r.user}@s.whatsapp.net`)
     const div      = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-    let txt = `╭─〔 ${toBold('ADVERTENCIAS ACTIVAS')} 〕\n│\n│ ${div}\n`
+    let txt = `╭─〔 ${toBold('⚠️ AVISOS ACTIVOS')} 〕\n│\n│ ${div}\n`
     lista.forEach((r, i) => {
-      const barra = '▓'.repeat(r.count) + '░'.repeat(3 - r.count)
-      txt += `│  ${i + 1}. @${r.user}  [${barra}] ${r.count}/3\n`
+      const circulos = '🔴'.repeat(r.count) + '⚪'.repeat(3 - r.count)
+      txt += `│  ${i + 1}. @${r.user}  ${circulos} ${r.count}/3\n`
     })
-    txt += `│\n│ ${toBold('Total')}: ${lista.length} usuario(s)\n`
+    txt += `│\n│ 🌿 ${lista.length} persona(s) con llamadas de atención\n`
     txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
 
     await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })

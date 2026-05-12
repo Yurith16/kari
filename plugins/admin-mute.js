@@ -18,9 +18,7 @@ export default {
     }
     const target = await resolveTarget(sock, msg, args)
     if (!target?.num) {
-      await sock.sendMessage(from, {
-        text: '✦ Responde al mensaje del usuario, menciónalo o escribe su número.\n\nEjemplo: *.mute 50412345678*'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.userNeeded }, { quoted: msg })
       return
     }
     const realJid  = await getRealJid(sock, target.jid, msg).catch(() => target.jid)
@@ -28,7 +26,7 @@ export default {
     const jidFinal = `${num}@s.whatsapp.net`
     muteUser(from, num)
     await sock.sendMessage(from, {
-      text: `🔇 @${num} ha sido silenciado. Sus mensajes serán eliminados automáticamente.`,
+      text: global.messages.muteSuccess,
       mentions: [jidFinal]
     }, { quoted: msg })
   }

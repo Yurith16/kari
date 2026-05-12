@@ -28,10 +28,8 @@ export default {
       const total   = members.length
       const div     = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-      // Usuarios que SÍ han enviado mensajes
       const activos = new Set(_getActive.all(from).map(r => r.user))
 
-      // Fantasmas = miembros del grupo que NO están en activos y no son admins
       const fantasmas = members.filter(m => {
         const num = cleanNumber(m.id)
         return !activos.has(num) && !m.admin
@@ -39,16 +37,16 @@ export default {
 
       if (!fantasmas.length) {
         await sock.sendMessage(from, {
-          text: '✦ No hay fantasmas en este grupo. Todos han participado.'
+          text: '🌸 ¡Qué bonito! No hay fantasmas, todos han participado.'
         }, { quoted: msg })
         return
       }
 
       const mentions = fantasmas.map(m => m.id)
 
-      let txt = `╭─〔 ${toBold('FANTASMAS DEL GRUPO')} 〕\n`
+      let txt = `╭─〔 ${toBold('👻 FANTASMAS DEL GRUPO')} 〕\n`
       txt += `│\n`
-      txt += `│ ${toBold('Usuarios sin actividad registrada:')}\n`
+      txt += `│ ${toBold('Personitas que no han dicho ni pío:')}\n`
       txt += `│ ${div}\n`
 
       fantasmas.forEach(m => {
@@ -57,8 +55,8 @@ export default {
       })
 
       txt += `│\n`
-      txt += `│ ${toBold('Total fantasmas')}: ${fantasmas.length} / ${total}\n`
-      txt += `│ ${toBold('Activos')}: ${activos.size} / ${total}\n`
+      txt += `│ ✨ ${fantasmas.length} de ${total} están muditos\n`
+      txt += `│ 🌿 ${activos.size} de ${total} sí han hablado\n`
       txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })

@@ -1,9 +1,9 @@
 import { setGroupField } from '../core/sqlite.js'
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import { writeFileSync, mkdirSync, existsSync } from 'fs'
-import { resolve, join } from 'path'
+import { join } from 'path'
 
-const IMG_DIR = resolve('media/goodbye')
+const IMG_DIR = join('media/goodbye')
 if (!existsSync(IMG_DIR)) mkdirSync(IMG_DIR, { recursive: true })
 
 export default {
@@ -15,7 +15,7 @@ export default {
   nsfw:        false,
   descripcion: 'Activa/Desactiva y configura la despedida del grupo',
 
-  async execute(sock, msg, { from, isOwner, isAdmin, groupCfg, prefix }) {
+  async execute(sock, msg, { from, isOwner, isAdmin, groupCfg }) {
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
@@ -41,7 +41,7 @@ export default {
           if (texto) setGroupField(from, 'goodbyeText', texto)
         }
         await sock.sendMessage(from, {
-          text: '✅ Imagen de despedida actualizada.\n\n✦ Envía *.goodbye <texto>* para cambiar el mensaje.'
+          text: '🍃 Imagen de despedida guardada.\n\n🌸 Envía *.goodbye <texto>* para cambiar el mensaje.'
         }, { quoted: msg })
       } catch {
         await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
@@ -58,7 +58,7 @@ export default {
     if (texto && /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i.test(texto)) {
       setGroupField(from, 'goodbyeImg', texto)
       await sock.sendMessage(from, {
-        text: `✅ Imagen de despedida actualizada con URL.`
+        text: '🍃 Imagen de despedida actualizada con esa URL.'
       }, { quoted: msg })
       return
     }

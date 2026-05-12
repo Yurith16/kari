@@ -18,12 +18,10 @@ export default {
     try {
       const code = await sock.groupInviteCode(from)
       await sock.sendMessage(from, {
-        text: `✦ Enlace del grupo:\nhttps://chat.whatsapp.com/${code}`
+        text: `🔗 Aquí tienes el enlace, compártelo con cuidado:\nhttps://chat.whatsapp.com/${code}`
       }, { quoted: msg })
     } catch {
-      await sock.sendMessage(from, {
-        text: '✦ No se pudo obtener el enlace del grupo.'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.botNotAdmin }, { quoted: msg })
     }
   }
 }

@@ -14,7 +14,9 @@ export default {
     }
     const nombre = args.join(' ')
     if (!nombre) {
-      await sock.sendMessage(from, { text: '✏️ Uso: *.nombre <nuevo nombre>*' }, { quoted: msg })
+      await sock.sendMessage(from, {
+        text: '🌸 Dime qué nombre le pongo al grupo.\n\n_Ejemplo: .nombre Los mejores_'
+      }, { quoted: msg })
       return
     }
     try {

@@ -22,7 +22,7 @@ export default {
 
     if (!lista.length) {
       await sock.sendMessage(from, {
-        text: '✦ No hay usuarios silenciados en este grupo actualmente.'
+        text: '🌸 No hay nadie silenciado, todos pueden hablar libremente.'
       }, { quoted: msg })
       return
     }
@@ -30,11 +30,11 @@ export default {
     const mentions = lista.map(r => `${r.user}@s.whatsapp.net`)
     const div      = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-    let txt = `╭─〔 ${toBold('USUARIOS SILENCIADOS')} 〕\n│\n│ ${div}\n`
+    let txt = `╭─〔 ${toBold('🔇 SILENCIADOS')} 〕\n│\n│ ${div}\n`
     lista.forEach((r, i) => {
       txt += `│  ${i + 1}. @${r.user}\n`
     })
-    txt += `│\n│ ${toBold('Total')}: ${lista.length} usuario(s)\n`
+    txt += `│\n│ 🌿 ${lista.length} personita(s) en silencio\n`
     txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
 
     await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })

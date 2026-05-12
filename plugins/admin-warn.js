@@ -18,9 +18,7 @@ export default {
     }
     const target = await resolveTarget(sock, msg, args)
     if (!target?.num) {
-      await sock.sendMessage(from, {
-        text: '✦ Responde al mensaje del usuario, menciónalo o escribe su número.\n\nEjemplo: *.warn 50412345678*'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.userNeeded }, { quoted: msg })
       return
     }
 
@@ -31,7 +29,7 @@ export default {
 
     if (count >= 3) {
       await sock.sendMessage(from, {
-        text: `⚠️ @${num} acumuló *3 advertencias* y será expulsado en 5 segundos.`,
+        text: `🚫 @${num} juntó 🔴🔴🔴 *3 avisos* y será expulsado en 5 segundos...`,
         mentions: [jidFinal]
       }, { quoted: msg })
       setTimeout(async () => {
@@ -41,8 +39,9 @@ export default {
         } catch {}
       }, 5000)
     } else {
+      const circulos = '🔴'.repeat(count) + '⚪'.repeat(3 - count)
       await sock.sendMessage(from, {
-        text: `⚠️ Advertencia *${count}/3* para @${num}.\n\nUna advertencia más y será expulsado automáticamente.`,
+        text: `⚠️ @${num} ${circulos} *${count}/3* avisos. Una más y te tengo que sacar.`,
         mentions: [jidFinal]
       }, { quoted: msg })
     }

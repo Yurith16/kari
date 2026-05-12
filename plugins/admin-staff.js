@@ -17,15 +17,15 @@ export default {
       const mentions = admins.map(a => a.id)
       const div      = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-      let txt = `╭─〔 ${toBold('STAFF DEL GRUPO')} 〕\n│\n`
+      let txt = `╭─〔 ${toBold('👮 STAFF DEL GRUPO')} 〕\n│\n`
       txt += `│ ${div}\n`
       admins.forEach(a => {
         const num = cleanNumber(a.id)
-        const rol = a.admin === 'superadmin' ? 'owner' : 'admin'
-        txt += `│ ✦ @${num}  ·  ${rol}\n`
+        const rol = a.admin === 'superadmin' ? '⭐ Creador' : '👮 Admin'
+        txt += `│ ${rol} @${num}\n`
       })
       txt += `│\n`
-      txt += `│ ${toBold('Total')}: ${admins.length} administrador(es)\n`
+      txt += `│ 🌿 ${admins.length} personitas al mando\n`
       txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })

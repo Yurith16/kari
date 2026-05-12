@@ -1,6 +1,5 @@
 import { setGroupField } from '../core/sqlite.js'
 import { existsSync, unlinkSync } from 'fs'
-import { resolve } from 'path'
 
 export default {
   command:     'delfotoadios',
@@ -19,10 +18,8 @@ export default {
     }
 
     try {
-      // Obtener la ruta actual de la imagen
       const imgUrl = groupCfg?.goodbyeImg || ''
 
-      // Si es un archivo local, eliminarlo físicamente
       if (imgUrl.startsWith('file://')) {
         const filePath = imgUrl.replace('file://', '')
         if (existsSync(filePath)) {
@@ -30,11 +27,10 @@ export default {
         }
       }
 
-      // Limpiar el campo en la base de datos
       setGroupField(from, 'goodbyeImg', '')
 
       await sock.sendMessage(from, {
-        text: '🍃 Imagen de despedida eliminada.\n\nAhora se usará la imagen predeterminada del bot.'
+        text: '🍃 Imagen de despedida eliminada.\n\n🌸 Ahora usaré la imagen que traigo por defecto.'
       }, { quoted: msg })
     } catch {
       await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })

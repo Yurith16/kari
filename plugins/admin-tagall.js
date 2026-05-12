@@ -1,31 +1,32 @@
-import { cleanNumber } from '../utils/jid.js'
+import { toBold }       from '../utils/helpers.js'
+import { cleanNumber }  from '../utils/jid.js'
 
 export default {
-  command:   'tagall',
-  tag:       'tagall',
+  command:   'admins',
+  tag:       'admins',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
-  descripcion: 'Menciona a todos los miembros del grupo',
+  descripcion: 'Muestra la lista de administradores del grupo',
 
-  async execute(sock, msg, { from, args, isOwner, isAdmin }) {
-    if (!isOwner && !isAdmin) {
-      await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
-      return
-    }
+  async execute(sock, msg, { from }) {
     try {
       const meta     = await sock.groupMetadata(from)
-      const members  = meta.participants
-      const mensaje  = args.join(' ') || 'Atencion a todos'
-      const mentions = members.map(m => m.id)
+      const admins   = meta.participants.filter(p => p.admin)
+      const mentions = admins.map(a => a.id)
+      const div      = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-      let txt = `╭─ 📢 *${mensaje}*\n│\n`
-      members.forEach(m => {
-        const num = cleanNumber(m.id)
-        txt += `│ ✦ @${num}\n`
+      let txt = `╭─〔 ${toBold('👮 STAFF DEL GRUPO')} 〕\n│\n`
+      txt += `│ ${div}\n`
+      admins.forEach(a => {
+        const num = cleanNumber(a.id)
+        const rol = a.admin === 'superadmin' ? '⭐ Creador' : '👮 Admin'
+        txt += `│ ${rol} @${num}\n`
       })
-      txt += `╰─── ${members.length} miembros`
+      txt += `│\n`
+      txt += `│ 🌿 ${admins.length} personitas al mando\n`
+      txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
     } catch {

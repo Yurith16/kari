@@ -17,9 +17,7 @@ export default {
     }
     const target = await resolveTarget(sock, msg, args)
     if (!target?.num) {
-      await sock.sendMessage(from, {
-        text: '✦ Responde al mensaje del usuario, menciónalo o escribe su número.\n\nEjemplo: *.kick @user*'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.userNeeded }, { quoted: msg })
       return
     }
     const realJid  = await getRealJid(sock, target.jid, msg).catch(() => target.jid)
@@ -28,7 +26,7 @@ export default {
     try {
       await sock.groupParticipantsUpdate(from, [jidFinal], 'remove')
       await sock.sendMessage(from, {
-        text: `🚫 @${num} ha sido expulsado del grupo.`,
+        text: global.messages.banGroupSuccess,
         mentions: [jidFinal]
       }, { quoted: msg })
     } catch {

@@ -1,6 +1,5 @@
 import { getLastMsgs, getMsgsSince, deleteMsgFromHistory } from '../core/sqlite.js'
 
-// Parsea tiempo: "10m" → 600s, "30s" → 30s, "2h" → 7200s
 function parseTime(str) {
   const match = str.match(/^(\d+)(s|m|h)$/)
   if (!match) return null
@@ -28,10 +27,10 @@ export default {
 
     if (!args.length) {
       await sock.sendMessage(from, {
-        text: `✦ *Uso del comando purge*\n\n` +
-          `✦ Borrar últimos N mensajes:\n  *.purge 50*\n\n` +
-          `✦ Borrar por tiempo:\n  *.purge 10m*  (últimos 10 minutos)\n  *.purge 30s*  (últimos 30 segundos)\n  *.purge 2h*   (últimas 2 horas)\n\n` +
-          `✦ Máximo: 500 mensajes por operación.`
+        text: `🌸 *¿Cómo quieres limpiar?*\n\n` +
+          `✨ Por cantidad:\n  .purge 50\n\n` +
+          `⏳ Por tiempo:\n  .purge 10m  (últimos 10 minutitos)\n  .purge 30s  (últimos 30 segundos)\n  .purge 2h   (últimas 2 horas)\n\n` +
+          `📦 Máximo 500 mensajitos por vez.`
       }, { quoted: msg })
       return
     }
@@ -39,16 +38,14 @@ export default {
     const arg  = args[0].toLowerCase()
     let mensajes = []
 
-    // Modo tiempo: 10m, 30s, 2h
     const secs = parseTime(arg)
     if (secs !== null) {
       mensajes = getMsgsSince(from, secs)
     } else {
-      // Modo cantidad: número entero
       const n = parseInt(arg)
       if (isNaN(n) || n < 1) {
         await sock.sendMessage(from, {
-          text: '⚠️ Argumento inválido. Usa un número (*.purge 50*) o tiempo (*.purge 10m*).'
+          text: '⚠️ Eso no lo entiendo. Usa un número (.purge 50) o tiempo (.purge 10m).'
         }, { quoted: msg })
         return
       }
@@ -57,7 +54,7 @@ export default {
 
     if (!mensajes.length) {
       await sock.sendMessage(from, {
-        text: '✦ No hay mensajes registrados en ese rango.'
+        text: '🌸 No hay mensajes que limpiar en ese rango.'
       }, { quoted: msg })
       return
     }
@@ -79,7 +76,6 @@ export default {
         })
         deleteMsgFromHistory(from, m.msg_id)
         eliminados++
-        // Pequeño delay para no saturar — evita baneo
         await new Promise(r => setTimeout(r, 150))
       } catch {
         fallidos++
@@ -88,7 +84,7 @@ export default {
 
     await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
     await sock.sendMessage(from, {
-      text: `✦ Purge completado.\n✦ Eliminados: *${eliminados}*${fallidos ? `\n✦ No eliminados: *${fallidos}* (mensajes muy antiguos o sin permisos)` : ''}`
+      text: `✨ Limpieza lista.\n🗑 Eliminados: *${eliminados}*${fallidos ? `\n⚠️ No se pudieron borrar: *${fallidos}* (muy viejitos o sin permisos)` : ''}`
     }, { quoted: msg })
   }
 }

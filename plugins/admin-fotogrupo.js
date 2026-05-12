@@ -1,8 +1,8 @@
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 
 export default {
-  command:   'foto',
-  tag:       'foto',
+  command:   'setfoto',
+  tag:       'setfoto',
   categoria: 'admin',
   owner:     false,
   group:     true,
@@ -17,7 +17,9 @@ export default {
     const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
     const imgMsg = quoted?.imageMessage ? { message: quoted } : (msg.message?.imageMessage ? msg : null)
     if (!imgMsg) {
-      await sock.sendMessage(from, { text: '🖼 Responde a una imagen para cambiar la foto del grupo.' }, { quoted: msg })
+      await sock.sendMessage(from, {
+        text: '🌸 Responde a una imagen bonita y la pongo de foto del grupo.'
+      }, { quoted: msg })
       return
     }
     try {

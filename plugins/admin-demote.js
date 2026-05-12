@@ -19,21 +19,17 @@ export default {
 
     const target = await resolveTarget(sock, msg, args)
     if (!target?.num) {
-      await sock.sendMessage(from, {
-        text: '✦ Responde al mensaje del usuario, menciónalo o escribe su número.\n\nEjemplo: *.demote 50412345678*'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.userNeeded }, { quoted: msg })
       return
     }
 
     try {
       await sock.groupParticipantsUpdate(from, [target.jid], 'demote')
       await sock.sendMessage(from, {
-        text: `✦ *+${target.num}* ha sido degradado de administrador.`
+        text: `👮 +${target.num} ya no es admin, bajó a soldado raso.`
       }, { quoted: msg })
     } catch {
-      await sock.sendMessage(from, {
-        text: '✦ No se pudo degradar al usuario.'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.botNotAdmin }, { quoted: msg })
     }
   }
 }

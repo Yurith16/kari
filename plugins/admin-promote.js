@@ -19,21 +19,17 @@ export default {
 
     const target = await resolveTarget(sock, msg, args)
     if (!target?.num) {
-      await sock.sendMessage(from, {
-        text: '✦ Responde al mensaje del usuario, menciónalo o escribe su número.\n\nEjemplo: *.promote 50412345678*'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.userNeeded }, { quoted: msg })
       return
     }
 
     try {
       await sock.groupParticipantsUpdate(from, [target.jid], 'promote')
       await sock.sendMessage(from, {
-        text: `✦ *+${target.num}* ha sido promovido a administrador.`
+        text: `👮 +${target.num} ahora es admin, ¡a mandar se ha dicho!`
       }, { quoted: msg })
     } catch {
-      await sock.sendMessage(from, {
-        text: '✦ No se pudo promover al usuario.'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.botNotAdmin }, { quoted: msg })
     }
   }
 }

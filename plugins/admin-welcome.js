@@ -1,9 +1,9 @@
 import { setGroupField } from '../core/sqlite.js'
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import { writeFileSync, mkdirSync, existsSync } from 'fs'
-import { resolve, join } from 'path'
+import { join } from 'path'
 
-const IMG_DIR = resolve('media/welcome')
+const IMG_DIR = join('media/welcome')
 if (!existsSync(IMG_DIR)) mkdirSync(IMG_DIR, { recursive: true })
 
 export default {
@@ -15,7 +15,7 @@ export default {
   nsfw:        false,
   descripcion: 'Activa/Desactiva y configura la bienvenida del grupo',
 
-  async execute(sock, msg, { from, isOwner, isAdmin, groupCfg, prefix }) {
+  async execute(sock, msg, { from, isOwner, isAdmin, groupCfg }) {
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
@@ -35,14 +35,13 @@ export default {
         const imgPath = join(IMG_DIR, `${from.replace(/[^a-z0-9]/gi, '_')}.jpg`)
         writeFileSync(imgPath, buffer)
         setGroupField(from, 'welcomeImg', `file://${imgPath}`)
-        // Si hay caption en la imagen, también actualizar texto
         const caption = msg.message?.imageMessage?.caption || ''
         if (caption) {
           const texto = caption.replace(/^[^\s]+\s*/, '').trim()
           if (texto) setGroupField(from, 'welcomeText', texto)
         }
         await sock.sendMessage(from, {
-          text: '✅ Imagen de bienvenida actualizada.\n\n✦ Envía *.welcome <texto>* para cambiar el mensaje.'
+          text: '👋 Imagen de bienvenida guardada.\n\n🌸 Envía *.welcome <texto>* para cambiar el mensaje.'
         }, { quoted: msg })
       } catch {
         await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
@@ -56,11 +55,10 @@ export default {
     const resto     = fullText.split('\n').slice(1).join('\n')
     const texto     = (firstLine + (resto ? '\n' + resto : '')).trim()
 
-    // Si el texto es una URL de imagen
     if (texto && /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i.test(texto)) {
       setGroupField(from, 'welcomeImg', texto)
       await sock.sendMessage(from, {
-        text: `✅ Imagen de bienvenida actualizada con URL.`
+        text: '👋 Imagen de bienvenida actualizada con esa URL.'
       }, { quoted: msg })
       return
     }

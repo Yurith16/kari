@@ -14,7 +14,9 @@ export default {
     }
     const desc = args.join(' ')
     if (!desc) {
-      await sock.sendMessage(from, { text: '✏️ Uso: *.desc <nueva descripción>*' }, { quoted: msg })
+      await sock.sendMessage(from, {
+        text: '🌸 Dime qué descripción quieres poner.\n\n_Ejemplo: .desc Bienvenidos al paraíso_'
+      }, { quoted: msg })
       return
     }
     try {

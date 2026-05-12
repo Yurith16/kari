@@ -18,12 +18,21 @@ export default {
       return
     }
     try {
+      // Eliminar el mensaje citado
       await sock.sendMessage(from, {
         delete: {
           remoteJid:   from,
           fromMe:      false,
           id:          ctx.stanzaId,
           participant: ctx.participant
+        }
+      })
+      // Eliminar también el mensaje del bot que ejecutó el comando
+      await sock.sendMessage(from, {
+        delete: {
+          remoteJid: from,
+          fromMe:    true,
+          id:        msg.key.id
         }
       })
     } catch {
