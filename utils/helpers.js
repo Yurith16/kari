@@ -39,6 +39,14 @@ const BOLD_MAP = {
 export const toMono = (text) => text.split('').map(c => MONO_MAP[c] || c).join('')
 export const toBold = (text) => text.split('').map(c => BOLD_MAP[c] || c).join('')
 
+// ─── Formatear tiempo de cooldown ────────────────────────────────────────────
+
+export function formatCooldown(segundos) {
+  if (segundos < 60)  return `${segundos}s`
+  if (segundos < 3600) return `${Math.floor(segundos / 60)}m ${segundos % 60}s`
+  return `${Math.floor(segundos / 3600)}h ${Math.floor((segundos % 3600) / 60)}m`
+}
+
 // ─── AutoBio ─────────────────────────────────────────────────────────────────
 
 export function startAutoBio(sock) {

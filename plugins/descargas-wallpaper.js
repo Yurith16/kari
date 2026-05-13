@@ -1,6 +1,7 @@
 // creditos a YJ-EspinoX
 import axios from 'axios'
 import * as cheerio from 'cheerio'
+import { getBotSignature } from '../utils/formatters.js'
 
 export default {
   command: ['paper','wallhaven'],
@@ -11,14 +12,12 @@ export default {
   group: false,
   nsfw: false,
 
-  async execute(sock, msg, { from, args, prefix }) {
+  async execute(sock, msg, { from, args }) {
     const query = args.join(' ')
-    if (!query) return sock.sendMessage(from, { 
-      text: `✦ Hernández, debes ingresar un término para buscar tu fondo.\n\nEjemplo: *${prefix}paper anime 4k*` 
-    }, { quoted: msg })
+    if (!query) return sock.sendMessage(from, { text: global.messages.busquedaEmpty }, { quoted: msg })
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
       const url = `https://wallhaven.cc/search?q=${encodeURIComponent(query)}&categories=110&purity=100&sorting=relevance&order=desc`
 
@@ -50,17 +49,17 @@ export default {
       })
 
       if (resultados.length === 0) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        return sock.sendMessage(from, { text: '✦ No encontré fondos para esa búsqueda.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
 
-      // Tomamos los 10 mejores resultados
       const selectedWalls = resultados.slice(0, 10)
 
       let albumKey = null
       let enviados = 0
 
-      // Paso: Envío en formato Álbum
+      const signature = getBotSignature(global.bot)
+
       for (const wall of selectedWalls) {
         try {
           const imageResponse = await axios.get(wall.url, {
@@ -88,9 +87,18 @@ export default {
             albumKey = album.key
           }
 
+          const caption = enviados === 0
+            ? `  · · ─────── ·🌸· ─────── · ·
+  ⊱ *_Wallhaven_* ⊰
+  ♡ *Búsqueda:* _${query}_
+  ♡ *Resolución:* _${wall.res}_
+  · · ─────── ·🌸· ─────── · ·
+     ${signature}`
+            : ''
+
           const mediaMsg = await sock.generateWAMessage(from, {
             image: buffer,
-            caption: enviados === 0 ? `✦ *Wallpaper:* ${query}\n✦ *Resolución:* ${wall.res}` : ''
+            caption
           }, { upload: sock.waUploadToServer })
 
           mediaMsg.message.messageContextInfo = {
@@ -100,18 +108,16 @@ export default {
           await sock.relayMessage(from, mediaMsg.message, { messageId: mediaMsg.key.id })
           enviados++
 
-        } catch (e) {
-          // Si un wallpaper falla al descargar, saltamos al siguiente
+        } catch {
           continue
         }
       }
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (error) {
-      console.error('[PAPER ERROR]:', error.message)
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      await sock.sendMessage(from, { text: '✦ Ocurrió un error al conectar con el servidor de imágenes.' }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      return await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

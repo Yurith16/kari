@@ -1,5 +1,6 @@
 // creditos a YJ-EspinoX
 import ytSearch from 'yt-search'
+import { getBotSignature } from '../utils/formatters.js'
 
 export default {
   command: ['yts', 'ytsearch', 'buscaryt'],
@@ -12,53 +13,54 @@ export default {
 
   async execute(sock, msg, { from, args, prefix }) {
     const query = args.join(' ')
-    if (!query) return sock.sendMessage(from, { 
-      text: `✦ *Ingresa lo que deseas buscar en YouTube.*\n\nEjemplo: *${prefix}yts phonk music*` 
-    }, { quoted: msg })
+    if (!query) return sock.sendMessage(from, { text: global.messages.busquedaEmpty }, { quoted: msg })
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
       const results = await ytSearch(query)
-
-      // Tomamos los primeros 5 resultados
       const videos = results.videos.slice(0, 5)
 
       if (videos.length === 0) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        return sock.sendMessage(from, { text: '✦ No se encontraron resultados.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
+
+      const signature = `           ${getBotSignature(global.bot)}`
 
       for (let i = 0; i < videos.length; i++) {
         const video = videos[i]
         const { title, author, duration, views, ago, url, thumbnail } = video
 
-        const videoDetails = `> 🎵 *「🌱」 ${title}*\n\n` +
-          `> 🍃 *Canal:* » ${author.name}\n` +
-          `> ⚘ *Duración:* » ${duration.timestamp}\n` +
-          `> 🌼 *Vistas:* » ${(views || 0).toLocaleString()}\n` +
-          `> 🍀 *Publicado:* » ${ago || 'Reciente'}\n` +
-          `> 🌿 *Enlace:* » ${url}`
+        const videoDetails = 
+`  · · ─────── ·🌸· ─────── · ·
+  ⊱ *_${title}_* ⊰
+  ♡ *Canal:* _${author.name}_
+  ❁ *Duración:* _${duration.timestamp}_
+  ✾ *Vistas:* _${(views || 0).toLocaleString()}_
+  ✤ *Publicado:* _${ago || 'Reciente'}_
+  ♡ *Enlace:* _${url}_
+  · · ─────── ·🌸· ─────── · ·
+     ${signature}`
 
         try {
           await sock.sendMessage(from, {
             image: { url: thumbnail },
             caption: videoDetails
           }, { quoted: msg })
-        } catch (e) {
-          console.error(`Error enviando el video ${i + 1}:`, e.message)
+
+          // Pequeña pausa para no saturar
+          await new Promise(resolve => setTimeout(resolve, 500))
+        } catch {
           continue
         }
       }
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (error) {
-      console.error('[YTSEARCH ERROR]:', error.message)
+    } catch {
       await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      await sock.sendMessage(from, { 
-        text: '✦ Hubo un error al procesar la búsqueda en YouTube.' 
-      }, { quoted: msg })
+      return sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

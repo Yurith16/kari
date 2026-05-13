@@ -13,20 +13,20 @@ export default {
 
     if (!url || !url.includes('instagram.com')) {
       await sock.sendMessage(from, {
-        text: '✦ Ingresa una URL de Instagram.\n\nEjemplo: *.ig https://www.instagram.com/reel/abcde123*'
+        text: '🌸 Ay, necesito una URL de Instagram para poder descargar. ¿Me la pasas?'
       }, { quoted: msg })
       return
     }
 
-    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
     try {
       const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/igdl?url=${encodeURIComponent(url)}`
       const { data } = await axios.get(apiUrl, { timeout: 30000 })
 
       if (!data.status || !data.data?.length) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        await sock.sendMessage(from, { text: global.messages?.error || '✦ No se pudo obtener el contenido.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
         return
       }
 
@@ -34,7 +34,7 @@ export default {
       const mediaUrl = media.url
       const tipo = media.type
 
-      await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
 
       const mediaRes = await axios.get(mediaUrl, {
         responseType: 'arraybuffer',
@@ -43,7 +43,7 @@ export default {
       const mediaBuffer = Buffer.from(mediaRes.data)
       const sizeMB = mediaBuffer.length / (1024 * 1024)
 
-      await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
 
       if (tipo === 'image') {
         await sock.sendMessage(from, {
@@ -63,11 +63,10 @@ export default {
         }
       }
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🌿', key: msg.key } })
 
-    } catch (err) {
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      await sock.sendMessage(from, { text: global.messages?.error || '✦ Error al procesar la descarga.' }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
     }
   }
 }

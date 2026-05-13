@@ -13,17 +13,14 @@ export default {
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {
-      return sock.sendMessage(from, {
-        text: '🌱 *Ingresa el nombre de la canción*'
-      }, { quoted: msg })
+      return sock.sendMessage(from, { text: global.messages.busquedaEmpty }, { quoted: msg })
     }
 
     const query = args.join(' ')
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
-      // API principal: Apinexus
       let artist, title, album, lyrics
 
       try {
@@ -46,7 +43,6 @@ export default {
         }
       } catch {}
 
-      // API de respaldo: PrinceTech
       if (!lyrics) {
         const { data } = await axios.get(
           `https://api.princetechn.com/api/search/lyrics?apikey=prince&query=${encodeURIComponent(query)}`,
@@ -62,22 +58,19 @@ export default {
       }
 
       if (!lyrics) {
-        return sock.sendMessage(from, { text: '🌱 No se encontró la letra.' }, { quoted: msg })
+        return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
 
-      let txt = `🌱 *${artist || 'Desconocido'}*\n`
-      txt += `🎵 _${title || query}_\n`
+      let txt = `🎵 *${artist || 'Desconocido'}*\n`
+      txt += `🎶 _${title || query}_\n`
       if (album) txt += `💿 ${album}\n`
       txt += `\n${lyrics}`
 
       await sock.sendMessage(from, { text: txt }, { quoted: msg })
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, {
-        text: global.messages?.error || '⚠️ Oh no, hubo un error en mi sistema. Intenta de nuevo.'
-      }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

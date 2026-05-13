@@ -73,29 +73,29 @@ export default {
   async execute(sock, msg, { from, args }) {
     if (!args.length) {
       return sock.sendMessage(from, {
-        text: '🌱 *Ingresa una URL de Pinterest*\n\nEjemplo: *.pindl https://pin.it/vm3LEeeRU*'
+        text: '🌸 Pásame una URL de Pinterest y te la descargo.\n\n_Ejemplo: .pindl https://pin.it/vm3LEeeRU_'
       }, { quoted: msg })
     }
 
     const url = args[0]
     if (!url.includes('pin.it') && !url.includes('pinterest.com')) {
-      return sock.sendMessage(from, { text: '🌱 *Ingresa una URL válida de Pinterest*' }, { quoted: msg })
+      return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
     }
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
       const { images, videos, t, h, cookieStr } = await downloadPinterest(url)
 
       if (!images.length && !videos.length) {
-        return sock.sendMessage(from, { text: '🌱 No se encontró contenido.' }, { quoted: msg })
+        return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
 
       if (videos.length) {
         const video = videos[0]
-        await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+        await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
         const videoBuffer = await downloadMedia(video.url, t, h, cookieStr)
-        await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+        await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
 
         const sizeMB = videoBuffer.length / (1024 * 1024)
         if (sizeMB < 50) {
@@ -109,18 +109,16 @@ export default {
         }
       } else if (images.length) {
         const bestImage = images.find(i => i.quality === 'Original') || images[0]
-        await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+        await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
         const imgBuffer = await downloadMedia(bestImage.url, t, h, cookieStr)
-        await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+        await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
         await sock.sendMessage(from, { image: imgBuffer }, { quoted: msg })
       }
 
-      await sock.sendMessage(from, { react: { text: '🍃', key: msg.key } })
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🌿', key: msg.key } })
 
-    } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
     }
   }
 }

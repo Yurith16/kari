@@ -13,13 +13,10 @@ export default {
   descripcion: 'Envía un gif de baile',
 
   async execute(sock, msg, { from }) {
-    const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
-    const usedCommand = textMsg.split(' ')[0].slice(1) || 'bailar'
-
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo
     const targetJid = contextInfo?.participant || contextInfo?.mentionedJid?.[0]
 
-    await sock.sendMessage(from, { react: { text: '🕺', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '💃', key: msg.key } })
 
     try {
       const apiUrl = `https://api.delirius.store/reactions/dance`
@@ -36,14 +33,14 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡Sácale brillo al piso!* @${selfTag} está bailando con @${victimTag}... ¡Qué gran ritmo tienen! 💃🕺✨🔥`
+        txt = `💃 ¡Qué ritmo! @${selfTag} y @${victimTag} están bailando juntos, brillan en la pista. ✨`
         mentions.push(victimJid)
       } else {
         const frasesRandom = [
-          `*¡Suelten la música!* @${selfTag} se puso a bailar sin contexto porque la vida es bella. 🕺🎶✨`,
-          `@${selfTag} tiene los mejores pasos del grupo. ¡Miren cómo se mueve! 💃🔥`,
-          `*Modo Fiesta:* @${selfTag} está celebrando solo... ¡No necesita a nadie para brillar! ✨🕺🕺`,
-          `@${selfTag} sacó los pasos prohibidos... ¡Cuidado que quema el suelo! 💃💥`
+          `🕺 ¡Suelten la música! @${selfTag} se puso a bailar porque la vida es bonita.`,
+          `💃 @${selfTag} tiene los mejores pasos, miren cómo se mueve.`,
+          `✨ @${selfTag} está celebrando solito, no necesita a nadie para brillar.`,
+          `🔥 @${selfTag} sacó los pasos prohibidos, cuidado que quema el suelo.`
         ]
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
@@ -55,11 +52,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '✨' : '🔥', key: enviado.key } })
-      }
-
-    } catch (err) {
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

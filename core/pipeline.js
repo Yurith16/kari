@@ -2,7 +2,7 @@ import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { logger, delay }           from '../utils/helpers.js'
 import { checkSpam }               from '../utils/spam.js'
 import { commands }                from './plugins.js'
-import { getGroup, isMuted, isBanned, trackActivity, updateGroupName, saveMsg } from './sqlite.js'
+import { getGroup, isMuted, isBanned, trackActivity, updateGroupName, saveMsg, isRegistered } from './sqlite.js'
 
 const LINK_RE = /(?:https?:\/\/)?(?:www\.)?(?:chat\.whatsapp\.com|wa\.me|t\.me|telegram\.(?:me|dog|org))\/\S+/i
 
@@ -145,16 +145,39 @@ async function dispatch(ctx, sock, msg) {
   const text  = extractText(msg)
   const match = matchPrefix(text)
 
-  if (!match) {
-    for (const cmd of commands.values()) {
-      if (cmd.onMessage) await cmd.onMessage(sock, msg, ctx).catch(() => {})
-    }
-    return
+  // Ejecutar onMessage SIEMPRE, no solo cuando no hay prefijo
+for (const cmd of commands.values()) {
+  if (cmd.onMessage) {
+    await cmd.onMessage(sock, msg, { 
+      from: ctx.from, 
+      text: extractText(msg),
+      sender: ctx.sender,
+      userNum: ctx.userNum,
+      isGroup: ctx.isGroup,
+      isOwner: ctx.isOwner,
+      isAdmin: ctx.isAdmin,
+      groupCfg: ctx.groupCfg
+    }).catch(() => {})
   }
+}
+
+if (!match) return
 
   const [cmdName, ...args] = match.rest.split(/\s+/)
   const cmd = commands.get(cmdName.toLowerCase())
   if (!cmd) return
+
+  // Check economía — si el comando es de economía, verificar registro y si está habilitado en el grupo
+  if (cmd.categoria === 'economia') {
+    if (ctx.isGroup && ctx.groupCfg?.economia === 0) {
+      await sock.sendMessage(ctx.from, { text: global.messages?.ecoDisabled }, { quoted: msg })
+      return
+    }
+    if (!isRegistered(ctx.userNum)) {
+      await sock.sendMessage(ctx.from, { text: global.messages?.notRegistered }, { quoted: msg })
+      return
+    }
+  }
 
   if (cmd.nsfw && ctx.isGroup && ctx.groupCfg?.nsfw !== 1 && !ctx.isOwner) {
     await sock.sendMessage(ctx.from, { text: global.messages?.nsfwDisabled }, { quoted: msg })

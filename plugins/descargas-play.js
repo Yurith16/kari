@@ -2,6 +2,7 @@ import axios from 'axios'
 import { CookieJar } from 'tough-cookie'
 import { wrapper } from 'axios-cookiejar-support'
 import ytSearch from 'yt-search'
+import { getBotSignature } from '../utils/formatters.js'
 
 const BASE = 'https://app.ytdown.to'
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
@@ -32,34 +33,42 @@ async function poll(client, workerUrl) {
 }
 
 export default {
-  command: ['mp3'],
-  tag: 'mp3',
+  command: ['ytmp3doc'],
+  tag: 'ytmp3doc',
   categoria: 'descargas',
-  descripcion: 'Descarga audios de YouTube en MP3',
+  descripcion: 'Descarga audios de YouTube en documento',
   owner: false,
   group: false,
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {
-      await sock.sendMessage(from, { text: '✦ Ingresa el nombre o URL de la música.' }, { quoted: msg })
+      await sock.sendMessage(from, { text: '🌸 ¿Qué canción quieres que busque? Dime el nombre o pásame el enlace.' }, { quoted: msg })
       return
     }
 
     const query = args.join(' ')
     const isUrl = query.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]{11}/)
 
-    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
-
     try {
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
+
       let videoUrl = query
-      let title, thumbnail
+      let title, author, duration, views, ago, thumbnail
 
       if (!isUrl) {
         const search = await ytSearch(query)
-        if (!search.videos.length) return await sock.sendMessage(from, { text: '✦ No se encontraron resultados.' }, { quoted: msg })
-        videoUrl = search.videos[0].url
-        title = search.videos[0].title
-        thumbnail = search.videos[0].thumbnail
+        if (!search.videos.length) {
+          await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+          return await sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
+        }
+        const video = search.videos[0]
+        videoUrl = video.url
+        title = video.title
+        author = video.author
+        duration = video.duration
+        views = video.views
+        ago = video.ago
+        thumbnail = video.thumbnail
       } else {
         const videoId = isUrl[0].split('v=')[1] || isUrl[0].split('/').pop()
         thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
@@ -74,9 +83,22 @@ export default {
 
       title = title || api.title
 
+      const signature = `           ${getBotSignature(global.bot)}`
+
+      const videoDetails = 
+`  · · ─────── ·🌸· ─────── · ·
+  ⊱ *_${title || 'Procesando...'}_* ⊰
+  ♡ *Canal:* _${author?.name || 'YouTube'}_
+  ❁ *Duración:* _${duration?.timestamp || '--:--'}_
+  ✾ *Vistas:* _${(views || 0).toLocaleString()}_
+  ✤ *Publicado:* _${ago || 'Reciente'}_
+  ♡ *Enlace:* _${videoUrl}_
+  · · ─────── ·🌸· ─────── · ·
+     ${signature}`
+
       await sock.sendMessage(from, {
         image: { url: thumbnail },
-        caption: `✦ *${title}*\n\nProcesando pedido...`
+        caption: videoDetails
       }, { quoted: msg })
 
       let opciones = api.mediaItems.filter(m => m.mediaExtension?.toLowerCase() === 'mp3')
@@ -84,24 +106,25 @@ export default {
 
       let elegido = opciones[0]
 
-      await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
 
       const downloadUrl = await poll(client, elegido.mediaUrl)
       const audioRes = await axios.get(downloadUrl, { responseType: 'arraybuffer' })
       const audioBuffer = Buffer.from(audioRes.data)
 
-      await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
 
       await sock.sendMessage(from, {
-        audio: audioBuffer,
-        mimetype: 'audio/mpeg'
+        document: audioBuffer,
+        mimetype: 'audio/mpeg',
+        fileName: `${title || 'audio'}.mp3`
       }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🌿', key: msg.key } })
 
-    } catch (err) {
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      await sock.sendMessage(from, { text: global.messages?.error || '✦ Hubo un problema con la descarga.' }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      return await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
     }
   }
 }

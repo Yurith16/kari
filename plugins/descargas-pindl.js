@@ -1,5 +1,6 @@
 // creditos a YJ-EspinoX
 import axios from 'axios'
+import { getBotSignature } from '../utils/formatters.js'
 
 export default {
   command: ['pinterest', 'pin'],
@@ -10,16 +11,13 @@ export default {
   group: false,
   nsfw: false,
 
-  async execute(sock, msg, { from, args, prefix }) {
+  async execute(sock, msg, { from, args }) {
     const query = args.join(' ')
-    if (!query) return sock.sendMessage(from, { 
-      text: `✦ Hernández, debes ingresar un término de búsqueda.\n\nEjemplo: *${prefix}pin anime wallpaper*` 
-    }, { quoted: msg })
+    if (!query) return sock.sendMessage(from, { text: global.messages.busquedaEmpty }, { quoted: msg })
 
     try {
-      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
-      // Paso 1: Obtener sesión y CSRF
       const session = await axios.get('https://es.pinterest.com/', {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
@@ -38,7 +36,6 @@ export default {
         })
       })
 
-      // Paso 2: Búsqueda de Pines
       const { data } = await axios.post(searchUrl, params, {
         headers: {
           'Accept': 'application/json, text/plain, */*',
@@ -53,8 +50,8 @@ export default {
 
       const results = data.resource_response?.data?.results || []
       if (results.length === 0) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        return sock.sendMessage(from, { text: '✦ No encontré resultados para tu búsqueda.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
 
       const shuffled = results.sort(() => 0.5 - Math.random())
@@ -63,7 +60,8 @@ export default {
       let albumKey = null
       let enviados = 0
 
-      // Paso 3: Generar y enviar el Álbum
+      const signature = `           ${getBotSignature(global.bot)}`
+
       for (const pin of selectedPins) {
         try {
           const imageUrl = pin.images.orig.url
@@ -73,7 +71,6 @@ export default {
           })
           const buffer = Buffer.from(imageResponse.data)
 
-          // Inicializar el contenedor del álbum en el primer envío exitoso
           if (!albumKey) {
             const album = sock.generateWAMessageFromContent(from, {
               messageContextInfo: {},
@@ -93,10 +90,16 @@ export default {
             albumKey = album.key
           }
 
-          // Preparar cada imagen para asociarla al álbum
+          const caption = enviados === 0
+            ? `
+  ♡ *Búsqueda:* _${query}_
+  · · ─────── ·🌸· ─────── · ·
+     ${signature}`
+            : ''
+
           const mediaMsg = await sock.generateWAMessage(from, {
             image: buffer,
-            caption: enviados === 0 ? `✦ *Pinterest:* ${query}` : ''
+            caption
           }, { upload: sock.waUploadToServer })
 
           mediaMsg.message.messageContextInfo = {
@@ -107,21 +110,20 @@ export default {
           enviados++
 
         } catch {
-          // Si falla una imagen, la saltamos silenciosamente
           continue
         }
       }
 
       if (enviados === 0) {
-        return sock.sendMessage(from, { text: '✦ No se pudieron procesar las imágenes del álbum.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
       }
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (error) {
-      console.error('[PINTEREST ERROR]:', error.message)
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      await sock.sendMessage(from, { text: '✦ Ocurrió un error inesperado al generar el álbum.' }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      return sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getBotSignature } from '../utils/formatters.js'
 
 function toNum(number) {
   number = Number(number) || 0
@@ -21,14 +22,14 @@ export default {
 
     if (!url || (!url.includes('twitter.com') && !url.includes('x.com'))) {
       await sock.sendMessage(from, {
-        text: '✦ Ingresa una URL de Twitter/X.\n\nEjemplo: *.x https://x.com/user/status/123*'
+        text: '🌸 Ay, necesito un enlace de Twitter/X para descargar. ¿Me lo pasas?'
       }, { quoted: msg })
       return
     }
 
-    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
-
     try {
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
+
       const normalized = url
         .replace(/x\.com/, 'twitter.com')
         .replace('twitter.com', 'api.vxtwitter.com')
@@ -36,16 +37,24 @@ export default {
       const { data } = await axios.get(normalized, { timeout: 30000 })
 
       if (!data?.media_extended?.length) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        await sock.sendMessage(from, { text: '✦ No se encontró contenido multimedia.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        await sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
         return
       }
 
       const autor = data.user_name || ''
       const user = data.user_screen_name || ''
-      const caption = `✦ *${autor}* (@${user})\n✦ ❤️ ${toNum(data.likes)}`
+      const signature = getBotSignature(global.bot)
 
-      await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+      const caption = 
+`  · · ────── ·🌸· ────── · ·
+  ⊱ *_Twitter/X_* ⊰
+  ♡ *Autor:* _${autor}_ (@${user})
+  ♡ *Likes:* _${toNum(data.likes)}_
+  · · ────── ·🌸· ────── · ·
+     ${signature}`
+
+      await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
 
       for (const item of data.media_extended) {
         const isVideo = item.type === 'video' || item.type === 'gif'
@@ -53,8 +62,9 @@ export default {
         const mediaBuffer = Buffer.from(mediaRes.data)
         const sizeMB = mediaBuffer.length / (1024 * 1024)
 
+        await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
+
         if (isVideo) {
-          await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
           if (sizeMB < 80) {
             await sock.sendMessage(from, {
               video: mediaBuffer,
@@ -76,11 +86,11 @@ export default {
         }
       }
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🌿', key: msg.key } })
 
-    } catch (err) {
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      await sock.sendMessage(from, { text: global.messages?.error || '✦ Error al procesar el enlace.' }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      return await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
     }
   }
 }

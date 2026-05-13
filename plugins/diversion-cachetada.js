@@ -13,13 +13,10 @@ export default {
   descripcion: 'Envía un gif de cachetada a alguien',
 
   async execute(sock, msg, { from }) {
-    const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
-    const usedCommand = textMsg.split(' ')[0].slice(1) || 'cachetada'
-
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo
     const targetJid = contextInfo?.participant || contextInfo?.mentionedJid?.[0]
 
-    await sock.sendMessage(from, { react: { text: '😤', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '✋', key: msg.key } })
 
     try {
       const apiUrl = `https://api.delirius.store/reactions/slap`
@@ -36,14 +33,14 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡REACCIONA!* @${selfTag} le dio una bofetada épica a @${victimTag} para que se ubique... ¡Eso sonó fuerte! ✋💥🔥`
+        txt = `✋ ¡Reacciona! @${selfTag} le dio una cachetada a @${victimTag}... ¡eso sonó fuerte! 💥`
         mentions.push(victimJid)
       } else {
         const frasesRandom = [
-          `*¡POV:* Te das una cachetada sin contexto! @${selfTag} perdió el sentido y se pegó solito. 🤦‍♂️💥`,
-          `*¿Todo bien?* @${selfTag} se dio una bofetada a sí mismo solo porque tenía ganas de sentir el drama. ✋🤡`,
-          `@${selfTag} se dio un golpe en la cara porque no puede creer lo que acaba de leer... ¡Ubícate! 😤✨`,
-          `*Momento épico:* @${selfTag} se dio una cachetada sin razón alguna. ¡Reacciona, hombre! 💥🤕`
+          `🤦 @${selfTag} se dio una cachetada solito, perdió el sentido.`,
+          `🤡 @${selfTag} se pegó solo porque tenía ganas de drama.`,
+          `😤 @${selfTag} se dio un golpe en la cara, no puede creer lo que leyó.`,
+          `💥 @${selfTag} se cacheteó sin razón... ¡reacciona!`
         ]
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
@@ -55,11 +52,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '⚡' : '🤔', key: enviado.key } })
-      }
-
-    } catch (err) {
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

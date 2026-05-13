@@ -2,8 +2,8 @@ import Database from 'better-sqlite3'
 import { logger } from '../utils/helpers.js'
 
 const db = new Database('./midori.db')
-db.pragma('journal_mode = WAL')   // escrituras concurrentes sin bloquear
-db.pragma('synchronous = NORMAL') // balance entre seguridad y velocidad
+db.pragma('journal_mode = WAL')
+db.pragma('synchronous = NORMAL')
 
 // ─── Tablas ───────────────────────────────────────────────────────────────────
 
@@ -22,8 +22,6 @@ db.exec(`
     goodbyeImg  TEXT DEFAULT '',
     updated_at  INTEGER DEFAULT (unixepoch())
   );
-
-
 
   CREATE TABLE IF NOT EXISTS warns (
     group_id TEXT,
@@ -46,12 +44,66 @@ db.exec(`
     last_seen INTEGER DEFAULT (unixepoch()),
     PRIMARY KEY (group_id, user)
   );
-`)
 
+  CREATE TABLE IF NOT EXISTS msg_history (
+    group_id   TEXT,
+    msg_id     TEXT,
+    sender     TEXT,
+    sent_at    INTEGER DEFAULT (unixepoch()),
+    PRIMARY KEY (group_id, msg_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS banned (
+    user       TEXT PRIMARY KEY,
+    banned_at  INTEGER DEFAULT (unixepoch())
+  );
+
+  CREATE TABLE IF NOT EXISTS users (
+    user_num   TEXT PRIMARY KEY,
+    nombre     TEXT DEFAULT '',
+    apodo      TEXT DEFAULT '',
+    edad       INTEGER DEFAULT 0,
+    genero     TEXT DEFAULT '',
+    pais       TEXT DEFAULT '',
+    registered_at INTEGER DEFAULT (unixepoch())
+  );
+
+  CREATE TABLE IF NOT EXISTS economy (
+    user_num   TEXT PRIMARY KEY,
+    kryons     INTEGER DEFAULT 0,
+    banco      INTEGER DEFAULT 0,
+    nivel      INTEGER DEFAULT 1,
+    xp         INTEGER DEFAULT 0,
+    FOREIGN KEY (user_num) REFERENCES users(user_num)
+  );
+
+  CREATE TABLE IF NOT EXISTS inventory (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_num   TEXT,
+    item       TEXT,
+    cantidad   INTEGER DEFAULT 1,
+    UNIQUE(user_num, item)
+  );
+
+  CREATE TABLE IF NOT EXISTS cooldowns (
+    user_num   TEXT,
+    cmd        TEXT,
+    last_use   INTEGER DEFAULT 0,
+    PRIMARY KEY (user_num, cmd)
+  );
+
+  CREATE TABLE IF NOT EXISTS tienda (
+    item       TEXT PRIMARY KEY,
+    precio     INTEGER DEFAULT 0,
+    descripcion TEXT DEFAULT '',
+    emoji      TEXT DEFAULT '📦'
+  );
+`)
 // Migración segura — agrega columnas si no existen
 for (const col of ['welcomeImg', 'goodbyeImg']) {
   try { db.exec(`ALTER TABLE groups ADD COLUMN ${col} TEXT DEFAULT ''`) } catch {}
 }
+try { db.exec(`ALTER TABLE groups ADD COLUMN economia INTEGER DEFAULT 1`) } catch {}
 
 logger.info('SQLite', 'Base de datos lista ✦')
 
@@ -87,8 +139,8 @@ export function resetWarns(groupId, user) { _resetWarns.run(groupId, user) }
 
 // ─── Mutes ────────────────────────────────────────────────────────────────────
 
-const _mute   = db.prepare(`INSERT OR IGNORE INTO mutes (group_id, user) VALUES (?,?)`)
-const _unmute = db.prepare(`DELETE FROM mutes WHERE group_id = ? AND user = ?`)
+const _mute    = db.prepare(`INSERT OR IGNORE INTO mutes (group_id, user) VALUES (?,?)`)
+const _unmute  = db.prepare(`DELETE FROM mutes WHERE group_id = ? AND user = ?`)
 const _isMuted = db.prepare(`SELECT 1 FROM mutes WHERE group_id = ? AND user = ?`)
 
 export function muteUser(groupId, user)   { _mute.run(groupId, user) }
@@ -106,22 +158,10 @@ const _getTopActivity = db.prepare(`SELECT user, msgs FROM activity WHERE group_
 export function trackActivity(groupId, user) { _trackActivity.run(groupId, user) }
 export function getTopActivity(groupId, limit = 10) { return _getTopActivity.all(groupId, limit) }
 
-
 // ─── Historial de mensajes (para purge) ──────────────────────────────────────
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS msg_history (
-    group_id   TEXT,
-    msg_id     TEXT,
-    sender     TEXT,
-    sent_at    INTEGER DEFAULT (unixepoch()),
-    PRIMARY KEY (group_id, msg_id)
-  );
-`)
-
-// Mantener solo los últimos 500 mensajes por grupo — limpiar automáticamente
-const _saveMsg     = db.prepare(`INSERT OR IGNORE INTO msg_history (group_id, msg_id, sender, sent_at) VALUES (?,?,?,?)`)
-const _cleanOld    = db.prepare(`DELETE FROM msg_history WHERE group_id = ? AND msg_id NOT IN (SELECT msg_id FROM msg_history WHERE group_id = ? ORDER BY sent_at DESC LIMIT 500)`)
+const _saveMsg      = db.prepare(`INSERT OR IGNORE INTO msg_history (group_id, msg_id, sender, sent_at) VALUES (?,?,?,?)`)
+const _cleanOld     = db.prepare(`DELETE FROM msg_history WHERE group_id = ? AND msg_id NOT IN (SELECT msg_id FROM msg_history WHERE group_id = ? ORDER BY sent_at DESC LIMIT 500)`)
 const _getMsgsSince = db.prepare(`SELECT msg_id, sender FROM msg_history WHERE group_id = ? AND sent_at >= ? ORDER BY sent_at DESC`)
 const _getLastMsgs  = db.prepare(`SELECT msg_id, sender FROM msg_history WHERE group_id = ? ORDER BY sent_at DESC LIMIT ?`)
 const _deleteMsg    = db.prepare(`DELETE FROM msg_history WHERE group_id = ? AND msg_id = ?`)
@@ -139,21 +179,96 @@ export function deleteMsgFromHistory(groupId, msgId) { _deleteMsg.run(groupId, m
 
 // ─── Ban global ───────────────────────────────────────────────────────────────
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS banned (
-    user       TEXT PRIMARY KEY,
-    banned_at  INTEGER DEFAULT (unixepoch())
-  );
-`)
-
-const _ban      = db.prepare(`INSERT OR IGNORE INTO banned (user) VALUES (?)`)
-const _unban    = db.prepare(`DELETE FROM banned WHERE user = ?`)
-const _isBanned = db.prepare(`SELECT 1 FROM banned WHERE user = ?`)
+const _ban       = db.prepare(`INSERT OR IGNORE INTO banned (user) VALUES (?)`)
+const _unban     = db.prepare(`DELETE FROM banned WHERE user = ?`)
+const _isBanned  = db.prepare(`SELECT 1 FROM banned WHERE user = ?`)
 const _getBanned = db.prepare(`SELECT user FROM banned ORDER BY banned_at DESC`)
 
-export function banUser(user)    { _ban.run(user) }
-export function unbanUser(user)  { _unban.run(user) }
-export function isBanned(user)   { return !!_isBanned.get(user) }
-export function getBanned()      { return _getBanned.all().map(r => r.user) }
+export function banUser(user)   { _ban.run(user) }
+export function unbanUser(user) { _unban.run(user) }
+export function isBanned(user)  { return !!_isBanned.get(user) }
+export function getBanned()     { return _getBanned.all().map(r => r.user) }
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+const _getUser      = db.prepare(`SELECT * FROM users WHERE user_num = ?`)
+const _createUser   = db.prepare(`INSERT OR IGNORE INTO users (user_num, nombre, apodo, edad, genero, pais) VALUES (?,?,?,?,?,?)`)
+const _updateUser   = db.prepare(`UPDATE users SET nombre=?, apodo=?, edad=?, genero=?, pais=? WHERE user_num=?`)
+const _isRegistered = db.prepare(`SELECT 1 FROM users WHERE user_num = ? AND nombre != ''`)
+
+export function getUser(userNum)      { return _getUser.get(userNum) }
+export function isRegistered(userNum) { return !!_isRegistered.get(userNum) }
+export function registerUser(userNum, { nombre, apodo, edad, genero, pais }) {
+  _createUser.run(userNum, nombre, apodo || '', edad, genero || '', pais || '')
+  _initEconomy.run(userNum)
+}
+export function updateUser(userNum, { nombre, apodo, edad, genero, pais }) {
+  _updateUser.run(nombre, apodo || '', edad, genero || '', pais || '', userNum)
+}
+
+// ─── Economy ──────────────────────────────────────────────────────────────────
+
+const _initEconomy  = db.prepare(`INSERT OR IGNORE INTO economy (user_num) VALUES (?)`)
+const _getEconomy   = db.prepare(`SELECT * FROM economy WHERE user_num = ?`)
+const _addKryons    = db.prepare(`UPDATE economy SET kryons = kryons + ? WHERE user_num = ?`)
+const _removeKryons = db.prepare(`UPDATE economy SET kryons = MAX(0, kryons - ?) WHERE user_num = ?`)
+const _setBanco     = db.prepare(`UPDATE economy SET banco = banco + ? WHERE user_num = ?`)
+const _removeBanco  = db.prepare(`UPDATE economy SET banco = MAX(0, banco - ?) WHERE user_num = ?`)
+const _addXp        = db.prepare(`UPDATE economy SET xp = xp + ?, nivel = MAX(nivel, (xp + ?) / 100 + 1) WHERE user_num = ?`)
+const _getTopEco    = db.prepare(`SELECT user_num, kryons + banco as total FROM economy ORDER BY total DESC LIMIT ?`)
+
+export function getEconomy(userNum)        { _initEconomy.run(userNum); return _getEconomy.get(userNum) }
+export function addKryons(userNum, amt)    { _initEconomy.run(userNum); _addKryons.run(amt, userNum) }
+export function removeKryons(userNum, amt) { _removeKryons.run(amt, userNum) }
+export function depositBanco(userNum, amt) { _removeKryons.run(0, userNum); _setBanco.run(amt, userNum); _removeKryons.run(amt, userNum) }
+export function withdrawBanco(userNum, amt){ _removeBanco.run(amt, userNum); _addKryons.run(amt, userNum) }
+export function addXp(userNum, amt)        { _initEconomy.run(userNum); _addXp.run(amt, amt, userNum) }
+export function getTopEconomy(limit = 10)  { return _getTopEco.all(limit) }
+
+// ─── Cooldowns ────────────────────────────────────────────────────────────────
+
+const _getCooldown = db.prepare(`SELECT last_use FROM cooldowns WHERE user_num = ? AND cmd = ?`)
+const _setCooldown = db.prepare(`INSERT INTO cooldowns (user_num, cmd, last_use) VALUES (?,?,?) ON CONFLICT(user_num,cmd) DO UPDATE SET last_use = ?`)
+
+export function checkCooldown(userNum, cmd, seconds) {
+  const row  = _getCooldown.get(userNum, cmd)
+  const now  = Math.floor(Date.now() / 1000)
+  if (!row) return { ok: true, secsLeft: 0 }
+  const diff = now - row.last_use
+  if (diff >= seconds) return { ok: true, secsLeft: 0 }
+  return { ok: false, secsLeft: seconds - diff }
+}
+export function setCooldown(userNum, cmd) {
+  const now = Math.floor(Date.now() / 1000)
+  _setCooldown.run(userNum, cmd, now, now)
+}
+
+// ─── Inventario ───────────────────────────────────────────────────────────────
+
+const _addItem    = db.prepare(`INSERT INTO inventory (user_num, item, cantidad) VALUES (?,?,1) ON CONFLICT(user_num,item) DO UPDATE SET cantidad = cantidad + 1`)
+const _getInv     = db.prepare(`SELECT item, cantidad FROM inventory WHERE user_num = ? ORDER BY item`)
+const _removeItem = db.prepare(`UPDATE inventory SET cantidad = MAX(0, cantidad - 1) WHERE user_num = ? AND item = ?`)
+
+export function addItem(userNum, item)    { _addItem.run(userNum, item) }
+export function getInventory(userNum)     { return _getInv.all(userNum) }
+export function removeItem(userNum, item) { _removeItem.run(userNum, item) }
+
+// ─── Tienda ───────────────────────────────────────────────────────────────────
+
+const _getTienda = db.prepare(`SELECT * FROM tienda ORDER BY precio`)
+const _getItem   = db.prepare(`SELECT * FROM tienda WHERE item = ?`)
+
+export function getTienda()      { return _getTienda.all() }
+export function getItemTienda(i) { return _getItem.get(i) }
+
+// Insertar items por defecto si la tienda está vacía
+const tiendaCount = db.prepare(`SELECT COUNT(*) as n FROM tienda`).get()
+if (tiendaCount.n === 0) {
+  const insertItem = db.prepare(`INSERT OR IGNORE INTO tienda (item, precio, descripcion, emoji) VALUES (?,?,?,?)`)
+  insertItem.run('escudo',  500, 'Te protege de robos por 24h',        '🛡')
+  insertItem.run('pico',    300, 'Aumenta ganancias al minar x1.5',    '⛏')
+  insertItem.run('maletín', 400, 'Aumenta ganancias al trabajar x1.5', '💼')
+  insertItem.run('capa',    600, 'Reduce pérdidas en crímenes fallidos','🧥')
+}
 
 export default db

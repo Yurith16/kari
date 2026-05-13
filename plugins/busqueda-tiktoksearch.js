@@ -13,15 +13,13 @@ export default {
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {
-      return sock.sendMessage(from, {
-        text: '🌱 *Ingresa lo que deseas buscar en TikTok*'
-      }, { quoted: msg })
+      return sock.sendMessage(from, { text: global.messages.busquedaEmpty }, { quoted: msg })
     }
 
     const query = args.join(' ')
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔍', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
       const { data } = await axios.post('https://tikwm.com/api/feed/search',
         new URLSearchParams({
@@ -42,21 +40,19 @@ export default {
 
       const videos = data?.data?.videos || []
       if (!videos.length) {
-        return sock.sendMessage(from, { text: '🌱 No se encontraron videos.' }, { quoted: msg })
+        return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
 
-      // Extraer URLs válidas y completar rutas relativas
       const urlsValidas = []
       for (const v of videos) {
         let url = v.play || v.wmplay || v.hdplay
         if (!url) continue
-        // Completar URLs relativas
         if (url.startsWith('/')) url = 'https://tikwm.com' + url
         urlsValidas.push({ url, v })
       }
 
       if (!urlsValidas.length) {
-        return sock.sendMessage(from, { text: '🌱 No se encontraron videos.' }, { quoted: msg })
+        return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
 
       let albumKey = null
@@ -99,8 +95,8 @@ export default {
           const author = v.author?.nickname || 'Usuario'
           const description = v.title ? v.title.slice(0, 100) : ''
           const caption = enviados === 0
-            ? `🌱 ${query}`
-            : `🌱 ${author}\n${description}`
+            ? `🎶 ${query}`
+            : `🎶 ${author}\n${description}`
 
           const mediaMsg = await sock.generateWAMessage(from, {
             video: buffer,
@@ -120,16 +116,13 @@ export default {
       }
 
       if (enviados === 0) {
-        return sock.sendMessage(from, { text: '🌱 No se encontraron videos válidos.' }, { quoted: msg })
+        return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, {
-        text: global.messages?.error || '⚠️ Oh no, hubo un error en mi sistema. Intenta de nuevo.'
-      }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

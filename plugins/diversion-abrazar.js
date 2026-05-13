@@ -13,9 +13,6 @@ export default {
   descripcion: 'Envía un gif de abrazo a alguien',
 
   async execute(sock, msg, { from }) {
-    const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
-    const usedCommand = textMsg.split(' ')[0].slice(1) || 'acurrucar'
-
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo
     const targetJid = contextInfo?.participant || contextInfo?.mentionedJid?.[0]
 
@@ -36,14 +33,14 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡Qué romántico!* @${selfTag} se acurrucó tiernamente con @${victimTag}... El tiempo se detuvo para ellos. ✨🧸💖`
+        txt = `🫂 ¡Ay, qué bonito! @${selfTag} se acurrucó con @${victimTag}... el tiempo se detuvo un ratito. ✨`
         mentions.push(victimJid)
       } else {
         const frasesRandom = [
-          `*¡Alerta de soledad!* @${selfTag} se está acurrucando con su almohada porque nadie le hace caso... 🧸💔`,
-          `@${selfTag} anda buscando un abracito desesperadamente. ¿Alguien se ofrece? 🫂✨`,
-          `*Sin contexto:* @${selfTag} se acurrucó con el aire. El drama de la soltería es real. ✨🤡`,
-          `@${selfTag} entró en modo cariñoso, pero no encontró a nadie... ¡Qué triste! 🥺🍃`
+          `🧸 @${selfTag} anda buscando un abracito... ¿alguien se ofrece?`,
+          `🫂 @${selfTag} se abrazó a su almohada, nadie le hace caso hoy.`,
+          `💔 @${selfTag} entró en modo cariñoso pero no encontró a nadie.`,
+          `🥺 @${selfTag} quiere un abrazo, ¿tan difícil es?`
         ]
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
@@ -55,11 +52,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '💖' : '🧸', key: enviado.key } })
-      }
-
-    } catch (err) {
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

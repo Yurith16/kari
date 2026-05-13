@@ -11,12 +11,12 @@ export default {
 
     if (!url || !url.includes('mediafire.com')) {
       await sock.sendMessage(from, {
-        text: '✦ Ingresa una URL de MediaFire.\n\nEjemplo: *.mf https://www.mediafire.com/file/xxx*'
+        text: '🌸 Ay, necesito un enlace de MediaFire para descargarlo. ¿Me lo pasas?'
       }, { quoted: msg })
       return
     }
 
-    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
     try {
       const res = await fetch('https://panel.apinexus.fun/api/mediafire/v2/descargar', {
@@ -27,8 +27,8 @@ export default {
       const json = await res.json()
 
       if (!json.success || !json.data) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        await sock.sendMessage(from, { text: global.messages?.error || '✦ No se pudo obtener el archivo.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
         return
       }
 
@@ -36,17 +36,17 @@ export default {
       const sizeNumber = parseFloat(filesize)
 
       if (sizeNumber > 600) {
-        await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-        await sock.sendMessage(from, { text: '✦ El archivo pesa más de 600MB.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        await sock.sendMessage(from, { text: '🌸 Ay, este archivo pesa más de 600MB, no puedo con tanto.' }, { quoted: msg })
         return
       }
 
-      await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
 
       const fileRes = await fetch(download)
       const fileBuffer = Buffer.from(await fileRes.arrayBuffer())
 
-      await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
 
       await sock.sendMessage(from, {
         document: fileBuffer,
@@ -54,11 +54,10 @@ export default {
         fileName: filename
       }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🌿', key: msg.key } })
 
-    } catch (err) {
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      await sock.sendMessage(from, { text: global.messages?.error || '✦ Error al procesar la descarga.' }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
     }
   }
 }

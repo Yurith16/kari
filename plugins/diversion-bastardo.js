@@ -34,26 +34,26 @@ export default {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
         if (esFemenino) {
-          txt = `*¡Qué bastarda!* @${selfTag} le está diciendo bastarda a @${victimTag}... ¡Se armó el drama, amiga! 😈🔥💅`
+          txt = `😈 @${selfTag} le dijo bastarda a @${victimTag}... ¡se armó el drama, amiga! 💅`
         } else {
-          txt = `*¡Qué bastardo!* @${selfTag} le está diciendo bastardo a @${victimTag}... ¡Se armó el drama, compa! 😈🔥`
+          txt = `😈 @${selfTag} le dijo bastardo a @${victimTag}... ¡se armó el drama, compa!`
         }
         mentions.push(victimJid)
       } else {
         if (esFemenino) {
           const frasesRandom = [
-            `*¡Ay, qué bastarda!* @${selfTag} se puso en modo villana... ¡Cuidado con esa morra! 😈💅`,
-            `@${selfTag} anda de bastarda hoy... ¡Nadie la detiene, amiga! 🔥`,
-            `*Sin contexto:* @${selfTag} se declaró la más bastarda del grupo. 👑😈`,
-            `@${selfTag} sacó su lado bastardo... ¡Y lo presume! 💋🔥`
+            `💅 @${selfTag} se puso en modo villana, cuidado con ella.`,
+            `🔥 @${selfTag} anda de bastarda hoy, nadie la detiene.`,
+            `👑 @${selfTag} se declaró la más bastarda del grupo.`,
+            `😈 @${selfTag} sacó su lado bastardo y lo presume.`
           ]
           txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
         } else {
           const frasesRandom = [
-            `*¡Ay, qué bastardo!* @${selfTag} se puso en modo villano... ¡Cuidado con ese wey! 😈`,
-            `@${selfTag} anda de bastardo hoy... ¡Nadie lo detiene, compa! 🔥`,
-            `*Sin contexto:* @${selfTag} se declaró el más bastardo del grupo. 👑😈`,
-            `@${selfTag} sacó su lado bastardo... ¡Y lo presume! 🔥`
+            `😈 @${selfTag} se puso en modo villano, cuidado con él.`,
+            `🔥 @${selfTag} anda de bastardo hoy, nadie lo detiene.`,
+            `👑 @${selfTag} se declaró el más bastardo del grupo.`,
+            `😈 @${selfTag} sacó su lado bastardo y lo presume.`
           ]
           txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
         }
@@ -69,12 +69,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '👑' : '😈', key: enviado.key } })
-      }
-
-    } catch (err) {
-      console.error(err)
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }
