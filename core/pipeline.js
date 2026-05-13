@@ -7,7 +7,6 @@ import { isToxic, getToxicResponse, addWarning, clearWarnings } from '../utils/t
 
 const LINK_RE = /(?:https?:\/\/)?(?:www\.)?(?:chat\.whatsapp\.com|wa\.me|t\.me|telegram\.(?:me|dog|org))\/\S+/i
 
-// Caché global de @lid → número real (compartido con bot.js via global)
 if (!global.lidCache) global.lidCache = new Map()
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -104,27 +103,21 @@ async function stepMute(ctx, sock, msg) {
   return true
 }
 
-// Antitoxic
 async function stepAntiToxic(ctx, sock, msg) {
   if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin) return false
   if (!ctx.groupCfg?.antiToxic || ctx.groupCfg?.antiToxic !== 1) return false
 
   const text = extractText(msg)
-  
   if (!text) return false
 
   const { toxic } = isToxic(text)
-
   if (!toxic) return false
 
   try {
-    // Eliminar mensaje tóxico
     await sock.sendMessage(ctx.from, { delete: msg.key })
 
     const warningCount = addWarning(ctx.userNum)
     const response = getToxicResponse(ctx.userNum, warningCount)
-
-    console.log('[AntiToxic] Aviso', warningCount, 'para', ctx.userNum, '| Palabra detectada')
 
     await sock.sendMessage(ctx.from, {
       text: response,
@@ -138,11 +131,49 @@ async function stepAntiToxic(ctx, sock, msg) {
         clearWarnings(ctx.userNum)
       }, 180000)
     }
-  } catch (err) {
-    console.error('[AntiToxic] Error:', err.message)
-  }
+  } catch {}
 
   return true
+}
+
+async function stepGuards(ctx, sock, msg) {
+  const feat = global.features || {}
+  const msgs = global.messages || {}
+  const bot  = global.bot     || {}
+
+  if (!ctx.isOwner && isBanned(ctx.userNum)) {
+    await sock.sendMessage(ctx.from, { text: msgs.bannedWarn }, { quoted: msg })
+    return true
+  }
+
+  if (feat.maintenance && !ctx.isOwner) {
+    await sock.sendMessage(ctx.from, { text: msgs.maintenance }, { quoted: msg })
+    return true
+  }
+
+  if (!ctx.isGroup && !feat.allowPrivate && !ctx.isOwner) {
+    await sock.sendMessage(ctx.from, {
+      text: (msgs.privateOnly || '').replace('{grupoOficial}', bot.grupoOficial || '')
+    }, { quoted: msg })
+    return true
+  }
+
+  if (ctx.isGroup && ctx.groupCfg?.adminMode === 1 && !ctx.isOwner && !ctx.isAdmin) {
+    await sock.sendMessage(ctx.from, { text: msgs.adminOnly }, { quoted: msg })
+    return true
+  }
+
+  if (feat.antiSpam && !ctx.isOwner) {
+    const { blocked, secsLeft } = checkSpam(ctx.sender)
+    if (blocked) {
+      await sock.sendMessage(ctx.from, {
+        text: (msgs.spamWarn || '⏳ Espera {secs}s').replace('{secs}', secsLeft)
+      }, { quoted: msg })
+      return true
+    }
+  }
+
+  return false
 }
 
 // ─── Dispatch ─────────────────────────────────────────────────────────────────
