@@ -6,7 +6,7 @@ const bot = {
   "botNumber": "50432821762",
   "session": "midori-session",
   "prefix": [
-    "!"
+    "."
   ],
   "grupoOficial": "https://chat.whatsapp.com/EO71LJBsMj8C4Xgb2moMAd",
   "soporte": "https://wa.me/50496926150",
