@@ -110,8 +110,10 @@ db.exec(`
 `)
 
 // Prefijos por grupos
-
 try { db.exec(`ALTER TABLE groups ADD COLUMN prefix TEXT DEFAULT ''`) } catch {}
+
+// Antitoxic grupos 
+try { db.exec(`ALTER TABLE groups ADD COLUMN antiToxic INTEGER DEFAULT 1`) } catch {}
 
 // Migración segura — agrega columnas si no existen
 for (const col of ['welcomeImg', 'goodbyeImg']) {

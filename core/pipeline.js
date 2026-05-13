@@ -2,7 +2,8 @@ import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { logger, delay }           from '../utils/helpers.js'
 import { checkSpam }               from '../utils/spam.js'
 import { commands }                from './plugins.js'
-import { getGroup, isMuted, isBanned, trackActivity, updateGroupName, saveMsg, isRegistered } from './sqlite.js'
+import { getGroup, isMuted, isBanned, muteUser, unmuteUser, trackActivity, updateGroupName, saveMsg, isRegistered } from './sqlite.js'
+import { isToxic, getToxicResponse, addWarning, clearWarnings } from '../utils/toxic.js'
 
 const LINK_RE = /(?:https?:\/\/)?(?:www\.)?(?:chat\.whatsapp\.com|wa\.me|t\.me|telegram\.(?:me|dog|org))\/\S+/i
 
@@ -18,15 +19,18 @@ function extractText(msg) {
       || m?.imageMessage?.caption
       || m?.videoMessage?.caption
       || m?.documentMessage?.caption
+      || m?.viewOnceMessage?.message?.imageMessage?.caption
+      || m?.viewOnceMessageV2?.message?.imageMessage?.caption
+      || m?.viewOnceMessageV2Extension?.message?.imageMessage?.caption
+      || m?.buttonsMessage?.contentText
+      || m?.templateMessage?.hydratedTemplate?.hydratedContentText
       || ''
 }
 
 function matchPrefix(text, groupCfg) {
-  // Primero el prefijo personalizado del grupo
   if (groupCfg?.prefix && text.startsWith(groupCfg.prefix)) {
     return { prefix: groupCfg.prefix, rest: text.slice(groupCfg.prefix.length).trim() }
   }
-  // Luego el prefijo global
   for (const p of (global.bot?.prefix || ['.'])) {
     if (text.startsWith(p)) return { prefix: p, rest: text.slice(p.length).trim() }
   }
@@ -100,44 +104,45 @@ async function stepMute(ctx, sock, msg) {
   return true
 }
 
-async function stepGuards(ctx, sock, msg) {
-  const feat = global.features || {}
-  const msgs = global.messages || {}
-  const bot  = global.bot     || {}
+// Antitoxic
+async function stepAntiToxic(ctx, sock, msg) {
+  if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin) return false
+  if (!ctx.groupCfg?.antiToxic || ctx.groupCfg?.antiToxic !== 1) return false
 
-  if (!ctx.isOwner && isBanned(ctx.userNum)) {
-    await sock.sendMessage(ctx.from, { text: msgs.bannedWarn }, { quoted: msg })
-    return true
-  }
+  const text = extractText(msg)
+  
+  if (!text) return false
 
-  if (feat.maintenance && !ctx.isOwner) {
-    await sock.sendMessage(ctx.from, { text: msgs.maintenance }, { quoted: msg })
-    return true
-  }
+  const { toxic } = isToxic(text)
 
-  if (!ctx.isGroup && !feat.allowPrivate && !ctx.isOwner) {
+  if (!toxic) return false
+
+  try {
+    // Eliminar mensaje tóxico
+    await sock.sendMessage(ctx.from, { delete: msg.key })
+
+    const warningCount = addWarning(ctx.userNum)
+    const response = getToxicResponse(ctx.userNum, warningCount)
+
+    console.log('[AntiToxic] Aviso', warningCount, 'para', ctx.userNum, '| Palabra detectada')
+
     await sock.sendMessage(ctx.from, {
-      text: (msgs.privateOnly || '').replace('{grupoOficial}', bot.grupoOficial || '')
-    }, { quoted: msg })
-    return true
-  }
+      text: response,
+      mentions: [`${ctx.userNum}@s.whatsapp.net`]
+    })
 
-  if (ctx.isGroup && ctx.groupCfg?.adminMode === 1 && !ctx.isOwner && !ctx.isAdmin) {
-    await sock.sendMessage(ctx.from, { text: msgs.adminOnly }, { quoted: msg })
-    return true
-  }
-
-  if (feat.antiSpam && !ctx.isOwner) {
-    const { blocked, secsLeft } = checkSpam(ctx.sender)
-    if (blocked) {
-      await sock.sendMessage(ctx.from, {
-        text: (msgs.spamWarn || '⏳ Espera {secs}s').replace('{secs}', secsLeft)
-      }, { quoted: msg })
-      return true
+    if (warningCount >= 3) {
+      muteUser(ctx.from, ctx.userNum)
+      setTimeout(() => {
+        unmuteUser(ctx.from, ctx.userNum)
+        clearWarnings(ctx.userNum)
+      }, 180000)
     }
+  } catch (err) {
+    console.error('[AntiToxic] Error:', err.message)
   }
 
-  return false
+  return true
 }
 
 // ─── Dispatch ─────────────────────────────────────────────────────────────────
@@ -213,6 +218,7 @@ export async function handleMessage(sock, msg) {
 
     if (await stepAntiLink(ctx, sock, msg)) return
     if (await stepMute(ctx, sock, msg))     return
+    if (await stepAntiToxic(ctx, sock, msg)) return
 
     const match = matchPrefix(extractText(msg), ctx.groupCfg)
     if (match && await stepGuards(ctx, sock, msg)) return

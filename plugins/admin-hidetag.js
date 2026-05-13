@@ -1,3 +1,5 @@
+import { downloadMediaMessage } from '@whiskeysockets/baileys'
+
 export default {
   command:   'tag',
   tag:       'tag',
@@ -12,13 +14,60 @@ export default {
       const meta     = await sock.groupMetadata(from)
       const mentions = meta.participants.map(m => m.id)
 
-      // Si responde a un mensaje, copiar el texto de ese mensaje
+      // Si responde a un mensaje
       const quoted = msg.message?.extendedTextMessage?.contextInfo
       if (quoted?.quotedMessage) {
-        const quotedText = quoted.quotedMessage?.conversation ||
-                          quoted.quotedMessage?.extendedTextMessage?.text ||
-                          quoted.quotedMessage?.imageMessage?.caption ||
-                          quoted.quotedMessage?.videoMessage?.caption ||
+        const qm = quoted.quotedMessage
+
+        // Si es imagen
+        if (qm.imageMessage) {
+          const buffer = await downloadMediaMessage(
+            { message: qm },
+            'buffer',
+            {}
+          )
+          await sock.sendMessage(from, {
+            image: buffer,
+            caption: qm.imageMessage.caption || '',
+            mentions
+          })
+          return
+        }
+
+        // Si es video
+        if (qm.videoMessage) {
+          const buffer = await downloadMediaMessage(
+            { message: qm },
+            'buffer',
+            {}
+          )
+          await sock.sendMessage(from, {
+            video: buffer,
+            caption: qm.videoMessage.caption || '',
+            mentions
+          })
+          return
+        }
+
+        // Si es sticker
+        if (qm.stickerMessage) {
+          const buffer = await downloadMediaMessage(
+            { message: qm },
+            'buffer',
+            {}
+          )
+          await sock.sendMessage(from, {
+            sticker: buffer,
+            mentions
+          })
+          return
+        }
+
+        // Si es texto
+        const quotedText = qm.conversation ||
+                          qm.extendedTextMessage?.text ||
+                          qm.imageMessage?.caption ||
+                          qm.videoMessage?.caption ||
                           ''
         if (quotedText) {
           await sock.sendMessage(from, { text: quotedText, mentions })
@@ -26,9 +75,15 @@ export default {
         }
       }
 
-      // Si no responde, usar el texto o un mensaje lindo por defecto
-      const texto = args.join(' ') || '🌸 Hola a todos, los llamaron de su grupo favorito.'
-      await sock.sendMessage(from, { text: texto, mentions })
+      // Si no responde, usar el texto con saltos de línea respetados
+      const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+      const cmdEnd = fullText.indexOf(' ')
+      const texto = cmdEnd > -1 ? fullText.slice(cmdEnd + 1) : ''
+
+      await sock.sendMessage(from, {
+        text: texto || '🌸 Hola a todos, los llamaron de su grupo favorito.',
+        mentions
+      })
     } catch {
       await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
