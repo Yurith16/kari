@@ -1,129 +1,100 @@
-// plugins/tomp3.js
+// plugins/toimg.js
 
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
-import { spawn } from 'child_process'
-import { writeFile, readFile, unlink } from 'fs/promises'
-import { tmpdir } from 'os'
+import { exec } from 'child_process'
+import { writeFile, readFile, unlink, mkdir } from 'fs/promises'
+import { existsSync } from 'fs'
 import { join } from 'path'
-import { execFile } from 'child_process'
-import { promisify } from 'util'
+import sharp from 'sharp'
 
-const execFileAsync = promisify(execFile)
+const TEMP_DIR = join(process.cwd(), 'temp')
+if (!existsSync(TEMP_DIR)) {
+  await mkdir(TEMP_DIR, { recursive: true }).catch(() => {})
+}
+
+function execPromise(cmd) {
+  return new Promise((resolve, reject) => {
+    exec(cmd, (err) => (err ? reject(err) : resolve()))
+  })
+}
+
+const processing = new Set()
 
 export default {
-  command:   'tomp3',
-  tag:       'tomp3',
+  command:   ['toimg', 'photo'],
+  tag:       'toimg',
   categoria: 'utilidad',
   owner:     false,
   group:     false,
   nsfw:      false,
-  descripcion: 'Extrae el audio de un video',
+  descripcion: 'Convierte un sticker a imagen',
 
   async execute(sock, msg, { from }) {
-    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
+    const userId = msg.key.participant || from
 
-    const isVideo = msg.message?.videoMessage || quoted?.videoMessage
-    const isDoc = msg.message?.documentMessage || quoted?.documentMessage
-    const isAudio = msg.message?.audioMessage || quoted?.audioMessage
-
-    if (!isVideo && !isDoc && !isAudio) {
+    if (processing.has(userId)) {
       return sock.sendMessage(from, {
-        text: '🌱 *Responde a un video, documento o audio para extraer el audio en MP3*'
+        text: '🌸 Espera un momento, aún estoy convirtiendo el sticker anterior.'
       }, { quoted: msg })
     }
 
+    const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
+
+    if (!quoted?.stickerMessage) {
+      return sock.sendMessage(from, {
+        text: '🌸 Responde a un sticker para convertirlo en imagen.'
+      }, { quoted: msg })
+    }
+
+    processing.add(userId)
+
+    const tmpPath = join(TEMP_DIR, `${Date.now()}_sticker.webp`)
+    const outPath = join(TEMP_DIR, `${Date.now()}_image.png`)
+
     try {
-      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
-      const sourceMsg = msg.message?.videoMessage || msg.message?.documentMessage || msg.message?.audioMessage
-        ? { message: msg.message }
-        : { message: quoted }
+      const buffer = await downloadMediaMessage(
+        { message: quoted },
+        'buffer',
+        {},
+        { logger: console }
+      )
 
-      const msgProgress = await sock.sendMessage(from, {
-        text: '> 🎵 *Extrayendo audio...* 0%'
+      await writeFile(tmpPath, buffer)
+
+      const isAnimated = buffer.toString('ascii', 0, 200).includes('ANIM') ||
+                        buffer.toString('ascii', 0, 200).includes('ANMF')
+
+      if (isAnimated) {
+        try {
+          await execPromise(`ffmpeg -y -i "${tmpPath}" -vframes 1 -f image2 "${outPath}"`)
+        } catch {
+          const img = await sharp(buffer, { animated: true }).png().toBuffer()
+          await writeFile(outPath, img)
+        }
+      } else {
+        try {
+          const pngBuffer = await sharp(buffer).png().toBuffer()
+          await writeFile(outPath, pngBuffer)
+        } catch {
+          await execPromise(`ffmpeg -y -i "${tmpPath}" "${outPath}"`)
+        }
+      }
+
+      await sock.sendMessage(from, {
+        image: await readFile(outPath),
+        caption: '🌸 Aquí tienes tu sticker en imagen.'
       }, { quoted: msg })
 
-      const buffer = await downloadMediaMessage(sourceMsg, 'buffer', {})
-      if (!buffer) {
-        return sock.sendMessage(from, { text: '🌱 No se pudo descargar el archivo.' }, { quoted: msg })
-      }
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-      const tmpInput = join(tmpdir(), `${Date.now()}_in.tmp`)
-      const tmpOutput = join(tmpdir(), `${Date.now()}_out.mp3`)
-      await writeFile(tmpInput, buffer)
-
-      // Duración total
-      let duration = 0
-      try {
-        const { stdout } = await execFileAsync('ffprobe', [
-          '-v', 'quiet', '-print_format', 'json', '-show_format', tmpInput
-        ])
-        duration = parseFloat(JSON.parse(stdout).format?.duration) || 0
-      } catch {}
-
-      // Conversión con progreso
-      let lastSent = 0
-      await new Promise((resolve, reject) => {
-        const ff = spawn('ffmpeg', [
-          '-i', tmpInput, '-vn', '-c:a', 'libmp3lame',
-          '-b:a', '192k', '-q:a', '0', '-map_metadata', '-1',
-          '-threads', '0', '-y', tmpOutput
-        ])
-
-        ff.stderr.on('data', (d) => {
-          const m = d.toString().match(/time=(\d+):(\d+):(\d+\.\d+)/)
-          if (m && duration > 0) {
-            const sec = +m[1] * 3600 + +m[2] * 60 + +m[3]
-            const pct = Math.min(99, Math.floor((sec / duration) * 100))
-            if (pct >= lastSent + 5) {
-              lastSent = pct
-              sock.sendMessage(from, {
-                text: `> 🎵 *Extrayendo audio...* ${lastSent}%`,
-                edit: msgProgress.key
-              }).catch(() => {})
-            }
-          }
-        })
-
-        ff.on('close', (c) => c === 0 ? resolve() : reject(new Error(`exit ${c}`)))
-      })
-
-      // 100% y enviando
-      await sock.sendMessage(from, {
-        text: '> 📤 *Enviando audio...* 100%',
-        edit: msgProgress.key
-      }).catch(() => {})
-
-      const mp3Buffer = await readFile(tmpOutput)
-      await unlink(tmpInput).catch(() => {})
-      await unlink(tmpOutput).catch(() => {})
-
-      const sizeMB = mp3Buffer.length / (1024 * 1024)
-
-      if (sizeMB < 15) {
-        // Audio nativo si pesa menos de 15MB
-        await sock.sendMessage(from, {
-          audio: mp3Buffer,
-          mimetype: 'audio/mpeg',
-          ptt: false
-        }, { quoted: msg })
-      } else {
-        // Documento si es más pesado
-        const finalSizeMB = sizeMB.toFixed(2)
-        await sock.sendMessage(from, {
-          document: mp3Buffer,
-          mimetype: 'audio/mpeg',
-          fileName: 'audio.mp3',
-          caption: `> Audio extraído\n> ${finalSizeMB} MB 🍃`
-        }, { quoted: msg })
-      }
-
-      await sock.sendMessage(from, { react: { text: '🍃', key: msg.key } })
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
-
-    } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
+    } finally {
+      if (existsSync(tmpPath)) await unlink(tmpPath).catch(() => {})
+      if (existsSync(outPath)) await unlink(outPath).catch(() => {})
+      processing.delete(userId)
     }
   }
 }

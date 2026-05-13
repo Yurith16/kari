@@ -10,16 +10,13 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
-  descripcion: 'Envía un gif de pena ajena',
+  descripcion: 'Envía un gif de sonrojo',
 
   async execute(sock, msg, { from }) {
-    const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
-    const usedCommand = textMsg.split(' ')[0].slice(1) || 'sonrojar'
-
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo
     const targetJid = contextInfo?.participant || contextInfo?.mentionedJid?.[0]
 
-    await sock.sendMessage(from, { react: { text: '😊', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '😳', key: msg.key } })
 
     try {
       const apiUrl = `https://api.delirius.store/reactions/blush`
@@ -36,14 +33,14 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡Ay, qué lindo!* @${selfTag} se sonrojó por culpa de @${victimTag}... ¡Hay amor en el grupo! 😊💖✨`
+        txt = `😳 @${selfTag} se sonrojó por culpa de @${victimTag}... ¡hay amor en el grupo! 💖`
         mentions.push(victimJid)
       } else {
         const frasesRandom = [
-          `*¡Qué tierno!* @${selfTag} se puso rojo como un tomate sin ninguna razón aparente... 😊🍅`,
-          `@${selfTag} anda de tímido hoy. ¿Quién le habrá dicho algo lindo? ✨😳`,
-          `*Momento de timidez:* @${selfTag} se sonrojó solito... ¡Se nota que tiene un secreto! 🤫💕`,
-          `*¡Alerta de ternura!* @${selfTag} está sintiendo mucha penita ahora mismo. 😊🌸`
+          `🍅 @${selfTag} se puso rojo como un tomate sin razón.`,
+          `😳 @${selfTag} anda tímido hoy, ¿quién le dijo algo lindo?`,
+          `🤫 @${selfTag} se sonrojó solito... tiene un secreto.`,
+          `🌸 @${selfTag} está sintiendo mucha penita ahora mismo.`
         ]
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
@@ -55,11 +52,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '💌' : '✨', key: enviado.key } })
-      }
-
-    } catch (err) {
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

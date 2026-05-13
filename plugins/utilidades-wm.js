@@ -17,8 +17,8 @@ export default {
     const messageToDownload = quoted?.stickerMessage ? quoted : null
 
     if (!messageToDownload) {
-      await sock.sendMessage(from, { react: { text: '🫢', key: msg.key } })
-      await sock.sendMessage(from, { text: '> Responde a un sticker para renombrarlo 🌿' }, { quoted: msg })
+      await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
+      await sock.sendMessage(from, { text: '🌸 Responde a un sticker para ponerle tu firma.' }, { quoted: msg })
       return
     }
 
@@ -39,7 +39,7 @@ export default {
       pack = ''
     }
 
-    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '🎨', key: msg.key } })
 
     try {
       const buffer = await downloadMediaMessage(
@@ -63,11 +63,10 @@ export default {
       const stickerBuffer = await newSticker.toBuffer()
 
       await sock.sendMessage(from, { sticker: stickerBuffer }, { quoted: msg })
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (err) {
-      console.error('Error en WM:', err)
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

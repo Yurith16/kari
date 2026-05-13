@@ -5,18 +5,7 @@ import { commands }       from '../core/plugins.js'
 
 const startTime = Date.now()
 
-const CAT_EMOJI = {
-  main:      '🌿',
-  admin:     '👮',
-  owner:     '💎',
-  utilidad:  '🔧',
-  descargas: '📥',
-  diversion: '🎮',
-  busqueda:  '🔍',
-  nsfw:      '🔞',
-}
-
-const BULLETS = ['🌸', '🍃', '🌺', '✿', '🌼', '🍀', '🌻', '💮']
+const BULLETS = ['🌸','🌺', '🌼']
 let bulletIdx  = 0
 const getBullet = () => BULLETS[bulletIdx++ % BULLETS.length]
 
@@ -74,7 +63,7 @@ export default {
   group:     false,
   nsfw:      false,
 
-  async execute(sock, msg, { from, isOwner, isGroup, groupCfg, prefix }) {
+  async execute(sock, msg, { from, prefix }) {
     try {
       const ping = Date.now()
       await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
@@ -85,22 +74,20 @@ export default {
       const botName = bot.name || 'Bot'
 
       const seen    = new Set()
-      const mapa    = {}   // { cat: [nombres] }
-      const descMap = {}   // { nombre: descripcion }
+      const mapa    = {}
+      const descMap = {}
       let   total   = 0
 
       for (const p of commands.values()) {
-        if (!p.command || !p.categoria)              continue
-        if (p.owner && !isOwner)                     continue
-        if (p.group && !isGroup)                     continue
-        if (p.nsfw && (!groupCfg?.nsfw || !isGroup)) continue
+        if (!p.command || !p.categoria) continue
+        
         const name = p.tag || (Array.isArray(p.command) ? p.command[0] : p.command)
         if (seen.has(name)) continue
         seen.add(name)
         const cat = p.categoria || 'main'
         if (!mapa[cat]) mapa[cat] = []
         mapa[cat].push(name)
-        descMap[name] = p.descripcion || ''   // ← guardar descripción
+        descMap[name] = p.descripcion || ''
         total++
       }
 
@@ -115,7 +102,6 @@ export default {
       const fecha    = getDate()
       const hora     = getTime()
 
-      // Encabezado
       let menuTxt = `╭─〔 🌸 *${toMono(botName.toUpperCase())}* 🌸 〕\n`
       menuTxt += `│\n`
       menuTxt += `│ *${greeting}, ${username}* 🌿\n`
@@ -124,12 +110,11 @@ export default {
       menuTxt += `│\n`
       menuTxt += `╰─── ── ── ── ──\n\n`
 
-      // Info del bot
       menuTxt += `╭─〔 ${toMono('INFO DEL BOT')} 〕\n`
       menuTxt += `│\n`
       menuTxt += `│ ✦ Bot       ·  +${bot.botNumber || ''}\n`
       menuTxt += `│ ✦ Dev       ·  ${bot.owner || ''}\n`
-      menuTxt += `│ ✦ Owners  ·  +${bot.ownerNumber || ''}\n`
+      menuTxt += `│ ✦ Contacto  ·  +${bot.ownerNumber || ''}\n`
       menuTxt += `│ ✦ Prefijo   ·  ${prefix}\n`
       menuTxt += `│ ✦ Activo    ·  ${uptime()}\n`
       menuTxt += `│ ✦ Grupos    ·  ${grupos}\n`
@@ -138,17 +123,17 @@ export default {
       menuTxt += `│\n`
       menuTxt += `╰─── ── ── ── ──\n\n`
 
-      // Categorías
-      const orden = ['main', 'admin', 'owner', 'utilidad', 'descargas', 'diversion', 'busqueda', 'nsfw']
+      const orden = ['main', 'admin', 'economia', 'diversion', 'busqueda', 'descargas', 'utilidad', 'nsfw', 'owner']
       const categoryMap = {
         main:      'PRINCIPAL',
         admin:     'ADMINISTRACIÓN',
-        owner:     'OWNER',
-        utilidad:  'HERRAMIENTAS',
-        descargas: 'DESCARGAS',
+        economia:  'ECONOMÍA',
         diversion: 'DIVERSIÓN',
         busqueda:  'BÚSQUEDAS',
-        nsfw:      'CONTENIDO +18'
+        descargas: 'DESCARGAS',
+        utilidad:  'HERRAMIENTAS',
+        nsfw:      'CONTENIDO +18',
+        owner:     'OWNER'
       }
 
       for (const cat of orden) {
@@ -159,10 +144,14 @@ export default {
         menuTxt += '\n'
       }
 
-      await sock.sendMessage(from, {
-        image:   { url: bot.defaultImg },
-        caption: menuTxt
-      }, { quoted: msg })
+      try {
+        await sock.sendMessage(from, {
+          image: { url: bot.defaultImg },
+          caption: menuTxt
+        }, { quoted: msg })
+      } catch {
+        await sock.sendMessage(from, { text: menuTxt }, { quoted: msg })
+      }
 
     } catch (err) {
       console.error(err)

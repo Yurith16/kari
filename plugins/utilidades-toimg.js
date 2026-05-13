@@ -34,7 +34,7 @@ export default {
 
     if (processing.has(userId)) {
       return sock.sendMessage(from, {
-        text: '> ⏳ *Estás procesando un sticker, espera que termine.* 🍃'
+        text: '🌸 Espera un momento, aún estoy convirtiendo el sticker anterior.'
       }, { quoted: msg })
     }
 
@@ -42,7 +42,7 @@ export default {
 
     if (!quoted?.stickerMessage) {
       return sock.sendMessage(from, {
-        text: '🌱 *Responde a un sticker para convertirlo en imagen.*'
+        text: '🌸 Responde a un sticker para convertirlo en imagen.'
       }, { quoted: msg })
     }
 
@@ -52,7 +52,7 @@ export default {
     const outPath = join(TEMP_DIR, `${Date.now()}_image.png`)
 
     try {
-      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
       const buffer = await downloadMediaMessage(
         { message: quoted },
@@ -63,25 +63,17 @@ export default {
 
       await writeFile(tmpPath, buffer)
 
-      await sock.sendMessage(from, {
-        text: '> 🔄 *Convirtiendo sticker a imagen...*'
-      }, { quoted: msg })
-
-      // Detectar si es animado
       const isAnimated = buffer.toString('ascii', 0, 200).includes('ANIM') ||
                         buffer.toString('ascii', 0, 200).includes('ANMF')
 
       if (isAnimated) {
-        // Intentar con ffmpeg, si falla usar sharp
         try {
           await execPromise(`ffmpeg -y -i "${tmpPath}" -vframes 1 -f image2 "${outPath}"`)
         } catch {
-          // Fallback a sharp para extraer primer frame
           const img = await sharp(buffer, { animated: true }).png().toBuffer()
           await writeFile(outPath, img)
         }
       } else {
-        // Sticker estático: sharp es más rápido y fiable
         try {
           const pngBuffer = await sharp(buffer).png().toBuffer()
           await writeFile(outPath, pngBuffer)
@@ -91,17 +83,14 @@ export default {
       }
 
       await sock.sendMessage(from, {
-        image: await readFile(outPath)
+        image: await readFile(outPath),
+        caption: '🌸 Aquí tienes tu sticker en imagen.'
       }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: '🍃', key: msg.key } })
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, {
-        text: `> ❌ Error al convertir el sticker 🍃`
-      }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     } finally {
       if (existsSync(tmpPath)) await unlink(tmpPath).catch(() => {})
       if (existsSync(outPath)) await unlink(outPath).catch(() => {})

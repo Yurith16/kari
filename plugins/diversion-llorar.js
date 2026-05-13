@@ -13,13 +13,10 @@ export default {
   descripcion: 'Envía un gif de llanto',
 
   async execute(sock, msg, { from }) {
-    const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
-    const usedCommand = textMsg.split(' ')[0].slice(1) || 'llorar'
-
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo
     const targetJid = contextInfo?.participant || contextInfo?.mentionedJid?.[0]
 
-    await sock.sendMessage(from, { react: { text: '🥺', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '😭', key: msg.key } })
 
     try {
       const apiUrl = `https://api.delirius.store/reactions/cry`
@@ -36,14 +33,14 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡Qué cruel!* @${selfTag} está llorando desconsoladamente por culpa de @${victimTag}... 😭💔🥀`
+        txt = `😭 @${selfTag} está llorando por culpa de @${victimTag}... ¡qué cruel! 💔`
         mentions.push(victimJid)
       } else {
         const frasesRandom = [
-          `*¡Inundación!* @${selfTag} se puso a llorar sin contexto alguno... ¡Traigan pañuelos! 😭🌊`,
-          `@${selfTag} está llorando solito en un rincón. ¿Quién le rompió el corazón? 💔🥺`,
-          `*Momento triste:* @${selfTag} entró en modo depresión extrema. ¡Denle un abrazo! 🫂😭`,
-          `@${selfTag} empezó a llorar porque sí. El drama es su pasión. ✨💧`
+          `😭 @${selfTag} se puso a llorar sin razón, traigan pañuelos.`,
+          `💔 @${selfTag} está llorando solito, ¿quién le rompió el corazón?`,
+          `🥺 @${selfTag} entró en modo tristeza, denle un abrazo.`,
+          `💧 @${selfTag} empezó a llorar porque sí, el drama es su pasión.`
         ]
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
@@ -55,11 +52,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '💔' : '💧', key: enviado.key } })
-      }
-
-    } catch (err) {
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

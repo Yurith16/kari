@@ -19,8 +19,6 @@ const HEADERS = {
 
 const activeUsers = new Map()
 
-// --- FUNCIONES INTERNAS ---
-
 function multipart(fields, fileField = null) {
   const boundary = '----WebKitFormBoundary' + randomUUID().replace(/-/g, '').slice(0, 16)
   const parts = []
@@ -121,23 +119,22 @@ export default {
     if (activeUsers.has(userId)) return
 
     const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
-
     const directMedia = msg.message?.imageMessage || msg.message?.documentMessage
     const quotedMedia = quoted?.imageMessage || quoted?.documentMessage
-
     const mediaMessage = directMedia ? msg.message : quotedMedia ? quoted : null
     const mime = (mediaMessage?.imageMessage || mediaMessage?.documentMessage)?.mimetype || ''
 
     if (!mediaMessage || !/image/g.test(mime)) {
-      return sock.sendMessage(from, { text: '> Responde o envía una imagen con *.hd 2* o *.hd 4* 🍃' }, { quoted: msg })
+      return sock.sendMessage(from, {
+        text: '🌸 Responde a una imagen con *.hd 2* o *.hd 4* para mejorar su resolución.'
+      }, { quoted: msg })
     }
 
     activeUsers.set(userId, true)
-    await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
     try {
       const msgToDownload = directMedia ? msg : { key: msg.key, message: quoted }
-
       const buffer = await downloadMediaMessage(
         msgToDownload,
         'buffer',
@@ -160,15 +157,14 @@ export default {
 
       await sock.sendMessage(from, {
         image: resultBuffer,
-        caption: `> Imagen escalada a *${scale}x* 🍃`
+        caption: `🌸 Imagen mejorada a *${scale}x*. ¡Mira esos detalles!`
       }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (err) {
-      console.error(err)
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-      await sock.sendMessage(from, { text: '> No se pudo procesar la imagen 🍃' }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     } finally {
       activeUsers.delete(userId)
     }

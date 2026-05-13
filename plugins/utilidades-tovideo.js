@@ -34,7 +34,7 @@ export default {
 
     if (processing.has(userId)) {
       return sock.sendMessage(from, {
-        text: '> ⏳ *Estás procesando un sticker, espera que termine.* 🍃'
+        text: '🌸 Espera un momento, aún estoy procesando el sticker anterior.'
       }, { quoted: msg })
     }
 
@@ -43,7 +43,7 @@ export default {
 
     if (!messageToDownload?.stickerMessage?.isAnimated) {
       return sock.sendMessage(from, {
-        text: '🌱 *Responde a un sticker animado para convertirlo en video.* '
+        text: '🌸 Responde a un sticker animado para convertirlo en video.'
       }, { quoted: msg })
     }
 
@@ -53,7 +53,7 @@ export default {
     let framesDir = path.join(TEMP_DIR, `frames_${Date.now()}`)
 
     try {
-      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🎬', key: msg.key } })
 
       const buffer = await downloadMediaMessage(
         { message: messageToDownload },
@@ -71,11 +71,6 @@ export default {
       if (!fs.existsSync(framesDir)) fs.mkdirSync(framesDir, { recursive: true })
       await writeFileAsync(inputPath, buffer)
 
-      const msgProgress = await sock.sendMessage(from, {
-        text: '> 🎬 *Extrayendo frames...*'
-      }, { quoted: msg })
-
-      // Extraer frames con sharp
       const metadata = await sharp(inputPath).metadata()
       const { width, height, pages, delay } = metadata
 
@@ -91,12 +86,6 @@ export default {
       const avgDelay = Array.isArray(delay) ? (delay.reduce((a, b) => a + b, 0) / delay.length) : (delay || 100)
       const fps = Math.round(1000 / avgDelay) || 10
 
-      await sock.sendMessage(from, {
-        text: '> 🔄 *Creando video...*',
-        edit: msgProgress.key
-      }).catch(() => {})
-
-      // Crear video desde frames
       await new Promise((resolve, reject) => {
         ffmpeg(path.join(framesDir, 'frame_%04d.png'))
           .inputOptions(['-framerate', String(fps)])
@@ -113,27 +102,20 @@ export default {
           .save(outputPath)
       })
 
-      await sock.sendMessage(from, {
-        text: '> 📤 *Enviando video...*',
-        edit: msgProgress.key
-      }).catch(() => {})
-
       const resultBuffer = fs.readFileSync(outputPath)
 
       await sock.sendMessage(from, {
         video: resultBuffer,
-        caption: '> ✅ Sticker convertido a video 🍃'
+        caption: '🌸 Tu sticker animado convertido en video.'
       }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: '🍃', key: msg.key } })
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (err) {
-      console.error('Error en tovideo:', err)
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     } finally {
       for (let file of tempFiles) {
-        try { if (fs.existsSync(file)) await unlinkAsync(file) } catch (e) {}
+        try { if (fs.existsSync(file)) await unlinkAsync(file) } catch {}
       }
       try {
         if (fs.existsSync(framesDir)) {
@@ -141,7 +123,7 @@ export default {
           for (const file of files) await unlinkAsync(path.join(framesDir, file))
           fs.rmdirSync(framesDir)
         }
-      } catch (e) {}
+      } catch {}
       processing.delete(userId)
     }
   }

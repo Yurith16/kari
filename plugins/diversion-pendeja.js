@@ -34,26 +34,26 @@ export default {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
         if (esFemenino) {
-          txt = `*¡Qué pendeja!* @${selfTag} está diciendo que @${victimTag} es bien pendeja... ¡Aguas con las burlas, amiga! 🤪💅😂`
+          txt = `🤪 @${selfTag} dice que @${victimTag} es bien pendeja... ¡aguas con las burlas! 💅`
         } else {
-          txt = `*¡Qué pendejo!* @${selfTag} está diciendo que @${victimTag} es bien pendejo... ¡Aguas con las burlas, compa! 🤪😂`
+          txt = `🤪 @${selfTag} dice que @${victimTag} es bien pendejo... ¡aguas con las burlas!`
         }
         mentions.push(victimJid)
       } else {
         if (esFemenino) {
           const frasesRandom = [
-            `*¡Se pasó de lanza!* @${selfTag} está haciendo cada pendejada... ¡Ya ubícate, amiga! 🤪💅`,
-            `@${selfTag} anda en modo pendeja hoy... ¿Quién le baja a esa morra? 😂`,
-            `*Sin contexto:* @${selfTag} se declaró oficialmente la pendeja del grupo. 🤡💋`,
-            `@${selfTag} hizo una pendejada tan grande que hasta le aplaudieron. 👏🤪`
+            `💅 @${selfTag} anda en modo pendeja hoy, ¿quién le baja?`,
+            `🤪 @${selfTag} hizo una pendejada tan grande que hasta le aplaudieron.`,
+            `🤡 @${selfTag} se declaró oficialmente la pendeja del grupo.`,
+            `😂 @${selfTag} está haciendo cada pendejada, ¡ya ubícate!`
           ]
           txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
         } else {
           const frasesRandom = [
-            `*¡Se pasó de lanza!* @${selfTag} está haciendo cada pendejada... ¡Ya ubícate, compa! 🤪`,
-            `@${selfTag} anda en modo pendejo hoy... ¿Quién le baja a ese wey? 😂`,
-            `*Sin contexto:* @${selfTag} se declaró oficialmente el pendejo del grupo. 🤡`,
-            `@${selfTag} hizo una pendejada tan grande que hasta le aplaudieron. 👏🤪`
+            `🤪 @${selfTag} anda en modo pendejo hoy, ¿quién le baja?`,
+            `😂 @${selfTag} hizo una pendejada tan grande que hasta le aplaudieron.`,
+            `🤡 @${selfTag} se declaró oficialmente el pendejo del grupo.`,
+            `👏 @${selfTag} está haciendo cada pendejada, ¡ya ubícate!`
           ]
           txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
         }
@@ -69,12 +69,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '😂' : '🤡', key: enviado.key } })
-      }
-
-    } catch (err) {
-      console.error(err)
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

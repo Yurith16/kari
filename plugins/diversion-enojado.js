@@ -16,7 +16,7 @@ export default {
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo
     const targetJid = contextInfo?.participant || contextInfo?.mentionedJid?.[0]
 
-    await sock.sendMessage(from, { react: { text: '😠', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '😡', key: msg.key } })
 
     try {
       const apiUrl = `https://api.delirius.store/reactions/angry`
@@ -33,10 +33,16 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡CORRAN!* @${selfTag} perdió la paciencia con @${victimTag}... ¡Que alguien los separe! 😡💢🔥`
+        txt = `😡 ¡Corran! @${selfTag} perdió la paciencia con @${victimTag}... ¡que alguien los separe! 💢`
         mentions.push(victimJid)
       } else {
-        txt = `*¡CUIDADO!* @${selfTag} está que explota de rabia... ¡Mejor no digan nada! 🤬💢💥`
+        const frasesRandom = [
+          `💢 @${selfTag} está que explota de rabia, mejor no digan nada.`,
+          `🤬 @${selfTag} entró en modo furia, no se le acerquen.`,
+          `😤 @${selfTag} está enojado con el mundo entero.`,
+          `💥 @${selfTag} reventó de la ira, aguas con esa persona.`
+        ]
+        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
 
       const enviado = await sock.sendMessage(from, {
@@ -46,11 +52,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: '🔥', key: enviado.key } })
-      }
-
-    } catch (err) {
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

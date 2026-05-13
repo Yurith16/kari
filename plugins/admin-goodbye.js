@@ -1,10 +1,4 @@
 import { setGroupField } from '../core/sqlite.js'
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
-import { writeFileSync, mkdirSync, existsSync } from 'fs'
-import { join } from 'path'
-
-const IMG_DIR = join('media/goodbye')
-if (!existsSync(IMG_DIR)) mkdirSync(IMG_DIR, { recursive: true })
 
 export default {
   command:     'goodbye',
@@ -22,48 +16,19 @@ export default {
     }
 
     const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
-    const hasImage = msg.message?.imageMessage ||
-                     msg.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage
-
-    // ─── Configurar imagen ────────────────────────────────────────────────────
-    if (hasImage) {
-      try {
-        const sourceMsg = msg.message?.imageMessage
-          ? msg
-          : { message: msg.message?.extendedTextMessage?.contextInfo?.quotedMessage }
-        const buffer  = await downloadMediaMessage(sourceMsg, 'buffer', {})
-        const imgPath = join(IMG_DIR, `${from.replace(/[^a-z0-9]/gi, '_')}.jpg`)
-        writeFileSync(imgPath, buffer)
-        setGroupField(from, 'goodbyeImg', `file://${imgPath}`)
-        const caption = msg.message?.imageMessage?.caption || ''
-        if (caption) {
-          const texto = caption.replace(/^[^\s]+\s*/, '').trim()
-          if (texto) setGroupField(from, 'goodbyeText', texto)
-        }
-        await sock.sendMessage(from, {
-          text: '🍃 Imagen de despedida guardada.\n\n🌸 Envía *.goodbye <texto>* para cambiar el mensaje.'
-        }, { quoted: msg })
-      } catch {
-        await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
-      }
-      return
-    }
+    const args = fullText.split(' ').slice(1)
 
     // ─── Configurar por URL ───────────────────────────────────────────────────
-    const cmdLine   = fullText.split('\n')[0]
-    const firstLine = cmdLine.replace(/^[^\s]+\s*/, '')
-    const resto     = fullText.split('\n').slice(1).join('\n')
-    const texto     = (firstLine + (resto ? '\n' + resto : '')).trim()
-
-    if (texto && /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i.test(texto)) {
-      setGroupField(from, 'goodbyeImg', texto)
+    if (args.length && /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i.test(args[0])) {
+      setGroupField(from, 'goodbyeImg', args[0])
       await sock.sendMessage(from, {
-        text: '🍃 Imagen de despedida actualizada con esa URL.'
+        text: '🍃 Imagen de despedida actualizada con esa URL. ¡Qué bonita!'
       }, { quoted: msg })
       return
     }
 
     // ─── Configurar texto ─────────────────────────────────────────────────────
+    const texto = args.join(' ')
     if (texto) {
       setGroupField(from, 'goodbyeText', texto)
       await sock.sendMessage(from, {

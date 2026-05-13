@@ -44,7 +44,7 @@ export default {
     if (!args.length) {
       const estilos = Object.keys(ESTILOS).join(', ')
       return sock.sendMessage(from, {
-        text: `🌱 *Elige un estilo y escribe un texto:*\n\n.logo hacker Midori\n\n📋 *Estilos:* ${estilos}`
+        text: `🌸 Elige un estilo y dime qué texto quieres.\n\n_Ejemplo: .logo hacker Midori_\n\n🎨 *Estilos:* ${estilos}`
       }, { quoted: msg })
     }
 
@@ -53,14 +53,14 @@ export default {
 
     if (!texto) {
       return sock.sendMessage(from, {
-        text: '🌱 *Ingresa el texto para el logo*'
+        text: '🌸 Dime el texto que quieres poner en el logo, corazón.'
       }, { quoted: msg })
     }
 
     const url = ESTILOS[estilo]
     if (!url) {
       return sock.sendMessage(from, {
-        text: `🌱 *Estilo no válido*\n\nUsa uno de: ${Object.keys(ESTILOS).join(', ')}`
+        text: `🌸 Ese estilo no lo tengo. Prueba con: ${Object.keys(ESTILOS).join(', ')}`
       }, { quoted: msg })
     }
 
@@ -70,28 +70,26 @@ export default {
       const result = await mumaker.ephoto(url, texto)
 
       if (!result?.image) {
-        return sock.sendMessage(from, { text: '🌱 No se pudo generar el logo.' }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return sock.sendMessage(from, { text: '🌸 No pude crear ese logo, ¿probamos con otro estilo?' }, { quoted: msg })
       }
 
-      await sock.sendMessage(from, { react: { text: '⬇️', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
 
       const imgRes = await fetch(result.image)
       const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
 
-      await sock.sendMessage(from, { react: { text: '⬆️', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
 
       await sock.sendMessage(from, {
         image: imgBuffer,
-        caption: `🌱 *${texto}* — ${estilo}`
+        caption: `🌸 *${texto}* — ${estilo}`
       }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, {
-        text: global.messages?.error || '⚠️ Oh no, hubo un error en mi sistema. Intenta de nuevo.'
-      }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

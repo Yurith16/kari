@@ -26,12 +26,12 @@ export default {
 
     if (!isQuotedImage && !isDirectImage && !isQuotedVideo && !isDirectVideo) {
       return sock.sendMessage(from, {
-        text: '✦ Responde a una imagen o video para convertirlo en sticker.\n\nVideos: máximo 7 segundos.'
+        text: '🌸 Responde a una imagen o video para convertirlo en sticker. Si es video, que sea cortito, máximo 7 segundos.'
       }, { quoted: msg })
     }
 
     try {
-      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🎨', key: msg.key } })
 
       if (isQuotedImage || isDirectImage) {
         const sourceMsg = isQuotedImage ? { message: quoted } : { message: msg.message }
@@ -55,11 +55,11 @@ export default {
 
         await execFileAsync('ffmpeg', [
           '-i', tmpInput,
-          '-t', '7',                    // máximo 7 segundos
-          '-vf', 'fps=10,scale=320:320:force_original_aspect_ratio=decrease', // fps y resolución reducidos
+          '-t', '7',
+          '-vf', 'fps=10,scale=320:320:force_original_aspect_ratio=decrease',
           '-c:v', 'libwebp',
           '-lossless', '0',
-          '-q:v', '30',                 // calidad más baja = menos peso
+          '-q:v', '30',
           '-preset', 'default',
           '-loop', '0',
           '-an',
@@ -80,11 +80,10 @@ export default {
         await unlink(tmpOutput).catch(() => {})
       }
 
-      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
-    } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, { text: global.messages?.error }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

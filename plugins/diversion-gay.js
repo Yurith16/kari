@@ -29,14 +29,14 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡Se destapó!* @${selfTag} dice que @${victimTag} es bien gay... ¡Y qué! 🏳️‍🌈💅✨`
+        txt = `🏳️‍🌈 @${selfTag} dice que @${victimTag} es bien gay... ¡y qué! 💅`
         mentions.push(victimJid)
       } else {
         const frasesRandom = [
-          `*¡Fuera caretas!* @${selfTag} aceptó que le gusta el arroz con popote... ¡Bien por ti! 🏳️‍🌈🔥`,
-          `@${selfTag} salió del clóset con todo... ¡Así se hace, amiga! 💅✨`,
-          `*Sin miedo:* @${selfTag} dice que plátano donde sea... ¡Date cuenta! 🍌👨‍❤️‍👨`,
-          `@${selfTag} se declaró fan de la salchicha... 🌭💋 ¡Qué viva el amor!`
+          `🏳️‍🌈 @${selfTag} salió del clóset con todo, ¡así se hace!`,
+          `💅 @${selfTag} aceptó que le gusta el arroz con popote, bien por ti.`,
+          `✨ @${selfTag} dice que plátano donde sea, ¡date cuenta!`,
+          `🌈 @${selfTag} se declaró fan de la salchicha, ¡qué viva el amor!`
         ]
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
@@ -51,12 +51,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '💋' : '🏳️‍🌈', key: enviado.key } })
-      }
-
-    } catch (err) {
-      console.error(err)
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

@@ -13,9 +13,6 @@ export default {
   descripcion: 'Envía un gif de mimos a alguien',
 
   async execute(sock, msg, { from }) {
-    const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
-    const usedCommand = textMsg.split(' ')[0].slice(1) || 'fluff'
-
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo
     const targetJid = contextInfo?.participant || contextInfo?.mentionedJid?.[0]
 
@@ -36,14 +33,14 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡Dosis de ternura!* @${selfTag} se puso súper cariñoso con @${victimTag}... ¡Es demasiado fluff para este grupo! ✨☁️💖`
+        txt = `☁️ @${selfTag} se puso cariñoso con @${victimTag}... ¡demasiada ternura para este grupo! 💖`
         mentions.push(victimJid)
       } else {
         const frasesRandom = [
-          `*¡Alerta de azúcar!* @${selfTag} anda en modo esponjoso sin ninguna razón. ¡Qué lindo! 🌸✨`,
-          `@${selfTag} se siente como una nube hoy... ¡Pura ternura y mimos! ☁️🍭`,
-          `*Sin contexto:* @${selfTag} está repartiendo vibras esponjosas a todo el que lea esto. ✨🧸`,
-          `@${selfTag} entró en modo Fluff. ¡Cuidado, que su dulzura es contagiosa! 🍬🌸`
+          `🌸 @${selfTag} anda en modo esponjoso, ¡qué lindo!`,
+          `☁️ @${selfTag} se siente como una nube hoy, pura ternura.`,
+          `🧸 @${selfTag} está repartiendo vibras bonitas a todos.`,
+          `🍬 @${selfTag} entró en modo dulce, cuidado que se contagia.`
         ]
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
@@ -55,11 +52,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '🍭' : '✨', key: enviado.key } })
-      }
-
-    } catch (err) {
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

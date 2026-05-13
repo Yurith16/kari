@@ -52,7 +52,7 @@ export default {
       txt += `│ 🍃 chat.whatsapp.com/EO71LJBsMj8C4Xgb2moMAd\n`
       txt += `│ ${div}\n`
       txt += `│ 🩷 ${toBold('Soporte / Contacto')}\n`
-      txt += `│ 🍃 ${cfg?.soporte || global.config?.soporte || 'wa.me/50496738233'}\n`
+      txt += `│ 🍃 ${cfg?.soporte || global.config?.soporte || 'wa.me/50496926150'}\n`
       txt += `│\n`
       txt += `╰─── *${toMono(botName)} ™* 🌸`
 

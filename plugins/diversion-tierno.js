@@ -13,13 +13,10 @@ export default {
   descripcion: 'Envía un gif tierno',
 
   async execute(sock, msg, { from }) {
-    const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
-    const usedCommand = textMsg.split(' ')[0].slice(1) || 'tierno'
-
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo
     const targetJid = contextInfo?.participant || contextInfo?.mentionedJid?.[0]
 
-    await sock.sendMessage(from, { react: { text: '🥺', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '🐾', key: msg.key } })
 
     try {
       const videoUrl = `http://cdn.delirius.store/v2/reaction/sfw/eevee/PpHuCB0.mp4`
@@ -33,14 +30,14 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡Ataque de ternura!* @${selfTag} está siendo demasiado adorable con @${victimTag}... ¡No podemos con tanta dulzura! ✨🐾💖`
+        txt = `🐾 @${selfTag} está siendo demasiado adorable con @${victimTag}... ¡no podemos con tanta dulzura! 💖`
         mentions.push(victimJid)
       } else {
         const frasesRandom = [
-          `*¡Alerta de ternura!* @${selfTag} apareció en modo súper adorable sin avisar. 🐾✨`,
-          `@${selfTag} está irradiando pura dulzura hoy... ¡Miren qué lindo se ve! 🌸🥺`,
-          `*Sin contexto:* @${selfTag} decidió que hoy es un día para ser adorable. 🍬✨`,
-          `@${selfTag} activó su modo tierno. ¡Imposible no querer darle un abrazo! 🧸💖`
+          `🐾 @${selfTag} apareció en modo súper adorable sin avisar.`,
+          `🌸 @${selfTag} está irradiando pura dulzura hoy.`,
+          `🍬 @${selfTag} decidió que hoy es un día para ser adorable.`,
+          `🧸 @${selfTag} activó su modo tierno, imposible no querer abrazarlo.`
         ]
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
@@ -52,11 +49,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '💖' : '🐾', key: enviado.key } })
-      }
-
-    } catch (err) {
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

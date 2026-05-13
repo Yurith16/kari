@@ -16,8 +16,8 @@ export default {
     const quotedKey = msg.message?.extendedTextMessage?.contextInfo
 
     if (!quoted) {
-      await sock.sendMessage(from, { react: { text: '🫢', key: msg.key } })
-      await sock.sendMessage(from, { text: '> Responde al mensaje que quieres ver 🍃' }, { quoted: msg })
+      await sock.sendMessage(from, { react: { text: '👀', key: msg.key } })
+      await sock.sendMessage(from, { text: '🌸 Responde al mensaje que quieres ver.' }, { quoted: msg })
       return
     }
 
@@ -84,13 +84,11 @@ export default {
         }, { quoted: msg })
 
       } else {
-        await sock.sendMessage(from, { text: '> No se pudo revelar este tipo de mensaje 🍃' }, { quoted: msg })
+        await sock.sendMessage(from, { text: '🌸 No pude revelar este tipo de mensaje.' }, { quoted: msg })
       }
 
-    } catch (err) {
-      console.error(err)
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-      await sock.sendMessage(from, { text: '> No se pudo revelar el mensaje 🍃' }, { quoted: msg })
+    } catch {
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

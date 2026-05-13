@@ -13,9 +13,6 @@ export default {
   descripcion: 'Envía un gif de felicidad',
 
   async execute(sock, msg, { from }) {
-    const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
-    const usedCommand = textMsg.split(' ')[0].slice(1) || 'feliz'
-
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo
     const targetJid = contextInfo?.participant || contextInfo?.mentionedJid?.[0]
 
@@ -36,14 +33,14 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡Felicidad pura!* @${selfTag} está celebrando junto a @${victimTag}... ¡Qué alegría verlos así! ✨🥳💖`
+        txt = `✨ @${selfTag} está feliz junto a @${victimTag}... ¡qué bonito verlos así! 🥳`
         mentions.push(victimJid)
       } else {
         const frasesRandom = [
-          `*¡Día increíble!* @${selfTag} se siente la persona más feliz del mundo hoy. 🌈✨`,
-          `@${selfTag} anda con una sonrisa que no le cabe en la cara. ¡Contagia esa vibra! 😁⭐`,
-          `*Sin contexto:* @${selfTag} simplemente decidió ser feliz y el grupo lo sabe. 🎊💃`,
-          `*¡Alerta de gozo!* @${selfTag} está irradiando pura felicidad... ¡Nada puede salir mal! 🥳🔥`
+          `🌈 @${selfTag} se siente la persona más feliz del mundo hoy.`,
+          `😁 @${selfTag} anda con una sonrisa que no le cabe en la cara.`,
+          `🎊 @${selfTag} decidió ser feliz y lo está logrando.`,
+          `☀️ @${selfTag} está irradiando pura felicidad, nada puede salir mal.`
         ]
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
@@ -55,11 +52,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '🎊' : '☀️', key: enviado.key } })
-      }
-
-    } catch (err) {
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

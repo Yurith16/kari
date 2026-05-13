@@ -1,54 +1,69 @@
 // plugins/inventario.js
 
-import { getInventory, isRegistered } from '../core/sqlite.js'
+import { getInventory, getEconomy, isRegistered, getUser } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
+import { getBotSignature } from '../utils/formatters.js'
 
 export default {
-  command:     'inventario',
+  command:     ['inventario', 'inv'],
   tag:         'inventario',
   categoria:   'economia',
   owner:       false,
   group:       false,
   nsfw:        false,
-  descripcion: 'Muestra los items que tienes en tu inventario',
+  descripcion: 'Muestra tus bienes y estadísticas',
 
   async execute(sock, msg, { from, sender, isGroup, groupCfg }) {
     if (isGroup && groupCfg?.economia === 0) {
-      await sock.sendMessage(from, { text: global.messages.ecoDisabled }, { quoted: msg })
-      return
+      return sock.sendMessage(from, { text: global.messages.ecoDisabled }, { quoted: msg })
     }
 
-    const realJid = await getRealJid(sock, sender, msg).catch(() => sender)
-    const user    = cleanNumber(realJid)
+    const selfJid = await getRealJid(sock, sender, msg).catch(() => sender)
+    const selfNum = cleanNumber(selfJid)
 
-    if (!user) {
-      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
-      return
+    if (!isRegistered(selfNum)) {
+      return sock.sendMessage(from, { text: global.messages.notRegistered }, { quoted: msg })
     }
 
-    if (!isRegistered(user)) {
-      await sock.sendMessage(from, { text: global.messages.notRegistered }, { quoted: msg })
-      return
+    const perfil = getUser(selfNum)
+    const eco = getEconomy(selfNum)
+    const items = getInventory(selfNum)
+    const signature = getBotSignature(global.bot)
+
+    const emojiItem = {
+      'escudo': '🛡',
+      'pico': '⛏',
+      'maletín': '💼',
+      'capa': '🧥'
     }
 
-    const items = getInventory(user)
+    const nombre = perfil.apodo || perfil.nombre
+    const total = eco.kryons + eco.banco
+    const xpParaNivel = 500
+    const progreso = eco.xp % xpParaNivel
+    const barra = '▓'.repeat(Math.floor((progreso / xpParaNivel) * 10)) + '░'.repeat(10 - Math.floor((progreso / xpParaNivel) * 10))
 
-    if (!items || items.length === 0) {
-      await sock.sendMessage(from, { text: '🌿 Tu inventario está vacío.' }, { quoted: msg })
-      return
+    let txt = `  · · ─────── ·🌸· ─────── · ·\n`
+    txt += `  ⊱ *_${nombre}_* ⊰\n`
+    txt += `  ♡ *En mano:* _${eco.kryons.toLocaleString()}_ kryons\n`
+    txt += `  ♡ *En el banco:* _${eco.banco.toLocaleString()}_ kryons\n`
+    txt += `  ♡ *Fortuna total:* _${total.toLocaleString()}_ kryons\n`
+    txt += `  ♡ *Nivel:* _${eco.nivel}_\n`
+    txt += `  ♡ *Experiencia:* _${progreso}/${xpParaNivel}_\n`
+    txt += `     [${barra}]\n`
+
+    if (items && items.length > 0) {
+      txt += `  ♡ *Tus cositas:*\n`
+      items.forEach(({ item, cantidad }) => {
+        const emoji = emojiItem[item] || '📦'
+        txt += `     ${emoji} _${item}_ ×${cantidad}\n`
+      })
     }
 
-    let txt = `╭─〔 🎒 *INVENTARIO* 〕\n`
-    txt += `│\n`
+    txt += `  · · ─────── ·🌸· ─────── · ·\n`
+    txt += `     ${signature}`
 
-    for (const { item, cantidad } of items) {
-      const emoji = item === 'escudo' ? '🛡' : item === 'pico' ? '⛏' : item === 'maletín' ? '💼' : item === 'capa' ? '🧥' : '📦'
-      txt += `│ ${emoji} *${item}* ×${cantidad}\n`
-    }
-
-    txt += `│\n`
-    txt += `╰─── ✦`
-
+    await sock.sendMessage(from, { react: { text: '🎒', key: msg.key } })
     await sock.sendMessage(from, { text: txt }, { quoted: msg })
   }
 }

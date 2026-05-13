@@ -1,34 +1,60 @@
-import { toBold }       from '../utils/helpers.js'
-import { cleanNumber }  from '../utils/jid.js'
+// plugins/tagall.js
+
+import { cleanNumber } from '../utils/jid.js'
+import { toBold } from '../utils/helpers.js'
 
 export default {
-  command:   'admins',
-  tag:       'admins',
+  command:   'tagall',
+  tag:       'tagall',
   categoria: 'admin',
   owner:     false,
   group:     true,
   nsfw:      false,
-  descripcion: 'Muestra la lista de administradores del grupo',
+  descripcion: 'Etiqueta a todos los miembros del grupo',
 
-  async execute(sock, msg, { from }) {
+  async execute(sock, msg, { from, args, isOwner, isAdmin }) {
+    if (!isOwner && !isAdmin) {
+      await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
+      return
+    }
+
     try {
-      const meta     = await sock.groupMetadata(from)
-      const admins   = meta.participants.filter(p => p.admin)
-      const mentions = admins.map(a => a.id)
-      const div      = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
+      const meta = await sock.groupMetadata(from)
+      const participantes = meta.participants
 
-      let txt = `╭─〔 ${toBold('👮 STAFF DEL GRUPO')} 〕\n│\n`
-      txt += `│ ${div}\n`
-      admins.forEach(a => {
-        const num = cleanNumber(a.id)
-        const rol = a.admin === 'superadmin' ? '⭐ Creador' : '👮 Admin'
-        txt += `│ ${rol} @${num}\n`
-      })
+      // Separar admins y miembros
+      const admins = participantes.filter(p => p.admin)
+      const miembros = participantes.filter(p => !p.admin)
+
+      const mentions = participantes.map(p => p.id)
+
+      const texto = args.join(' ') || '🌸 Han sido invocados.'
+
+      let txt = `╭─〔 ${toBold('👥 INVOCACIÓN')} 〕\n`
       txt += `│\n`
-      txt += `│ 🌿 ${admins.length} personitas al mando\n`
-      txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
+      txt += `│ ${texto}\n`
+      txt += `│\n`
+
+      if (admins.length) {
+        txt += `│ ${toBold('👮 Admins:')}\n`
+        admins.forEach(a => {
+          const num = cleanNumber(a.id)
+          txt += `│    @${num}\n`
+        })
+        txt += `│\n`
+      }
+
+      txt += `│ ${toBold('👤 Miembros:')}\n`
+      miembros.forEach(m => {
+        const num = cleanNumber(m.id)
+        txt += `│    @${num}\n`
+      })
+
+      txt += `│\n`
+      txt += `╰─── ── ── ── ──\n`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
+
     } catch {
       await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }

@@ -12,7 +12,7 @@ export default {
   async execute(sock, msg, { from, args }) {
     const num = args[0]?.replace(/\D/g, '')
     if (!num) {
-      await sock.sendMessage(from, { text: '🚫 Uso: *.ban <número>*' }, { quoted: msg })
+      await sock.sendMessage(from, { text: '🌸 Dime el número que quieres banear, por favor.' }, { quoted: msg })
       return
     }
     if (isBanned(num)) {

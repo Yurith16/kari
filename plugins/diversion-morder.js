@@ -13,13 +13,10 @@ export default {
   descripcion: 'Envía un gif de mordida a alguien',
 
   async execute(sock, msg, { from }) {
-    const textMsg = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
-    const usedCommand = textMsg.split(' ')[0].slice(1) || 'morder'
-
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo
     const targetJid = contextInfo?.participant || contextInfo?.mentionedJid?.[0]
 
-    await sock.sendMessage(from, { react: { text: '🫦', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '🦷', key: msg.key } })
 
     try {
       const apiUrl = `https://api.delirius.store/reactions/bite`
@@ -36,10 +33,16 @@ export default {
       if (targetJid) {
         const victimJid = await getRealJid(sock, targetJid, msg)
         const victimTag = victimJid.split('@')[0]
-        txt = `*¡Ouch!* @${selfTag} mordió a @${victimTag}... ¿Fue con cariño o con hambre? 🦷💥`
+        txt = `🦷 ¡Ouch! @${selfTag} mordió a @${victimTag}... ¿fue con cariño o con hambre?`
         mentions.push(victimJid)
       } else {
-        txt = `*¿Todo bien en casa?* @${selfTag} se mordió a sí mismo... ¡Eso debió doler! 🦷🤕`
+        const frasesRandom = [
+          `🦷 @${selfTag} se mordió solito... ¿todo bien en casa?`,
+          `🤕 @${selfTag} se dio un mordisco a sí mismo, eso dolió.`,
+          `😬 @${selfTag} probó su propio brazo, ¿estaba bueno?`,
+          `🫦 @${selfTag} anda con ganas de morder pero no encontró a nadie.`
+        ]
+        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
 
       const enviado = await sock.sendMessage(from, {
@@ -49,11 +52,7 @@ export default {
         mentions: mentions
       }, { quoted: msg })
 
-      if (enviado) {
-        await sock.sendMessage(from, { react: { text: targetJid ? '🦴' : '🚑', key: enviado.key } })
-      }
-
-    } catch (err) {
+    } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

@@ -1,4 +1,5 @@
 import os from 'os'
+import db from '../core/sqlite.js'
 
 const startTime = Date.now()
 
@@ -21,17 +22,30 @@ export default {
     const bot    = global.bot || {}
     const f      = global.features || {}
 
+    let grupos = 0
+    let usuarios = 0
+    try {
+      const g = await sock.groupFetchAllParticipating()
+      grupos = Object.keys(g).length
+    } catch {}
+
+    try {
+      usuarios = db.prepare(`SELECT COUNT(*) as n FROM users WHERE nombre != ''`).get()?.n || 0
+    } catch {}
+
     const txt = [
       `🌿 *${bot.name}* v${bot.version}`,
       ``,
-      `⏱ Uptime: *${uptime}*`,
-      `🧠 RAM: *${ram}*`,
-      `📦 Node: *${process.version}*`,
-      `💬 Prefijo: *${bot.prefix?.join(' ')}*`,
+      `⏱ *Uptime:* ${uptime}`,
+      `🧠 *RAM:* ${ram}`,
+      `📦 *Node:* ${process.version}`,
+      `💬 *Prefijo:* ${bot.prefix?.join(' ')}`,
+      `👥 *Grupos:* ${grupos}`,
+      `🌸 *Usuarios:* ${usuarios}`,
       ``,
-      `🔧 Mantenimiento: *${f.maintenance ? 'activado' : 'desactivado'}*`,
-      `📵 Anti-call: *${f.antiCall ? 'on' : 'off'}*`,
-      `🛡 Anti-spam: *${f.antiSpam ? 'on' : 'off'}*`,
+      `🔧 *Mantenimiento:* ${f.maintenance ? 'activado' : 'desactivado'}`,
+      `📵 *Anti-call:* ${f.antiCall ? 'on' : 'off'}`,
+      `🛡 *Anti-spam:* ${f.antiSpam ? 'on' : 'off'}`,
     ].join('\n')
 
     await sock.sendMessage(from, { text: txt }, { quoted: msg })

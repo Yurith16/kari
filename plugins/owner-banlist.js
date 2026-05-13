@@ -12,7 +12,7 @@ export default {
   async execute(sock, msg, { from }) {
     const lista = getBanned()
     if (lista.length === 0) {
-      await sock.sendMessage(from, { text: '✅ No hay usuarios baneados.' }, { quoted: msg })
+      await sock.sendMessage(from, { text: '🌸 Todo limpio, nadie está baneado.' }, { quoted: msg })
       return
     }
     const txt = lista.map((n, i) => `${i + 1}. +${n}`).join('\n')

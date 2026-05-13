@@ -2,8 +2,8 @@ import { getGroup } from '../core/sqlite.js'
 import { toBold }   from '../utils/helpers.js'
 
 export default {
-  command:   'config',
-  tag:       'config',
+  command:   'grupo',
+  tag:       'grupo',
   categoria: 'main',
   owner:     false,
   group:     false,
@@ -14,10 +14,6 @@ export default {
     const f    = global.features || {}
     const on   = (val) => val === true || val === 1 ? '🟢 on' : '⚪ off'
     const div  = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
-
-    // Owner en privado o en grupo — muestra globales
-    // Admin en grupo — muestra solo del grupo
-    // Owner en grupo — muestra ambos
 
     let txt = `╭─〔 ${toBold('CONFIGURACION')} 〕\n│\n`
 
@@ -42,6 +38,7 @@ export default {
       txt += `│ ✦ goodbyeMsg ${on(cfg.goodbyeMsg)}\n`
       txt += `│ ✦ nsfw       ${on(cfg.nsfw)}\n`
       txt += `│ ✦ adminMode  ${on(cfg.adminMode)}\n`
+      txt += `│ ✦ economia   ${on(cfg.economia)}\n`
       txt += `│\n`
     }
 
@@ -51,6 +48,10 @@ export default {
     }
 
     txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
-    await sock.sendMessage(from, { text: txt }, { quoted: msg })
+
+    await sock.sendMessage(from, {
+      image: { url: 'https://www.image2url.com/r2/default/images/1778698406704-04d69250-b32f-4f74-8514-8fbc6ac62bfc.png' },
+      caption: txt
+    }, { quoted: msg })
   }
 }

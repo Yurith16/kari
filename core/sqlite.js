@@ -98,12 +98,37 @@ db.exec(`
     descripcion TEXT DEFAULT '',
     emoji      TEXT DEFAULT '📦'
   );
+
+  CREATE TABLE IF NOT EXISTS proposals (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_user  TEXT NOT NULL,
+    to_user    TEXT NOT NULL,
+    type       TEXT NOT NULL CHECK(type IN ('novio', 'casarse')),
+    created_at INTEGER DEFAULT (unixepoch()),
+    UNIQUE(from_user, to_user, type)
+  );
 `)
+
+// Prefijos por grupos
+
+try { db.exec(`ALTER TABLE groups ADD COLUMN prefix TEXT DEFAULT ''`) } catch {}
+
 // Migración segura — agrega columnas si no existen
 for (const col of ['welcomeImg', 'goodbyeImg']) {
   try { db.exec(`ALTER TABLE groups ADD COLUMN ${col} TEXT DEFAULT ''`) } catch {}
 }
 try { db.exec(`ALTER TABLE groups ADD COLUMN economia INTEGER DEFAULT 1`) } catch {}
+
+// Migración para perfil extendido
+for (const col of ['frase', 'color', 'animal', 'foto', 'pareja']) {
+  try { db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT DEFAULT ''`) } catch {}
+}
+try { db.exec(`ALTER TABLE users ADD COLUMN estado TEXT DEFAULT 'soltero'`) } catch {}
+
+// Migración para fechas de relación
+for (const col of ['noviazgo_fecha', 'matrimonio_fecha']) {
+  try { db.exec(`ALTER TABLE users ADD COLUMN ${col} INTEGER DEFAULT 0`) } catch {}
+}
 
 logger.info('SQLite', 'Base de datos lista ✦')
 
@@ -204,6 +229,75 @@ export function registerUser(userNum, { nombre, apodo, edad, genero, pais }) {
 }
 export function updateUser(userNum, { nombre, apodo, edad, genero, pais }) {
   _updateUser.run(nombre, apodo || '', edad, genero || '', pais || '', userNum)
+}
+
+// ─── Perfil extendido ─────────────────────────────────────────────────────────
+
+const _setUserField = (field) => db.prepare(`UPDATE users SET ${field} = ? WHERE user_num = ?`)
+
+export function setUserField(userNum, field, value) {
+  _setUserField(field).run(value, userNum)
+}
+
+export function getAge(userNum) {
+  const user = _getUser.get(userNum)
+  return user?.edad || 0
+}
+
+// ─── Fechas de relación ─────────────────────────────────────────────────────
+
+const _setNoviazgoFecha     = db.prepare(`UPDATE users SET noviazgo_fecha = ? WHERE user_num = ?`)
+const _setMatrimonioFecha   = db.prepare(`UPDATE users SET matrimonio_fecha = ? WHERE user_num = ?`)
+
+export function setNoviazgoFecha(userNum, timestamp) {
+  _setNoviazgoFecha.run(timestamp, userNum)
+}
+
+export function setMatrimonioFecha(userNum, timestamp) {
+  _setMatrimonioFecha.run(timestamp, userNum)
+}
+
+export function clearFechas(userNum) {
+  db.prepare(`UPDATE users SET noviazgo_fecha = 0, matrimonio_fecha = 0 WHERE user_num = ?`).run(userNum)
+}
+
+// ─── Propuestas ──────────────────────────────────────────────────────────────
+
+const _createProposal  = db.prepare(`INSERT OR REPLACE INTO proposals (from_user, to_user, type) VALUES (?,?,?)`)
+const _getProposal     = db.prepare(`SELECT * FROM proposals WHERE to_user = ? AND type = ?`)
+const _deleteProposal  = db.prepare(`DELETE FROM proposals WHERE from_user = ? AND to_user = ? AND type = ?`)
+const _deleteProposalsByUser = db.prepare(`DELETE FROM proposals WHERE from_user = ? OR to_user = ?`)
+const _getRelation     = db.prepare(`SELECT pareja, estado, noviazgo_fecha, matrimonio_fecha FROM users WHERE user_num = ?`)
+
+export function createProposal(from, to, type) {
+  _createProposal.run(from, to, type)
+}
+
+export function getProposal(userNum, type) {
+  return _getProposal.get(userNum, type)
+}
+
+export function deleteProposal(from, to, type) {
+  _deleteProposal.run(from, to, type)
+}
+
+export function clearProposals(userNum) {
+  _deleteProposalsByUser.run(userNum, userNum)
+}
+
+export function getRelation(userNum) {
+  return _getRelation.get(userNum)
+}
+
+export function setRelation(userNum, estado, pareja) {
+  db.prepare(`UPDATE users SET estado = ?, pareja = ? WHERE user_num = ?`).run(estado, pareja, userNum)
+}
+
+export function breakRelation(userNum) {
+  const rel = _getRelation.get(userNum)
+  if (!rel || !rel.pareja) return
+  db.prepare(`UPDATE users SET estado = 'soltero', pareja = '', noviazgo_fecha = 0, matrimonio_fecha = 0 WHERE user_num = ?`).run(userNum)
+  db.prepare(`UPDATE users SET estado = 'soltero', pareja = '', noviazgo_fecha = 0, matrimonio_fecha = 0 WHERE user_num = ?`).run(rel.pareja)
 }
 
 // ─── Economy ──────────────────────────────────────────────────────────────────

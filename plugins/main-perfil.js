@@ -1,0 +1,115 @@
+import { getUser }                 from '../core/sqlite.js'
+import { getRealJid, cleanNumber } from '../utils/jid.js'
+import { toBold }                  from '../utils/helpers.js'
+import { resolveTarget }           from '../utils/target.js'
+
+function formatDate(timestamp) {
+  if (!timestamp || timestamp === 0) return null
+  const date = new Date(timestamp * 1000)
+  return date.toLocaleDateString('es-HN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+}
+
+function tiempoTranscurrido(timestamp) {
+  if (!timestamp || timestamp === 0) return null
+  const ahora = Math.floor(Date.now() / 1000)
+  const diff = ahora - timestamp
+  
+  const dias = Math.floor(diff / 86400)
+  const meses = Math.floor(dias / 30)
+  const años = Math.floor(dias / 365)
+
+  if (años > 0) return `${años} año${años > 1 ? 's' : ''}`
+  if (meses > 0) return `${meses} mes${meses > 1 ? 'es' : ''}`
+  if (dias > 0) return `${dias} día${dias > 1 ? 's' : ''}`
+  return 'Hoy'
+}
+
+export default {
+  command:     'perfil',
+  tag:         'perfil',
+  categoria:   'main',
+  owner:       false,
+  group:       false,
+  nsfw:        false,
+  descripcion: 'Muestra tu perfil o el de otro usuario',
+
+  async execute(sock, msg, { from, args, sender }) {
+    const target = args.length ? await resolveTarget(sock, msg, args) : null
+    let user
+
+    if (target?.num) {
+      user = target.num
+    } else {
+      const realJid = await getRealJid(sock, sender, msg).catch(() => sender)
+      user = cleanNumber(realJid)
+    }
+
+    if (!user) {
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
+      return
+    }
+
+    const perfil = getUser(user)
+    if (!perfil) {
+      const esSelf = !target?.num
+      await sock.sendMessage(from, {
+        text: esSelf
+          ? global.messages.notRegistered
+          : '🌸 Ese usuario aún no tiene un perfil creado.'
+      }, { quoted: msg })
+      return
+    }
+
+    const generoEmoji = perfil.genero === 'hombre' ? '👦' : perfil.genero === 'mujer' ? '👧' : '🌿'
+    const estadoEmoji = perfil.estado === 'en_relacion' ? '💑' : perfil.estado === 'casado' ? '💍' : '🌿'
+    const estadoTexto = perfil.estado === 'en_relacion' ? 'En relación' : perfil.estado === 'casado' ? 'Casado/a' : 'Soltero/a'
+
+    const fechaRegistro = formatDate(perfil.registered_at)
+
+    let txt = `╭─〔 🌸 *PERFIL* 〕\n`
+    txt += `│\n`
+    txt += `│ ✦ *Nombre:* ${perfil.nombre}\n`
+    if (perfil.apodo) txt += `│ ✦ *Apodo:* ${perfil.apodo}\n`
+    txt += `│ ✦ *Edad:* ${perfil.edad} años\n`
+    txt += `│ ✦ *Género:* ${generoEmoji} ${perfil.genero}\n`
+    txt += `│ ✦ *País:* ${perfil.pais}\n`
+    if (fechaRegistro) txt += `│ ✦ *Registrado:* ${fechaRegistro}\n`
+    if (perfil.frase) txt += `│ ✦ *Frase:* ${perfil.frase}\n`
+    if (perfil.color) txt += `│ ✦ *Color favorito:* ${perfil.color}\n`
+    if (perfil.animal) txt += `│ ✦ *Animal favorito:* ${perfil.animal}\n`
+    txt += `│ ✦ *Estado:* ${estadoEmoji} ${estadoTexto}\n`
+    if (perfil.pareja) {
+      const parejaPerfil = getUser(perfil.pareja)
+      txt += `│ ✦ *Pareja:* ${parejaPerfil?.nombre || perfil.pareja}\n`
+    }
+    if (perfil.noviazgo_fecha) {
+      const fechaNoviazgo = formatDate(perfil.noviazgo_fecha)
+      const llevanNovios = tiempoTranscurrido(perfil.noviazgo_fecha)
+      txt += `│ ✦ *Novios desde:* ${fechaNoviazgo} (${llevanNovios})\n`
+    }
+    if (perfil.matrimonio_fecha) {
+      const fechaMatrimonio = formatDate(perfil.matrimonio_fecha)
+      const llevanCasados = tiempoTranscurrido(perfil.matrimonio_fecha)
+      txt += `│ ✦ *Casados desde:* ${fechaMatrimonio} (${llevanCasados})\n`
+    }
+    txt += `│\n`
+    txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
+
+    const mentions = target?.num ? [`${target.num}@s.whatsapp.net`] : []
+
+    // Si tiene foto de perfil, enviar imagen con caption
+    if (perfil.foto) {
+      await sock.sendMessage(from, {
+        image: { url: perfil.foto },
+        caption: txt,
+        mentions
+      }, { quoted: msg })
+    } else {
+      await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
+    }
+  }
+}

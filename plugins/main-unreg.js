@@ -13,7 +13,7 @@ export default {
   owner:       false,
   group:       false,
   nsfw:        false,
-  descripcion: 'Elimina tu perfil del bot (solo datos personales)',
+  descripcion: 'Elimina tu perfil del bot',
 
   async execute(sock, msg, { from, sender }) {
     const realJid = await getRealJid(sock, sender, msg).catch(() => sender)
@@ -37,7 +37,7 @@ export default {
     db.pragma('foreign_keys = ON')
 
     await sock.sendMessage(from, {
-      text: `🗑️ Perfil de *${perfil.nombre}* eliminado.\n\nTus kryons y banco se mantienen intactos. Si quieres volver a registrarte usa *.registro*`
+      text: `🌸 Tu perfil fue eliminado, *${perfil.nombre}*. Si algún día quieres volver, aquí estaré.`
     }, { quoted: msg })
   }
 }

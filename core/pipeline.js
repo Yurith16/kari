@@ -21,7 +21,12 @@ function extractText(msg) {
       || ''
 }
 
-function matchPrefix(text) {
+function matchPrefix(text, groupCfg) {
+  // Primero el prefijo personalizado del grupo
+  if (groupCfg?.prefix && text.startsWith(groupCfg.prefix)) {
+    return { prefix: groupCfg.prefix, rest: text.slice(groupCfg.prefix.length).trim() }
+  }
+  // Luego el prefijo global
   for (const p of (global.bot?.prefix || ['.'])) {
     if (text.startsWith(p)) return { prefix: p, rest: text.slice(p.length).trim() }
   }
@@ -37,7 +42,6 @@ async function resolveContext(sock, msg) {
   let realJid = sender
   try { realJid = await getRealJid(sock, sender, msg) } catch {}
   const userNum = cleanNumber(realJid)
-  // Guardar en caché global para cuando el usuario salga del grupo
   if (sender.endsWith('@lid') && userNum && userNum.length >= 8) {
     global.lidCache.set(sender, `${userNum}@s.whatsapp.net`)
   }
@@ -50,12 +54,12 @@ async function resolveContext(sock, msg) {
   if (isGroup) {
     try {
       const meta      = await sock.groupMetadata(from)
-      const senderRaw = cleanNumber(sender) // número sin resolver (puede ser @lid)
+      const senderRaw = cleanNumber(sender)
       isAdmin = meta.participants.some(p =>
         p.admin && (
-          cleanNumber(p.id) === userNum ||   // número real resuelto
-          p.id === sender ||                  // JID exacto
-          cleanNumber(p.id) === senderRaw    // número del @lid sin resolver
+          cleanNumber(p.id) === userNum ||
+          p.id === sender ||
+          cleanNumber(p.id) === senderRaw
         )
       )
       if (meta.subject) updateGroupName(from, meta.subject)
@@ -81,11 +85,9 @@ async function stepAntiLink(ctx, sock, msg) {
 
 async function stepMute(ctx, sock, msg) {
   if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin) return false
-  // Verificar con userNum resuelto Y con número limpio del sender original
   const senderNum = cleanNumber(ctx.sender)
   if (!isMuted(ctx.from, ctx.userNum) && !isMuted(ctx.from, senderNum)) return false
   try {
-    // Eliminar cualquier tipo de mensaje — texto, imagen, video, documento, sticker
     await sock.sendMessage(ctx.from, {
       delete: {
         remoteJid:   ctx.from,
@@ -95,7 +97,7 @@ async function stepMute(ctx, sock, msg) {
       }
     })
   } catch {}
-  return true  // corta el flujo siempre, sin responder nada
+  return true
 }
 
 async function stepGuards(ctx, sock, msg) {
@@ -103,7 +105,6 @@ async function stepGuards(ctx, sock, msg) {
   const msgs = global.messages || {}
   const bot  = global.bot     || {}
 
-  // Ban global
   if (!ctx.isOwner && isBanned(ctx.userNum)) {
     await sock.sendMessage(ctx.from, { text: msgs.bannedWarn }, { quoted: msg })
     return true
@@ -143,31 +144,29 @@ async function stepGuards(ctx, sock, msg) {
 
 async function dispatch(ctx, sock, msg) {
   const text  = extractText(msg)
-  const match = matchPrefix(text)
+  const match = matchPrefix(text, ctx.groupCfg)
 
-  // Ejecutar onMessage SIEMPRE, no solo cuando no hay prefijo
-for (const cmd of commands.values()) {
-  if (cmd.onMessage) {
-    await cmd.onMessage(sock, msg, { 
-      from: ctx.from, 
-      text: extractText(msg),
-      sender: ctx.sender,
-      userNum: ctx.userNum,
-      isGroup: ctx.isGroup,
-      isOwner: ctx.isOwner,
-      isAdmin: ctx.isAdmin,
-      groupCfg: ctx.groupCfg
-    }).catch(() => {})
+  for (const cmd of commands.values()) {
+    if (cmd.onMessage) {
+      await cmd.onMessage(sock, msg, { 
+        from: ctx.from, 
+        text: extractText(msg),
+        sender: ctx.sender,
+        userNum: ctx.userNum,
+        isGroup: ctx.isGroup,
+        isOwner: ctx.isOwner,
+        isAdmin: ctx.isAdmin,
+        groupCfg: ctx.groupCfg
+      }).catch(() => {})
+    }
   }
-}
 
-if (!match) return
+  if (!match) return
 
   const [cmdName, ...args] = match.rest.split(/\s+/)
   const cmd = commands.get(cmdName.toLowerCase())
   if (!cmd) return
 
-  // Check economía — si el comando es de economía, verificar registro y si está habilitado en el grupo
   if (cmd.categoria === 'economia') {
     if (ctx.isGroup && ctx.groupCfg?.economia === 0) {
       await sock.sendMessage(ctx.from, { text: global.messages?.ecoDisabled }, { quoted: msg })
@@ -215,7 +214,7 @@ export async function handleMessage(sock, msg) {
     if (await stepAntiLink(ctx, sock, msg)) return
     if (await stepMute(ctx, sock, msg))     return
 
-    const match = matchPrefix(extractText(msg))
+    const match = matchPrefix(extractText(msg), ctx.groupCfg)
     if (match && await stepGuards(ctx, sock, msg)) return
 
     await dispatch(ctx, sock, msg)
