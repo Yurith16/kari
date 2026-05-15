@@ -17,8 +17,8 @@ async function getApiKey() {
 }
 
 export default {
-  command: ['play', 'ytmp3'],
-  tag: 'play',
+  command: ['ytmp3'],
+  tag: 'ytmp3',
   categoria: 'descargas',
   owner: false,
   group: false,

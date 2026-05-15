@@ -1,130 +1,176 @@
+// plugins/play.js
+
 import axios from 'axios'
-import { CookieJar } from 'tough-cookie'
-import { wrapper } from 'axios-cookiejar-support'
 import ytSearch from 'yt-search'
 import { getBotSignature } from '../utils/formatters.js'
+import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 const BASE = 'https://app.ytdown.to'
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-
-const sleep = ms => new Promise(r => setTimeout(r, ms))
+const UA = 'Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0'
 
 const HEADERS = {
-  'Content-Type': 'application/x-www-form-urlencoded',
-  'x-requested-with': 'XMLHttpRequest',
+  'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+  'X-Requested-With': 'XMLHttpRequest',
   'Origin': BASE,
-  'Referer': BASE + '/en23/',
+  'Referer': BASE + '/en27/',
+  'User-Agent': UA,
 }
 
-async function postProxy(client, url) {
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+const descargando = new Set()
+
+function parseDuracion(duracion) {
+  if (!duracion) return 0
+  const partes = duracion.split(':').map(Number)
+  if (partes.length === 3) return partes[0] * 60 + partes[1]
+  if (partes.length === 2) return partes[0]
+  return 0
+}
+
+async function postProxy(url) {
   const body = new URLSearchParams({ url }).toString()
-  const { data } = await client.post(`${BASE}/proxy.php`, body, { headers: HEADERS })
-  return (typeof data === 'object' ? data : JSON.parse(data))?.api
-}
-
-async function poll(client, workerUrl) {
-  for (let i = 1; i <= 15; i++) {
-    const api = await postProxy(client, workerUrl)
-    if (api?.status === 'completed' && api.fileUrl) return api.fileUrl
-    if (api?.status === 'error') throw new Error('Worker error')
-    if (i < 15) await sleep(2500)
-  }
-  throw new Error('Tiempo agotado')
+  const { data } = await axios.post(`${BASE}/proxy.php`, body, { headers: HEADERS })
+  return data?.api
 }
 
 export default {
-  command: ['ytmp3doc'],
-  tag: 'ytmp3doc',
+  command: ['play'],
+  tag: 'play',
   categoria: 'descargas',
-  descripcion: 'Descarga audios de YouTube en documento',
   owner: false,
   group: false,
+  nsfw: false,
+  descripcion: 'Descarga audio de YouTube en MP3',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {
-      await sock.sendMessage(from, { text: '🌸 ¿Qué canción quieres que busque? Dime el nombre o pásame el enlace.' }, { quoted: msg })
-      return
+      return sock.sendMessage(from, {
+        text: '🌸 ¿Qué canción quieres que busque? Dime el nombre o pásame el enlace.'
+      }, { quoted: msg })
     }
 
     const query = args.join(' ')
-    const isUrl = query.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]{11}/)
+    const isUrl = /^https?:\/\//.test(query)
+
+    const userId = msg.key.participant || msg.key.remoteJid
+
+    if (descargando.has(userId)) {
+      return sock.sendMessage(from, {
+        text: '🌸 Espera a que termine tu descarga actual antes de pedir otra.'
+      }, { quoted: msg })
+    }
+
+    descargando.add(userId)
 
     try {
       await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
-      let videoUrl = query
-      let title, author, duration, views, ago, thumbnail
+      let videoUrl, title, thumbnail
 
-      if (!isUrl) {
-        const search = await ytSearch(query)
-        if (!search.videos.length) {
-          await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-          return await sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
+      if (isUrl) {
+        videoUrl = query
+        if (!videoUrl.includes('youtu.be') && !videoUrl.includes('youtube.com')) {
+          return sock.sendMessage(from, {
+            text: '🌸 Eso no parece un enlace de YouTube. ¿Me pasas uno correcto?'
+          }, { quoted: msg })
         }
-        const video = search.videos[0]
-        videoUrl = video.url
-        title = video.title
-        author = video.author
-        duration = video.duration
-        views = video.views
-        ago = video.ago
-        thumbnail = video.thumbnail
       } else {
-        const videoId = isUrl[0].split('v=')[1] || isUrl[0].split('/').pop()
-        thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+        const search = await ytSearch(query)
+        if (!search.videos?.length) {
+          return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
+        }
+        videoUrl = search.videos[0].url
+        title = search.videos[0].title
+        thumbnail = search.videos[0].thumbnail
       }
 
-      const jar = new CookieJar()
-      const client = wrapper(axios.create({ jar, withCredentials: true, timeout: 30000, headers: { 'User-Agent': UA } }))
-      await client.get(`${BASE}/`)
-
-      const api = await postProxy(client, videoUrl)
-      if (!api || api.status === 'error') throw new Error('API Error')
+      const api = await postProxy(videoUrl)
+      if (!api || api.status !== 'ok') {
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
+      }
 
       title = title || api.title
+      thumbnail = thumbnail || api.imagePreviewUrl
 
-      const signature = `           ${getBotSignature(global.bot)}`
+      const audios = api.mediaItems.filter(m => m.type === 'Audio' && m.mediaExtension === 'MP3')
+      if (!audios.length) {
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
+      }
 
-      const videoDetails = 
+      // Bloquear videos de más de 30 minutos
+      const duracionMin = parseDuracion(audios[0].mediaDuration)
+      if (duracionMin > 30) {
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return sock.sendMessage(from, {
+          text: '🌸 Este audio es muy largo, corazón. Solo puedo con videos de menos de media hora.'
+        }, { quoted: msg })
+      }
+
+      const elegido = audios.find(a => a.mediaQuality === '128K') || audios[0]
+
+      const signature = getBotSignature(global.bot)
+      const caption = 
 `  · · ─────── ·🌸· ─────── · ·
-  ⊱ *_${title || 'Procesando...'}_* ⊰
-  ♡ *Canal:* _${author?.name || 'YouTube'}_
-  ❁ *Duración:* _${duration?.timestamp || '--:--'}_
-  ✾ *Vistas:* _${(views || 0).toLocaleString()}_
-  ✤ *Publicado:* _${ago || 'Reciente'}_
-  ♡ *Enlace:* _${videoUrl}_
+  ⊱ *_${title}_* ⊰
+  ♡ *Calidad:* _${elegido.mediaQuality}_
+  ♡ *Tamaño:* _${elegido.mediaFileSize}_
   · · ─────── ·🌸· ─────── · ·
      ${signature}`
 
       await sock.sendMessage(from, {
         image: { url: thumbnail },
-        caption: videoDetails
+        caption
       }, { quoted: msg })
-
-      let opciones = api.mediaItems.filter(m => m.mediaExtension?.toLowerCase() === 'mp3')
-      if (!opciones.length) throw new Error('No MP3 found')
-
-      let elegido = opciones[0]
 
       await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
 
-      const downloadUrl = await poll(client, elegido.mediaUrl)
-      const audioRes = await axios.get(downloadUrl, { responseType: 'arraybuffer' })
-      const audioBuffer = Buffer.from(audioRes.data)
+      let status = await postProxy(elegido.mediaUrl)
+      let intentos = 0
+
+      while (status?.status !== 'completed' && intentos < 3) {
+        await sleep(3000)
+        status = await postProxy(elegido.mediaUrl)
+        intentos++
+      }
+
+      if (status?.status !== 'completed' || !status?.fileUrl) {
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
+      }
+
+      const fileRes = await axios.get(status.fileUrl, {
+        responseType: 'arraybuffer',
+        headers: { 'User-Agent': UA }
+      })
+
+      const buffer = Buffer.from(fileRes.data)
+      const sizeMB = buffer.length / (1024 * 1024)
 
       await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
 
-      await sock.sendMessage(from, {
-        document: audioBuffer,
-        mimetype: 'audio/mpeg',
-        fileName: `${title || 'audio'}.mp3`
-      }, { quoted: msg })
+      const fileName = `${title || 'audio'}.mp3`
+
+      if (sizeMB < 15) {
+        await sock.sendMessage(from, {
+          audio: buffer,
+          mimetype: 'audio/mpeg'
+        }, { quoted: msg })
+      } else {
+        await sock.sendMessage(from, {
+          document: buffer,
+          mimetype: 'audio/mpeg',
+          fileName
+        }, { quoted: msg })
+      }
 
       await sock.sendMessage(from, { react: { text: '🌿', key: msg.key } })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-      return await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
+    } finally {
+      descargando.delete(userId)
     }
   }
 }
