@@ -1,3 +1,5 @@
+// plugins/twitter.js
+
 import axios from 'axios'
 import { getBotSignature } from '../utils/formatters.js'
 
@@ -17,14 +19,16 @@ export default {
   owner: false,
   group: false,
 
-  async execute(sock, msg, { from, args }) {
+  async execute(sock, msg, { from, args, prefix }) {
+    if (!args.length) return sock.sendMessage(from, { 
+      text: '🌸 Pásame el enlace de Twitter/X que quieres descargar.'
+    }, { quoted: msg })
+
     const url = args[0]
 
     if (!url || (!url.includes('twitter.com') && !url.includes('x.com'))) {
-      await sock.sendMessage(from, {
-        text: '🌸 Ay, necesito un enlace de Twitter/X para descargar. ¿Me lo pasas?'
-      }, { quoted: msg })
-      return
+      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      return await sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
     }
 
     try {
@@ -38,8 +42,7 @@ export default {
 
       if (!data?.media_extended?.length) {
         await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-        await sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
-        return
+        return await sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
 
       const autor = data.user_name || ''
@@ -47,14 +50,12 @@ export default {
       const signature = getBotSignature(global.bot)
 
       const caption = 
-`  · · ────── ·🌸· ────── · ·
-  ⊱ *_Twitter/X_* ⊰
-  ♡ *Autor:* _${autor}_ (@${user})
-  ♡ *Likes:* _${toNum(data.likes)}_
-  · · ────── ·🌸· ────── · ·
-     ${signature}`
+` *「✦」 ${autor} (@${user})*\n\n` +
+`> ♡ *Likes:* » ${toNum(data.likes)}\n` +
+`> 🜸 *Enlace:* » ${url.split('?')[0]}\n\n` +
+`  · · ────── ·🌸· ────── · ·\n     ${signature}`
 
-      await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
       for (const item of data.media_extended) {
         const isVideo = item.type === 'video' || item.type === 'gif'
@@ -62,16 +63,15 @@ export default {
         const mediaBuffer = Buffer.from(mediaRes.data)
         const sizeMB = mediaBuffer.length / (1024 * 1024)
 
-        await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
-
+        let enviado
         if (isVideo) {
           if (sizeMB < 80) {
-            await sock.sendMessage(from, {
+            enviado = await sock.sendMessage(from, {
               video: mediaBuffer,
               caption
             }, { quoted: msg })
           } else {
-            await sock.sendMessage(from, {
+            enviado = await sock.sendMessage(from, {
               document: mediaBuffer,
               mimetype: 'video/mp4',
               fileName: `twitter_${Date.now()}.mp4`,
@@ -79,18 +79,20 @@ export default {
             }, { quoted: msg })
           }
         } else {
-          await sock.sendMessage(from, {
+          enviado = await sock.sendMessage(from, {
             image: mediaBuffer,
             caption
           }, { quoted: msg })
         }
+
+        if (enviado) await sock.sendMessage(from, { react: { text: '🌱', key: enviado.key } })
       }
 
-      await sock.sendMessage(from, { react: { text: '🌿', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
 
     } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-      return await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
+      return await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

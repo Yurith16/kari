@@ -1,22 +1,22 @@
-// plugins/play2.js
+// plugins/ytmp3doc.js
 
 import ytSearch from 'yt-search'
 import axios from 'axios'
 import sharp from 'sharp'
-import { downloadVideo } from '../utils/video.js'
+import { downloadAudio } from '../utils/audio.js'
 
 export default {
-  command: ['play2'],
-  tag: 'play2',
+  command: ['ytmp3doc','ytmp3'],
+  tag: 'ytmp3doc',
   categoria: 'descargas',
   owner: false,
   group: false,
   nsfw: false,
-  descripcion: 'Busca y descarga videos de YouTube en MP4',
+  descripcion: 'Descarga audio de YouTube en MP3 (documento)',
 
   async execute(sock, msg, { from, args, prefix }) {
     if (!args.length) return sock.sendMessage(from, { 
-  text: '🌸 ¿Qué video quieres que busque en YouTube? Pásame el nombre o el enlace.' 
+  text: '🌸 ¿Qué canción quieres que busque en YouTube? Pásame el nombre o el enlace.'
 }, { quoted: msg })
 
     const query = args.join(' ')
@@ -49,9 +49,18 @@ export default {
         ago = video.ago
       }
 
+      // Bloquear videos de más de 3 horas
+      const durStr = duration || ''
+      const durParts = durStr.split(':').map(Number)
+      const durMin = durParts.length === 3 ? durParts[0] * 60 + durParts[1] : durParts.length === 2 ? durParts[0] : 0
+      if (durMin > 180) {
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return await sock.sendMessage(from, { text: '🌸 Solo puedo descargar audios de menos de 3 horas, corazón.' }, { quoted: msg })
+      }
+
       // Enviar portada con detalles
       if (thumbnail) {
-        const videoDetails = ` *「✦」 ${title || 'Video'}*\n\n` +
+        const videoDetails = ` *「✦」 ${title || 'Audio'}*\n\n` +
           `> ✦ *Canal:* » ${author || 'YouTube'}\n` +
           `> ⴵ *Duración:* » ${duration || '--'}\n` +
           `> ✰ *Vistas:* » ${views ? Number(views).toLocaleString() : '--'}\n` +
@@ -74,21 +83,14 @@ export default {
 
       await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
-      const { buffer, title: finalTitle, sizeMB } = await downloadVideo(videoUrl)
+      const { buffer, title: finalTitle } = await downloadAudio(videoUrl)
       title = finalTitle || title
 
-      if (sizeMB <= 100) {
-        await sock.sendMessage(from, {
-          video: buffer,
-          mimetype: 'video/mp4'
-        }, { quoted: msg })
-      } else {
-        await sock.sendMessage(from, {
-          document: buffer,
-          mimetype: 'video/mp4',
-          fileName: `${title}.mp4`
-        }, { quoted: msg })
-      }
+      await sock.sendMessage(from, {
+        document: buffer,
+        mimetype: 'audio/mpeg',
+        fileName: `${title}.mp3`
+      }, { quoted: msg })
 
       await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 

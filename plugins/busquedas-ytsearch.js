@@ -3,8 +3,8 @@ import ytSearch from 'yt-search'
 import { getBotSignature } from '../utils/formatters.js'
 
 export default {
-  command: ['yts', 'ytsearch', 'buscaryt'],
-  tag: 'busqueda',
+  command: ['yts', 'ytsearch', 'buscar'],
+  tag: 'ytsearch',
   categoria: 'busqueda',
   descripcion: 'Busca videos en YouTube y envía los resultados individualmente',
   owner: false,
@@ -13,7 +13,7 @@ export default {
 
   async execute(sock, msg, { from, args, prefix }) {
     const query = args.join(' ')
-    if (!query) return sock.sendMessage(from, { text: global.messages.busquedaEmpty }, { quoted: msg })
+    if (!query) return sock.sendMessage(from, { text: '🌸 ¿Qué video quieres que busque en YouTube?' }, { quoted: msg })
 
     try {
       await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
@@ -26,22 +26,16 @@ export default {
         return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
 
-      const signature = `           ${getBotSignature(global.bot)}`
-
       for (let i = 0; i < videos.length; i++) {
         const video = videos[i]
         const { title, author, duration, views, ago, url, thumbnail } = video
 
-        const videoDetails = 
-`  · · ─────── ·🌸· ─────── · ·
-  ⊱ *_${title}_* ⊰
-  ♡ *Canal:* _${author.name}_
-  ❁ *Duración:* _${duration.timestamp}_
-  ✾ *Vistas:* _${(views || 0).toLocaleString()}_
-  ✤ *Publicado:* _${ago || 'Reciente'}_
-  ♡ *Enlace:* _${url}_
-  · · ─────── ·🌸· ─────── · ·
-     ${signature}`
+        const videoDetails = ` *「✦」 ${title}*\n\n` +
+          `> ✦ *Canal:* » ${author.name}\n` +
+          `> ⴵ *Duración:* » ${duration.timestamp}\n` +
+          `> ✰ *Vistas:* » ${(views || 0).toLocaleString()}\n` +
+          `> ✐ *Publicado:* » ${ago || 'Reciente'}\n` +
+          `> 🜸 *Enlace:* » ${url}`
 
         try {
           await sock.sendMessage(from, {
@@ -49,18 +43,17 @@ export default {
             caption: videoDetails
           }, { quoted: msg })
 
-          // Pequeña pausa para no saturar
           await new Promise(resolve => setTimeout(resolve, 500))
         } catch {
           continue
         }
       }
 
-      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } })
-      return sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
+      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      return await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

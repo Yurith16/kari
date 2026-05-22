@@ -1,63 +1,115 @@
+// plugins/mediafire.js
+
+import axios from 'axios'
+import * as cheerio from 'cheerio'
+import fs from 'fs'
+import path from 'path'
+import { lookup } from 'mime-types'
+
 export default {
-  command:   ['mediafire', 'mf'],
-  tag:       'mediafire',
+  command: ['mediafire', 'mf'],
+  tag: 'mediafire',
   categoria: 'descargas',
-  descripcion: 'Descarga archivos de mediafire',
-  owner:     false,
-  group:     false,
+  owner: false,
+  group: false,
+  nsfw: false,
+  descripcion: 'Descarga archivos de MediaFire',
 
   async execute(sock, msg, { from, args }) {
+    if (!args.length) return sock.sendMessage(from, { 
+      text: '🌸 Pásame el enlace de MediaFire que quieres descargar.'
+    }, { quoted: msg })
+
     const url = args[0]
 
-    if (!url || !url.includes('mediafire.com')) {
-      await sock.sendMessage(from, {
-        text: '🌸 Ay, necesito un enlace de MediaFire para descargarlo. ¿Me lo pasas?'
-      }, { quoted: msg })
-      return
+    if (!url.includes('mediafire.com')) {
+      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      return await sock.sendMessage(from, { text: '🌸 Eso no parece un enlace de MediaFire.' }, { quoted: msg })
     }
 
-    await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
+    let tempFile = null
 
     try {
-      const res = await fetch('https://panel.apinexus.fun/api/mediafire/v2/descargar', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': 'antbx21e5jhac' },
-        body:    JSON.stringify({ url })
+      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
+
+      // Scraping del enlace directo
+      const res = await axios.get(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        timeout: 30000
       })
-      const json = await res.json()
 
-      if (!json.success || !json.data) {
-        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-        await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
-        return
+      const $ = cheerio.load(res.data)
+      let downloadLink = $('#downloadButton').attr('href')
+      
+      if (!downloadLink || downloadLink.includes('javascript:void(0)')) {
+        const match = res.data.match(/href="(https:\/\/download\d+\.mediafire\.com[^"]+)"/)
+        downloadLink = match ? match[1] : null
       }
 
-      const { filename, download, filesize, ext } = json.data
-      const sizeNumber = parseFloat(filesize)
-
-      if (sizeNumber > 600) {
+      if (!downloadLink) {
         await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-        await sock.sendMessage(from, { text: '🌸 Ay, este archivo pesa más de 600MB, no puedo con tanto.' }, { quoted: msg })
-        return
+        return await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
       }
 
-      await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
+      const fileName = $('.filename').text().trim() || 'archivo_mediafire'
+      const sizeText = $('#downloadButton').text().replace('Download', '').replace(/[()]/g, '').trim() || 'N/A'
 
-      const fileRes = await fetch(download)
-      const fileBuffer = Buffer.from(await fileRes.arrayBuffer())
+      // Verificar tamaño máximo 800MB
+      let sizeMB = 0
+      const sizeMatch = sizeText.match(/([\d.]+)\s*(KB|MB|GB)/i)
+      if (sizeMatch) {
+        const num = parseFloat(sizeMatch[1])
+        const unit = sizeMatch[2].toUpperCase()
+        if (unit === 'KB') sizeMB = num / 1024
+        if (unit === 'MB') sizeMB = num
+        if (unit === 'GB') sizeMB = num * 1024
+      }
 
-      await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
+      if (sizeMB > 800) {
+        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+        return await sock.sendMessage(from, { text: '🌸 Este archivo pesa más de 800MB, no puedo descargarlo.' }, { quoted: msg })
+      }
 
-      await sock.sendMessage(from, {
-        document: fileBuffer,
-        mimetype: ext === 'apk' ? 'application/vnd.android.package-archive' : 'application/octet-stream',
-        fileName: filename
+      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
+
+      // Descargar
+      const mediafireDir = path.join(process.cwd(), 'tmp', 'mediafire')
+      if (!fs.existsSync(mediafireDir)) fs.mkdirSync(mediafireDir, { recursive: true })
+
+      const safeFileName = fileName.replace(/[<>:"/\\|?*]/g, '_')
+      tempFile = path.join(mediafireDir, `${Date.now()}_${safeFileName}`)
+
+      const writer = fs.createWriteStream(tempFile)
+      const response = await axios({
+        method: 'GET',
+        url: downloadLink,
+        responseType: 'stream',
+        timeout: 600000
+      })
+
+      response.data.pipe(writer)
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve)
+        writer.on('error', reject)
+      })
+
+      const ext = fileName.split('.').pop()?.toLowerCase()
+      const mime = lookup(ext) || 'application/octet-stream'
+
+      const enviado = await sock.sendMessage(from, {
+        document: fs.readFileSync(tempFile),
+        mimetype: mime,
+        fileName: fileName
       }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: '🌿', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
+      if (enviado) await sock.sendMessage(from, { react: { text: '🌱', key: enviado.key } })
 
     } catch {
-      await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
+      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
+    } finally {
+      if (tempFile && fs.existsSync(tempFile)) fs.unlinkSync(tempFile)
     }
   }
 }

@@ -1,4 +1,4 @@
-// plugins/play2.js
+// plugins/ytmp4doc.js
 
 import ytSearch from 'yt-search'
 import axios from 'axios'
@@ -6,17 +6,17 @@ import sharp from 'sharp'
 import { downloadVideo } from '../utils/video.js'
 
 export default {
-  command: ['play2'],
-  tag: 'play2',
+  command: ['ytmp4doc','ytmp4'],
+  tag: 'ytmp4doc',
   categoria: 'descargas',
   owner: false,
   group: false,
   nsfw: false,
-  descripcion: 'Busca y descarga videos de YouTube en MP4',
+  descripcion: 'Descarga videos de YouTube en MP4 (documento)',
 
   async execute(sock, msg, { from, args, prefix }) {
     if (!args.length) return sock.sendMessage(from, { 
-  text: '🌸 ¿Qué video quieres que busque en YouTube? Pásame el nombre o el enlace.' 
+  text: '🌸 ¿Qué video quieres que busque en YouTube? Pásame el nombre o el enlace.'
 }, { quoted: msg })
 
     const query = args.join(' ')
@@ -74,21 +74,14 @@ export default {
 
       await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
-      const { buffer, title: finalTitle, sizeMB } = await downloadVideo(videoUrl)
+      const { buffer, title: finalTitle } = await downloadVideo(videoUrl)
       title = finalTitle || title
 
-      if (sizeMB <= 100) {
-        await sock.sendMessage(from, {
-          video: buffer,
-          mimetype: 'video/mp4'
-        }, { quoted: msg })
-      } else {
-        await sock.sendMessage(from, {
-          document: buffer,
-          mimetype: 'video/mp4',
-          fileName: `${title}.mp4`
-        }, { quoted: msg })
-      }
+      await sock.sendMessage(from, {
+        document: buffer,
+        mimetype: 'video/mp4',
+        fileName: `${title}.mp4`
+      }, { quoted: msg })
 
       await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
 
