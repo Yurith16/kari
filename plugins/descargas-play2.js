@@ -5,6 +5,8 @@ import axios from 'axios'
 import sharp from 'sharp'
 import { downloadVideo } from '../utils/video.js'
 
+const descargando = new Set()
+
 export default {
   command: ['play2'],
   tag: 'play2',
@@ -16,11 +18,21 @@ export default {
 
   async execute(sock, msg, { from, args, prefix }) {
     if (!args.length) return sock.sendMessage(from, { 
-  text: '🌸 ¿Qué video quieres que busque en YouTube? Pásame el nombre o el enlace.' 
-}, { quoted: msg })
+      text: '🌸 ¿Qué video quieres que busque en YouTube? Pásame el nombre o el enlace.' 
+    }, { quoted: msg })
+
+    const userId = msg.key.participant || msg.key.remoteJid
+
+    if (descargando.has(userId)) {
+      return sock.sendMessage(from, {
+        text: '🌸 Espera a que termine tu descarga actual antes de pedir otra.'
+      }, { quoted: msg })
+    }
 
     const query = args.join(' ')
     const isUrl = /^https?:\/\//.test(query)
+
+    descargando.add(userId)
 
     try {
       await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
@@ -49,7 +61,6 @@ export default {
         ago = video.ago
       }
 
-      // Enviar portada con detalles
       if (thumbnail) {
         const videoDetails = ` *「✦」 ${title || 'Video'}*\n\n` +
           `> ✦ *Canal:* » ${author || 'YouTube'}\n` +
@@ -95,6 +106,8 @@ export default {
     } catch {
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
       await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
+    } finally {
+      descargando.delete(userId)
     }
   }
 }

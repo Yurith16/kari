@@ -3,7 +3,7 @@
 import fs from 'fs'
 import axios from 'axios'
 import fg from 'fg-senna'
-import { execFile } from 'child_process'
+import { execFile, execSync } from 'child_process'
 import { promisify } from 'util'
 import { join } from 'path'
 import ffmpegPath from 'ffmpeg-static'
@@ -20,7 +20,7 @@ if (!fs.existsSync(MEDIA_DIR)) {
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  SCRAPER 2: y2mate (cnv.cx)
+//  SCRAPER: y2mate (cnv.cx)
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceY2mate(videoUrl) {
@@ -39,7 +39,7 @@ async function sourceY2mate(videoUrl) {
       'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded', 'key': apiKey,
       'Origin': 'https://iframe.y2meta-uk.com', 'Referer': 'https://iframe.y2meta-uk.com/'
     },
-    timeout: 30000
+    timeout: 60000
   })
 
   if (convertRes.data?.status === 'tunnel' && convertRes.data?.url) {
@@ -49,7 +49,7 @@ async function sourceY2mate(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  SCRAPER 3: app.ytdown.to
+//  SCRAPER: app.ytdown.to
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceYtdownTo(videoUrl) {
@@ -96,7 +96,7 @@ async function sourceYtdownTo(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  API 4: Apinexus v2
+//  API: Apinexus v2
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceApinexusV2(videoUrl) {
@@ -108,7 +108,7 @@ async function sourceApinexusV2(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  API 5: Apinexus v1
+//  API: Apinexus v1
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceApinexusV1(videoUrl) {
@@ -120,12 +120,12 @@ async function sourceApinexusV1(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  APIs PrinceTech (6-11)
+//  APIs PrinceTech
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function princeGet(endpoint, videoUrl) {
   const { data } = await axios.get(`https://api.princetechn.com/api/download/${endpoint}?apikey=prince&url=${encodeURIComponent(videoUrl)}`, {
-    headers: { 'User-Agent': UA }, timeout: 15000
+    headers: { 'User-Agent': UA }, timeout: 60000
   })
   if (!data?.success) throw new Error(`PrinceTech ${endpoint} falló`)
   const r = data.result
@@ -140,7 +140,7 @@ async function sourcePrinceYtv(videoUrl)    { return princeGet('ytv', videoUrl) 
 async function sourcePrinceMp4(videoUrl)    { return princeGet('mp4', videoUrl) }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  API 12: Delirius
+//  API: Delirius
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceDelirius(videoUrl) {
@@ -152,12 +152,12 @@ async function sourceDelirius(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  API 13-14: EliteProTech
+//  APIs EliteProTech
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceEliteYtmp4(videoUrl) {
   const { data } = await axios.get(`https://eliteprotech-apis.zone.id/ytmp4?url=${encodeURIComponent(videoUrl)}`, {
-    headers: { 'User-Agent': UA }, timeout: 15000
+    headers: { 'User-Agent': UA }, timeout: 60000
   })
   if (!data?.status || !data?.result?.url) throw new Error('EliteProTech ytmp4 sin video')
   return { url: data.result.url, title: data.result.title }
@@ -165,14 +165,14 @@ async function sourceEliteYtmp4(videoUrl) {
 
 async function sourceEliteYtdown(videoUrl) {
   const { data } = await axios.get(`https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(videoUrl)}&format=mp4`, {
-    headers: { 'User-Agent': UA }, timeout: 15000
+    headers: { 'User-Agent': UA }, timeout: 60000
   })
   if (!data?.success || !data?.downloadURL) throw new Error('EliteProTech ytdown sin video')
   return { url: data.downloadURL, title: data.title }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  API 15: FG-Senna
+//  API: FG-Senna
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceFgSenna(videoUrl) {
@@ -187,7 +187,108 @@ async function sourceFgSenna(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  FUENTES ORDENADAS
+//  FUENTES PARA VIDEOS LARGOS
+// ═══════════════════════════════════════════════════════════════════════════
+
+const LARGE_SOURCES = [
+  { name: 'Elite ytdown',   fn: sourceEliteYtdown },
+  { name: 'y2mate',         fn: sourceY2mate },
+  { name: 'ytdown.to',      fn: sourceYtdownTo },
+  { name: 'Prince ytdl',    fn: sourcePrinceYtdl },
+  { name: 'Prince ytdlv2',  fn: sourcePrinceYtdlv2 },
+  { name: 'Prince ytvideo', fn: sourcePrinceYtvideo },
+  { name: 'Prince dlmp4',   fn: sourcePrinceDlmp4 },
+  { name: 'Prince ytv',     fn: sourcePrinceYtv },
+  { name: 'Prince mp4',     fn: sourcePrinceMp4 },
+  { name: 'Elite ytmp4',    fn: sourceEliteYtmp4 },
+  { name: 'FG-Senna',       fn: sourceFgSenna },
+]
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  FUNCIÓN PARA VIDEOS LARGOS
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function downloadVideoLarge(videoUrl) {
+  for (const source of LARGE_SOURCES) {
+    try {
+      console.log(`[video-large] 🔍 ${source.name}...`)
+      const result = await source.fn(videoUrl)
+      console.log(`[video-large] ✅ ${source.name}`)
+
+      const safeTitle = (result.title || 'video')
+        .replace(/[<>:"/\\|?*]/g, '')
+        .replace(/\s+/g, '_')
+        .substring(0, 50)
+      const fileName = `${Date.now()}_${safeTitle}.mp4`
+      const localPath = join(MEDIA_DIR, fileName)
+
+      console.log(`[video-large] 📥 Descargando a ${localPath}...`)
+      
+      const writer = fs.createWriteStream(localPath)
+      const response = await axios({
+        method: 'GET',
+        url: result.url,
+        responseType: 'stream',
+        headers: { 'User-Agent': UA },
+        timeout: 600000
+      })
+
+      response.data.pipe(writer)
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve)
+        writer.on('error', reject)
+      })
+
+      const stats = fs.statSync(localPath)
+      const sizeMB = stats.size / (1024 * 1024)
+      console.log(`[video-large] 📦 Descargado: ${sizeMB.toFixed(2)} MB`)
+
+      // Procesar con ffmpeg
+      const processedPath = join(MEDIA_DIR, `proc_${fileName}`)
+      try {
+        execSync(`"${ffmpegPath}" -i "${localPath}" -c copy -movflags +faststart -y "${processedPath}"`, { stdio: 'pipe' })
+      } catch {
+        console.log(`[video-large] ⚠️ ffmpeg falló, usando archivo original`)
+        const origStats = fs.statSync(localPath)
+        return {
+          filePath: localPath,
+          title: result.title || 'video',
+          sizeMB: origStats.size / (1024 * 1024),
+          duration: 0
+        }
+      }
+      
+      const processedStats = fs.statSync(processedPath)
+      const processedSizeMB = processedStats.size / (1024 * 1024)
+
+      let duration = 0
+      try {
+        const probe = execSync(`"${ffmpegPath}" -i "${processedPath}" 2>&1 | grep Duration`, { encoding: 'utf-8' })
+        const match = probe.match(/Duration: (\d+):(\d+):(\d+\.\d+)/)
+        if (match) {
+          duration = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseFloat(match[3])
+        }
+      } catch {}
+
+      fs.unlinkSync(localPath)
+
+      return {
+        filePath: processedPath,
+        title: result.title || 'video',
+        sizeMB: processedSizeMB,
+        duration
+      }
+
+    } catch (err) {
+      console.log(`[video-large] ❌ ${source.name}: ${err.message}`)
+    }
+  }
+
+  throw new Error('Todas las fuentes para videos largos fallaron')
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  FUENTES NORMALES
 // ═══════════════════════════════════════════════════════════════════════════
 
 const sources = [
@@ -208,7 +309,7 @@ const sources = [
 ]
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  FUNCIÓN PRINCIPAL
+//  FUNCIÓN PARA VIDEOS NORMALES
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function downloadVideo(videoUrl) {
@@ -218,7 +319,6 @@ export async function downloadVideo(videoUrl) {
       const result = await source.fn(videoUrl)
       console.log(`[video] ✅ ${source.name}`)
 
-      // Descargar
       const fileRes = await axios.get(result.url, {
         responseType: 'arraybuffer',
         headers: { 'User-Agent': UA },
@@ -227,14 +327,6 @@ export async function downloadVideo(videoUrl) {
 
       const rawBuffer = Buffer.from(fileRes.data)
 
-      // Verificar tamaño máximo 600MB
-      const rawSizeMB = rawBuffer.length / (1024 * 1024)
-      if (rawSizeMB > 600) {
-        console.log(`[video] ⚠️ ${source.name}: ${rawSizeMB.toFixed(0)}MB > 600MB, probando otra...`)
-        continue
-      }
-
-      // Procesar con ffmpeg
       const tmpInput = join(MEDIA_DIR, `${Date.now()}_in.tmp`)
       const tmpOutput = join(MEDIA_DIR, `${Date.now()}.mp4`)
       fs.writeFileSync(tmpInput, rawBuffer)

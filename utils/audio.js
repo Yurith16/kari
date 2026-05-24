@@ -17,8 +17,76 @@ if (!fs.existsSync(MEDIA_DIR)) {
   fs.mkdirSync(MEDIA_DIR, { recursive: true })
 }
 
+let cachedToken = null
+
 // ═══════════════════════════════════════════════════════════════════════════
-//  APIs Apinexus (1-4)
+//  FUENTE 1: y2mate.nu (etacloud) - LA MÁS RÁPIDA
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function getY2mateToken() {
+  if (cachedToken) return cachedToken
+  const { data } = await axios.get('https://eta.etacloud.org/api/v1/auth?_=' + Date.now(), {
+    headers: { 'User-Agent': UA, 'Origin': 'https://v3.y2mate.nu', 'Referer': 'https://v3.y2mate.nu/' }
+  })
+  cachedToken = data.key
+  return cachedToken
+}
+
+async function sourceY2mateNu(videoUrl) {
+  const videoId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[&?]|$)/)?.[1]
+  if (!videoId) throw new Error('No se pudo extraer video ID')
+
+  const token = await getY2mateToken()
+
+  const initRes = await axios.get('https://eta.etacloud.org/api/v1/init?_=' + Date.now(), {
+    headers: {
+      'User-Agent': UA,
+      'Authorization': `Bearer ${token}`,
+      'Origin': 'https://v3.y2mate.nu',
+      'Referer': 'https://v3.y2mate.nu/'
+    }
+  })
+
+  let convertUrl = initRes.data.convertURL
+  let result = null
+
+  for (let i = 0; i < 15 && !result; i++) {
+    await new Promise(r => setTimeout(r, 2000))
+
+    const url = i === 0 ? `${convertUrl}&v=${videoId}&f=mp3` : convertUrl
+    const convertRes = await axios.get(url, {
+      headers: {
+        'User-Agent': UA,
+        'Origin': 'https://v3.y2mate.nu',
+        'Referer': 'https://v3.y2mate.nu/'
+      }
+    })
+
+    const data = convertRes.data
+    if (data.downloadURL) { result = data; break }
+    if (data.redirect === 1 && data.redirectURL) { convertUrl = data.redirectURL; continue }
+    if (data.progressURL) {
+      for (let j = 0; j < 15; j++) {
+        await new Promise(r => setTimeout(r, 2000))
+        const progRes = await axios.get(`${data.progressURL}&t=${Date.now()}`, {
+          headers: {
+            'User-Agent': UA,
+            'Origin': 'https://v3.y2mate.nu',
+            'Referer': 'https://v3.y2mate.nu/'
+          }
+        })
+        if (progRes.data?.downloadURL) { result = progRes.data; break }
+      }
+      break
+    }
+  }
+
+  if (!result?.downloadURL) throw new Error('y2mate.nu sin downloadURL')
+  return { url: result.downloadURL, title: result.title || '' }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  APIs Apinexus (2-5)
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceApinexus(videoUrl, version) {
@@ -41,7 +109,7 @@ async function sourceApinexusV3(videoUrl) { return sourceApinexus(videoUrl, 'v3'
 async function sourceApinexusV4(videoUrl) { return sourceApinexus(videoUrl, 'v4') }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  APIs PrinceTech (5-10)
+//  APIs PrinceTech (6-11)
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function princeGet(endpoint, videoUrl) {
@@ -61,7 +129,7 @@ async function sourcePrinceDlmp3(videoUrl)  { return princeGet('dlmp3', videoUrl
 async function sourcePrinceYtmusic(videoUrl){ return princeGet('ytmusic', videoUrl) }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  APIs EliteProTech (11-12)
+//  APIs EliteProTech (12-13)
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceEliteYtdown(videoUrl) {
@@ -81,7 +149,7 @@ async function sourceEliteYtmp3(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  APIs Delirius (13-14)
+//  APIs Delirius (14-15)
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceDeliriusV1(videoUrl) {
@@ -101,7 +169,7 @@ async function sourceDeliriusV2(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  API FG-Senna (15)
+//  API FG-Senna (16)
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceFgSenna(videoUrl) {
@@ -111,7 +179,7 @@ async function sourceFgSenna(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  SCRAPERS (16-18) - Últimos
+//  SCRAPERS (17-19)
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceY2mate(videoUrl) {
@@ -220,10 +288,11 @@ async function sourceYtdlp(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  FUENTES ORDENADAS: APIs primero, scrapers al final
+//  FUENTES ORDENADAS: y2mate.nu primero
 // ═══════════════════════════════════════════════════════════════════════════
 
 const sources = [
+  { name: 'y2mate.nu',        fn: sourceY2mateNu },
   { name: 'Apinexus v2',      fn: sourceApinexusV2 },
   { name: 'Apinexus v1',      fn: sourceApinexusV1 },
   { name: 'Apinexus v3',      fn: sourceApinexusV3 },
