@@ -1,87 +1,54 @@
-// test_mp4.js
+// test.js
 
 import axios from 'axios'
 
-const UA = 'Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0'
-const TOKEN = 'dIXJ7vL4KZ2Rrg6t'
+const BEARER = 'BbyE+h0O9FPbRpyFVAJ/+jUP3hRv1qp571QIodOjFo46Qq3t8EHrpLOKJaMduZX9'
+const POW = 'eyJhbGdvcml0aG0iOiJEZWVwU2Vla0hhc2hWMSIsImNoYWxsZW5nZSI6IjU0ZjIxY2NiMTM0Zjg0NGQyMWY2YjRhNWQyMmFhMjU3MWJhOTc5N2NlZGNmYjQyYTFjZGYxMDhmYWU3NmMyNGIiLCJzYWx0IjoiNzhlNDdiYzgyNzE3OTI3ZDQ0ZDMiLCJhbnN3ZXIiOjM2NzQzLCJzaWduYXR1cmUiOiJkOTE5MjE5M2QyZjg3MmE1M2FlMTRiMGRiNmI0NDQzNmEzYjA2MzcwOTc1NzI4NTZiMjcwYWY1YWVhYTRiZjUyIiwidGFyZ2V0X3BhdGgiOiIvYXBpL3YwL2NoYXQvY29tcGxldGlvbiJ9'
 
 async function test() {
-  const videoUrl = 'https://youtu.be/wHOFramVAs0'
-  const videoId = 'wHOFramVAs0'
-
   try {
-    // Init
-    const initRes = await axios.get('https://eta.etacloud.org/api/v1/init?_=' + Date.now(), {
+    const res = await axios.post('https://chat.deepseek.com/api/v0/chat/completion', {
+      chat_session_id: 'fadf1d9f-9d4f-4261-8fc6-d105d98c39b5',
+      parent_message_id: null,
+      model_type: 'default',
+      prompt: 'hola',
+      ref_file_ids: [],
+      thinking_enabled: false,
+      search_enabled: false,
+      action: null,
+      preempt: false
+    }, {
       headers: {
-        'User-Agent': UA,
-        'Authorization': `Bearer ${TOKEN}`,
-        'Origin': 'https://v3.y2mate.nu',
-        'Referer': 'https://v3.y2mate.nu/'
-      }
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0',
+        'Accept': '*/*',
+        'x-ds-pow-response': POW,
+        'x-client-platform': 'web',
+        'x-client-version': '2.0.0',
+        'authorization': `Bearer ${BEARER}`,
+        'content-type': 'application/json',
+        'Origin': 'https://chat.deepseek.com',
+        'Referer': 'https://chat.deepseek.com/',
+        'Cookie': 'ds_session_id=d393768dbd14484287ecbe9533641618'
+      },
+      responseType: 'stream',
+      timeout: 30000
     })
 
-    const convertURL = initRes.data.convertURL
-    const sig = convertURL.match(/sig=([^&]+)/)?.[1]
-    if (!sig) return console.log('❌ No sig')
+    console.log('📦 Status:', res.status)
+    console.log('📦 Headers:', JSON.stringify(res.headers, null, 2))
 
-    // Extraer el subdominio del convertURL para usarlo en progress y download
-    const domain = new URL(convertURL).hostname
-    console.log('🌐 Dominio:', domain)
-    console.log('🔐 Sig:', sig.slice(0, 30) + '...')
-
-    // Disparar convert
-    console.log('🔄 Iniciando...')
-    await axios.get(`${convertURL}&v=${videoId}&f=mp4`, {
-      headers: {
-        'User-Agent': UA,
-        'Origin': 'https://v3.y2mate.nu',
-        'Referer': 'https://v3.y2mate.nu/'
-      }
+    res.data.on('data', (chunk) => {
+      console.log('📝 Chunk:', chunk.toString().slice(0, 200))
     })
 
-    // Esperar progress usando el mismo dominio
-    console.log('⏳ Esperando...')
-    let completed = false
-    for (let i = 0; i < 15 && !completed; i++) {
-      await new Promise(r => setTimeout(r, 3000))
-      
-      const progressUrl = `https://${domain}/api/v1/progress?sig=${encodeURIComponent(sig)}&_=${Date.now()}`
-      try {
-        const progRes = await axios.get(progressUrl, {
-          headers: {
-            'User-Agent': UA,
-            'Origin': 'https://v3.y2mate.nu',
-            'Referer': 'https://v3.y2mate.nu/'
-          }
-        })
-        console.log(`⏳ ${i + 1}: progress=${progRes.data.progress}`)
-        if (progRes.data.progress >= 3) completed = true
-      } catch (e) {
-        console.log(`   ⚠️ Error progress: ${e.response?.status}`)
-      }
-    }
-
-    if (!completed) {
-      console.log('⚠️ No se completó, intentando descargar igual...')
-    }
-
-    // Descargar usando el mismo dominio
-    const downloadUrl = `https://${domain}/api/v1/download?sig=${encodeURIComponent(sig)}&v=${videoId}&f=mp4&r=y2mate.nu`
-    console.log('🔗 URL:', downloadUrl.slice(0, 80) + '...')
-    console.log('📥 Descargando...')
-
-    const fileRes = await axios.get(downloadUrl, {
-      responseType: 'arraybuffer',
-      headers: { 'User-Agent': UA, 'Referer': 'https://v3.y2mate.nu/' },
-      timeout: 120000
-    })
-
-    const fs = await import('fs')
-    fs.writeFileSync('test_y2mate.mp4', Buffer.from(fileRes.data))
-    console.log('✅ Guardado:', (fileRes.data.length / (1024 * 1024)).toFixed(2), 'MB')
+    res.data.on('end', () => console.log('✅ Fin'))
 
   } catch (err) {
-    console.error('❌ Error:', err.message)
+    console.error('❌ Error:', err.response?.status, err.message)
+    if (err.response?.data) {
+      const text = typeof err.response.data === 'string' ? err.response.data : JSON.stringify(err.response.data)
+      console.error('Data:', text.slice(0, 500))
+    }
   }
 }
 

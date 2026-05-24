@@ -14,6 +14,7 @@ import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { logger, startAutoBio } from '../utils/helpers.js'
 import { handleMessage } from './pipeline.js'
 import { getGroup } from './sqlite.js'
+import { startReminderChecker } from '../plugins/main-recordatorio.js' // ← Importación agregada
 
 // ─── Store liviano ────────────────────────────────────────────────────────────
 
@@ -223,6 +224,9 @@ export async function startBot() {
       logger.info('Conexión', `${global.messages?.online} — ${sock.user.id.split(':')[0]}`)
       logger.info('Config', `Prefix: ${global.bot?.prefix?.join(' ')} | Grupos: activos`)
       startAutoBio(sock)
+      
+      // ← Iniciar el checker de recordatorios cuando el bot se conecta
+      startReminderChecker(sock)
 
       // Pre-cachear @lid → número de todos los grupos al conectar
       setTimeout(async () => {
