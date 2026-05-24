@@ -203,13 +203,19 @@ async function dispatch(ctx, sock, msg) {
   const cmd = commands.get(cmdName.toLowerCase())
   if (!cmd) return
 
+  // ─── Verificación de registro GLOBAL (excepto para main y owner) ───
+  const publicCategories = ['main', 'owner']
+  const requiresRegistration = !publicCategories.includes(cmd.categoria) && !ctx.isOwner
+  
+  if (requiresRegistration && !isRegistered(ctx.userNum)) {
+    await sock.sendMessage(ctx.from, { text: global.messages?.notRegistered }, { quoted: msg })
+    return
+  }
+
+  // ─── Verificaciones específicas por categoría ───
   if (cmd.categoria === 'economia') {
     if (ctx.isGroup && ctx.groupCfg?.economia === 0) {
       await sock.sendMessage(ctx.from, { text: global.messages?.ecoDisabled }, { quoted: msg })
-      return
-    }
-    if (!isRegistered(ctx.userNum)) {
-      await sock.sendMessage(ctx.from, { text: global.messages?.notRegistered }, { quoted: msg })
       return
     }
   }

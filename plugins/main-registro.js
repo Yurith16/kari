@@ -132,7 +132,7 @@ export default {
         const msgOk = global.messages?.registroOk || '✅ Registro completado, {nombre}'
         await sock.sendMessage(from, {
           text: msgOk.replace('{nombre}', sesion.nombre) +
-            `\n\n🌸 Usa *.perfil* para ver tu perfil.`
+            `\n\n🌸 Ya puedes usar todos los comandos`
         }, { quoted: msg })
         return
       }
