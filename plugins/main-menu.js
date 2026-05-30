@@ -2,6 +2,8 @@
 
 import { toBold, toMono } from '../utils/helpers.js'
 import { commands }       from '../core/plugins.js'
+import db                 from '../core/sqlite.js' 
+import bot                from '../settings/bot.js' // Importación directa de tu configuración de bot.js
 
 const startTime = Date.now()
 
@@ -19,14 +21,6 @@ function uptime() {
   return `${s}s`
 }
 
-function getGreeting() {
-  const h = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Tegucigalpa' })).getHours()
-  if (h >= 5  && h < 12) return '🌅 Buenos días'
-  if (h >= 12 && h < 18) return '☀️ Buenas tardes'
-  if (h >= 18 && h < 22) return '🌙 Buenas noches'
-  return '🌌 Buenas madrugada'
-}
-
 function getDate() {
   return new Date().toLocaleDateString('es-HN', {
     timeZone: 'America/Tegucigalpa',
@@ -41,16 +35,14 @@ function getTime() {
   })
 }
 
+// Rediseño de la caja: Sin marcos cargados, usando una estructura limpia y legible
 function buildCategoryBox(catName, cmds, descMap, prefix, bullet) {
-  let txt = `╭─〔 ${toMono(catName.toUpperCase())} 〕\n`
-  txt += `│\n`
+  let txt = `*───〔 ${catName.toUpperCase()} 〕───*\n\n`
   cmds.sort().forEach(cmd => {
-    txt += `│ ${bullet} ${prefix}${cmd}\n`
+    txt += `> ${bullet} *${prefix}${cmd}*\n`
     const desc = descMap[cmd]
-    if (desc) txt += `> ╰ ${desc}\n`
+    if (desc) txt += `> ↳ _${desc}_\n`
   })
-  txt += `│\n`
-  txt += `╰─── ── ── ── ──\n`
   return txt
 }
 
@@ -69,9 +61,8 @@ export default {
       await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
       const latency = Date.now() - ping
 
-      const bot    = global.bot || {}
       const bullet = getBullet()
-      const botName = bot.name || 'Bot'
+      const botName = bot.name || 'Midori-Hana'
 
       const seen    = new Set()
       const mapa    = {}
@@ -97,31 +88,37 @@ export default {
         grupos  = Object.keys(g).length
       } catch {}
 
-      const username = msg.pushName || 'amor'
-      const greeting = getGreeting()
+      // Obtener el total de usuarios registrados usando el gestor core/sqlite.js
+      let totalUsuarios = 0
+      try {
+        const row = db.prepare(`SELECT COUNT(*) as count FROM users`).get()
+        totalUsuarios = row?.count || 0
+      } catch (e) {
+        console.error('Error al obtener el conteo de usuarios:', e)
+      }
+
       const fecha    = getDate()
       const hora     = getTime()
 
-      let menuTxt = `╭─〔 🌸 *${toMono(botName.toUpperCase())}* 🌸 〕\n`
-      menuTxt += `│\n`
-      menuTxt += `│ *${greeting}, ${username}* 🌿\n`
-      menuTxt += `│ ${bullet} ${fecha}\n`
-      menuTxt += `│ ${bullet} ${hora} · Honduras\n`
-      menuTxt += `│\n`
-      menuTxt += `╰─── ── ── ── ──\n\n`
+      // Título principal simétrico con el nombre real del archivo JSON/JS
+      let menuTxt = `╭─〔 🌸 *${toMono(botName.toUpperCase())}* 🌸 〕─╮\n\n`
 
-      menuTxt += `╭─〔 ${toMono('INFO DEL BOT')} 〕\n`
-      menuTxt += `│\n`
-      menuTxt += `│ ✦ Bot       ·  +${bot.botNumber || ''}\n`
-      menuTxt += `│ ✦ Dev       ·  ${bot.owner || ''}\n`
-      menuTxt += `│ ✦ Contacto  ·  +${bot.ownerNumber || ''}\n`
-      menuTxt += `│ ✦ Prefijo   ·  ${prefix}\n`
-      menuTxt += `│ ✦ Activo    ·  ${uptime()}\n`
-      menuTxt += `│ ✦ Grupos    ·  ${grupos}\n`
-      menuTxt += `│ ✦ Latencia  ·  ${latency}ms\n`
-      menuTxt += `│ ✦ Comandos  ·  ${total}\n`
-      menuTxt += `│\n`
-      menuTxt += `╰─── ── ── ── ──\n\n`
+      // Bloque de datos directo y limpio utilizando tu configuración de settings/bot.js
+      menuTxt += `> ✦ *Fecha:* ${fecha}\n`
+      menuTxt += `> ✦ *Hora:* ${hora} · Honduras\n`
+      menuTxt += `> ✦ *Dueño:* ${bot.owner || 'Hernandez'}\n`
+      menuTxt += `> ✦ *Contacto:* +${bot.ownerNumber?.[0] || ''}\n`
+      menuTxt += `> ✦ *Bot Principal:* +${bot.botNumber || ''}\n`
+      menuTxt += `> ✦ *Versión:* ${bot.version || '1.0.0'}\n`
+      menuTxt += `> ✦ *Prefijo:* ${prefix}\n`
+      menuTxt += `> ✦ *Activo:* ${uptime()}\n`
+      menuTxt += `> ✦ *Grupos:* ${grupos}\n`
+      menuTxt += `> ✦ *Latencia:* ${latency}ms\n`
+      menuTxt += `> ✦ *Total Usuarios:* ${totalUsuarios}\n`
+      menuTxt += `> ✦ *Comandos:* ${total}\n\n`
+      
+      // Frasecita mínima integrada de Midori-Hana
+      menuTxt += `_Hazme trabajar duro hoy, que para eso estoy aquí..._ 🤭\n\n`
 
       const orden = ['main', 'admin', 'economia', 'diversion', 'busqueda', 'descargas', 'utilidad', 'nsfw', 'owner']
       const categoryMap = {
@@ -143,6 +140,9 @@ export default {
         menuTxt += buildCategoryBox(nombre, cmds, descMap, prefix, bullet)
         menuTxt += '\n'
       }
+
+      // Cierre dramático sutil
+      menuTxt += `_🌸 ¿Te vas a quedar un rato más conmigo o solo viniste por mis funciones? No me dejes en visto..._`
 
       try {
         await sock.sendMessage(from, {

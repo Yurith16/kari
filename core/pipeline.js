@@ -27,9 +27,15 @@ function extractText(msg) {
 }
 
 function matchPrefix(text, groupCfg) {
-  if (groupCfg?.prefix && text.startsWith(groupCfg.prefix)) {
-    return { prefix: groupCfg.prefix, rest: text.slice(groupCfg.prefix.length).trim() }
+  // Si el grupo tiene un prefijo establecido en la DB, evaluar ÚNICAMENTE ese
+  if (groupCfg?.prefix) {
+    if (text.startsWith(groupCfg.prefix)) {
+      return { prefix: groupCfg.prefix, rest: text.slice(groupCfg.prefix.length).trim() }
+    }
+    return null // Si tiene prefijo propio y no empieza con él, ignorar por completo
   }
+  
+  // Si no hay prefijo en el grupo, usar los prefijos globales por defecto
   for (const p of (global.bot?.prefix || ['.'])) {
     if (text.startsWith(p)) return { prefix: p, rest: text.slice(p.length).trim() }
   }
@@ -178,15 +184,14 @@ async function stepGuards(ctx, sock, msg) {
 
 // ─── Dispatch ─────────────────────────────────────────────────────────────────
 
-async function dispatch(ctx, sock, msg) {
-  const text  = extractText(msg)
-  const match = matchPrefix(text, ctx.groupCfg)
+async function dispatch(ctx, sock, msg, match) {
+  const textStr = extractText(msg) || ''
 
   for (const cmd of commands.values()) {
     if (cmd.onMessage) {
       await cmd.onMessage(sock, msg, { 
         from: ctx.from, 
-        text: extractText(msg),
+        text: textStr,
         sender: ctx.sender,
         userNum: ctx.userNum,
         isGroup: ctx.isGroup,
@@ -257,10 +262,13 @@ export async function handleMessage(sock, msg) {
     if (await stepMute(ctx, sock, msg))     return
     if (await stepAntiToxic(ctx, sock, msg)) return
 
-    const match = matchPrefix(extractText(msg), ctx.groupCfg)
+    // Guardamos el texto extraído de forma segura para evitar múltiples lecturas
+    const textStr = extractText(msg) || ''
+    const match = matchPrefix(textStr, ctx.groupCfg)
+    
     if (match && await stepGuards(ctx, sock, msg)) return
 
-    await dispatch(ctx, sock, msg)
+    await dispatch(ctx, sock, msg, match)
 
   } catch (err) {
     if (/Bad MAC|decrypt|session/i.test(err.message)) return

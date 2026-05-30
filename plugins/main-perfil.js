@@ -1,7 +1,9 @@
-import { getUser }                 from '../core/sqlite.js'
+// plugins/perfil.js
+import axios from 'axios'
+import { getUser } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
-import { toBold }                  from '../utils/helpers.js'
-import { resolveTarget }           from '../utils/target.js'
+import { toBold } from '../utils/helpers.js'
+import { resolveTarget } from '../utils/target.js'
 
 function formatDate(timestamp) {
   if (!timestamp || timestamp === 0) return null
@@ -28,13 +30,17 @@ function tiempoTranscurrido(timestamp) {
   return 'Hoy'
 }
 
+function esUrlValida(str) {
+  return str && (str.startsWith('http://') || str.startsWith('https://'))
+}
+
 export default {
-  command:     'perfil',
-  tag:         'perfil',
-  categoria:   'main',
-  owner:       false,
-  group:       false,
-  nsfw:        false,
+  command: 'perfil',
+  tag: 'perfil',
+  categoria: 'main',
+  owner: false,
+  group: false,
+  nsfw: false,
   descripcion: 'Muestra tu perfil o el de otro usuario',
 
   async execute(sock, msg, { from, args, sender }) {
@@ -70,44 +76,57 @@ export default {
 
     const fechaRegistro = formatDate(perfil.registered_at)
 
-    let txt = `╭─〔 🌸 *PERFIL* 〕\n`
-    txt += `│\n`
-    txt += `│ ✦ *Nombre:* ${perfil.nombre}\n`
-    if (perfil.apodo) txt += `│ ✦ *Apodo:* ${perfil.apodo}\n`
-    txt += `│ ✦ *Edad:* ${perfil.edad} años\n`
-    txt += `│ ✦ *Género:* ${generoEmoji} ${perfil.genero}\n`
-    txt += `│ ✦ *País:* ${perfil.pais}\n`
-    if (fechaRegistro) txt += `│ ✦ *Registrado:* ${fechaRegistro}\n`
-    if (perfil.frase) txt += `│ ✦ *Frase:* ${perfil.frase}\n`
-    if (perfil.color) txt += `│ ✦ *Color favorito:* ${perfil.color}\n`
-    if (perfil.animal) txt += `│ ✦ *Animal favorito:* ${perfil.animal}\n`
-    txt += `│ ✦ *Estado:* ${estadoEmoji} ${estadoTexto}\n`
+    let txt = `> ╭─〔 🌸 *PERFIL* 〕\n`
+    txt += `> │\n`
+    txt += `> │ ✦ *Nombre:* ${perfil.nombre}\n`
+    if (perfil.apodo) txt += `> │ ✦ *Apodo:* ${perfil.apodo}\n`
+    txt += `> │ ✦ *Edad:* ${perfil.edad} años\n`
+    txt += `> │ ✦ *Género:* ${generoEmoji} ${perfil.genero}\n`
+    txt += `> │ ✦ *País:* ${perfil.pais}\n`
+    if (fechaRegistro) txt += `> │ ✦ *Registrado:* ${fechaRegistro}\n`
+    if (perfil.frase) txt += `> │ ✦ *Frase:* ${perfil.frase}\n`
+    if (perfil.color) txt += `> │ ✦ *Color favorito:* ${perfil.color}\n`
+    if (perfil.animal) txt += `> │ ✦ *Animal favorito:* ${perfil.animal}\n`
+    txt += `> │ ✦ *Estado:* ${estadoEmoji} ${estadoTexto}\n`
     if (perfil.pareja) {
       const parejaPerfil = getUser(perfil.pareja)
-      txt += `│ ✦ *Pareja:* ${parejaPerfil?.nombre || perfil.pareja}\n`
+      txt += `> │ ✦ *Pareja:* ${parejaPerfil?.nombre || perfil.pareja}\n`
     }
     if (perfil.noviazgo_fecha) {
       const fechaNoviazgo = formatDate(perfil.noviazgo_fecha)
       const llevanNovios = tiempoTranscurrido(perfil.noviazgo_fecha)
-      txt += `│ ✦ *Novios desde:* ${fechaNoviazgo} (${llevanNovios})\n`
+      txt += `> │ ✦ *Novios desde:* ${fechaNoviazgo} (${llevanNovios})\n`
     }
     if (perfil.matrimonio_fecha) {
       const fechaMatrimonio = formatDate(perfil.matrimonio_fecha)
       const llevanCasados = tiempoTranscurrido(perfil.matrimonio_fecha)
-      txt += `│ ✦ *Casados desde:* ${fechaMatrimonio} (${llevanCasados})\n`
+      txt += `> │ ✦ *Casados desde:* ${fechaMatrimonio} (${llevanCasados})\n`
     }
-    txt += `│\n`
-    txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
+    txt += `> │\n`
+    txt += `> ╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
 
     const mentions = target?.num ? [`${target.num}@s.whatsapp.net`] : []
 
-    // Si tiene foto de perfil, enviar imagen con caption
-    if (perfil.foto) {
-      await sock.sendMessage(from, {
-        image: { url: perfil.foto },
-        caption: txt,
-        mentions
-      }, { quoted: msg })
+    const tieneFoto = perfil.foto && esUrlValida(perfil.foto)
+
+    if (tieneFoto) {
+      try {
+        // Descargar la imagen desde la URL
+        const imgRes = await axios.get(perfil.foto, { 
+          responseType: 'arraybuffer', 
+          timeout: 15000 
+        })
+        const imgBuffer = Buffer.from(imgRes.data)
+        
+        await sock.sendMessage(from, { 
+          image: imgBuffer, 
+          caption: txt, 
+          mentions 
+        }, { quoted: msg })
+      } catch (err) {
+        console.error('[PERFIL] Error al descargar imagen:', err.message)
+        await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
+      }
     } else {
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
     }

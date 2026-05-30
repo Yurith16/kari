@@ -2,7 +2,7 @@ const bot = {
   "name": "Midori-Hana",
   "version": "3.0.0",
   "owner": "Hernandez",
-  "ownerNumber": [ "5049692610" ],
+  "ownerNumber": [ "50496926150" ],
   "botNumber": "50432821762",
   "session": "midori-session",
   "prefix": [
@@ -15,8 +15,8 @@ const bot = {
   "stickerPack": "",
   "spamLimit": 10,
   "spamTime": 60000,
-  "minDelay": 300,
-  "maxDelay": 900,
+  "minDelay": 0,
+  "maxDelay": 0,
   "welcomeText": "🌿 Bienvenido @user al grupo, espero que disfrutes tu estancia.",
   "goodbyeText": "🍃 @user ha salido del grupo."
 }
