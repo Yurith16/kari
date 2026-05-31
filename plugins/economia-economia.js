@@ -1,8 +1,10 @@
+// plugins/economia.js
+
 import { setGroupField } from '../core/sqlite.js'
 import { toBold }        from '../utils/helpers.js'
 
 export default {
-  command:     'economia',
+  command:     ['economia', 'eco'],
   tag:         'economia',
   categoria:   'admin',
   owner:       false,
@@ -12,17 +14,22 @@ export default {
 
   async execute(sock, msg, { from, isOwner, isAdmin, groupCfg }) {
     if (!isOwner && !isAdmin) {
-      await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
-      return
+      return sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
     }
 
-    const estado = groupCfg?.economia === 0 ? false : true // default ON
-    setGroupField(from, 'economia', estado ? 0 : 1)
+    const estadoActual = groupCfg?.economia === 0 ? false : true
+    const nuevoEstado = !estadoActual
+    
+    setGroupField(from, 'economia', nuevoEstado ? 1 : 0)
 
-    await sock.sendMessage(from, {
-      text: estado
-        ? '🍃 Los comandos de economía han sido *desactivados* en este grupo.'
-        : '🌿 Los comandos de economía están *activados* en este grupo. Los usuarios ya pueden usar work, minar y más.'
-    }, { quoted: msg })
+    // Reacción aleatoria según el nuevo estado
+    const react = nuevoEstado ? '🟢' : '🔴'
+    await sock.sendMessage(from, { react: { text: react, key: msg.key } })
+
+    const respuesta = nuevoEstado 
+      ? `> 🌿 *Sistema activado*\n\nLos comandos de economía ahora están disponibles. Ya pueden usar *work*, *minar*, *crimen* y más.`
+      : `> 🍂 *Sistema desactivado*\n\nLos comandos de economía han sido restringidos en este grupo por el momento.`
+
+    await sock.sendMessage(from, { text: respuesta }, { quoted: msg })
   }
 }

@@ -1,5 +1,5 @@
 export default {
-  command:   'delete',
+  command:   ['delete', 'del', 'borrar', 'eliminar', 'rm'],
   tag:       'delete',
   categoria: 'admin',
   owner:     false,
@@ -18,7 +18,6 @@ export default {
       return
     }
     try {
-      // Eliminar el mensaje citado
       await sock.sendMessage(from, {
         delete: {
           remoteJid:   from,
@@ -27,7 +26,6 @@ export default {
           participant: ctx.participant
         }
       })
-      // Eliminar también el mensaje del bot que ejecutó el comando
       await sock.sendMessage(from, {
         delete: {
           remoteJid: from,

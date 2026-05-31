@@ -2,7 +2,7 @@ import { resolveTarget } from '../utils/target.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 export default {
-  command:   'kick',
+  command:   ['kick', 'hakai', 'expulsar', 'sacar', 'echar', 'ban'],
   tag:       'kick',
   categoria: 'admin',
   owner:     false,

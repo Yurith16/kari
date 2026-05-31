@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 export default {
-  command:   ['ig', 'instagram'],
+  command:   ['ig', 'instagram','igdl'],
   tag:       'instagram',
   categoria: 'descargas',
   descripcion: 'Descarga videos y fotos de instagram',

@@ -1,7 +1,7 @@
 import { setGroupField } from '../core/sqlite.js'
 
 export default {
-  command:   'adminmode',
+  command:   ['adminmode', 'modoadmin', 'soloadmin'],
   tag:       'adminmode',
   categoria: 'admin',
   owner:     false,

@@ -3,12 +3,12 @@
 import { setGroupField } from '../core/sqlite.js'
 
 export default {
-  command:     'antitoxic',
-  tag:         'antitoxic',
-  categoria:   'admin',
-  owner:       false,
-  group:       true,
-  nsfw:        false,
+  command:   ['antitoxic', 'noinsultos', 'moderar', 'filter'],
+  tag:       'antitoxic',
+  categoria: 'admin',
+  owner:     false,
+  group:     true,
+  nsfw:      false,
   descripcion: 'Activa o desactiva el detector de insultos',
 
   async execute(sock, msg, { from, isOwner, isAdmin, groupCfg }) {

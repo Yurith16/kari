@@ -3,7 +3,7 @@ import { resolveTarget } from '../utils/target.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 export default {
-  command:   'unmute',
+  command:   ['unmute', 'desmutear', 'habilitar', 'desilenciar', 'permithablar'],
   tag:       'unmute',
   categoria: 'admin',
   descripcion: 'Quita el silencio a un usuario del grupo',

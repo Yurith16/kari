@@ -4,12 +4,12 @@ import db         from '../core/sqlite.js'
 const _getMuted = db.prepare(`SELECT user FROM mutes WHERE group_id = ? ORDER BY muted_at DESC`)
 
 export default {
-  command:     'mutelist',
-  tag:         'mutelist',
-  categoria:   'admin',
-  owner:       false,
-  group:       true,
-  nsfw:        false,
+  command:   ['mutelist', 'silenciados', 'lista.mute', 'muted'],
+  tag:       'mutelist',
+  categoria: 'admin',
+  owner:     false,
+  group:     true,
+  nsfw:      false,
   descripcion: 'Muestra la lista de usuarios silenciados',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {

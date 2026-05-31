@@ -3,7 +3,7 @@ import { resolveTarget } from '../utils/target.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 export default {
-  command:   'delwarn',
+  command:   ['delwarn', 'resetwarns', 'limpiarwarns', 'borrarwarns', 'clearwarns'],
   tag:       'delwarn',
   categoria: 'admin',
   descripcion: 'Elimina todas las advertencias de un usuario',

@@ -2,7 +2,7 @@ import { toBold }       from '../utils/helpers.js'
 import { cleanNumber }  from '../utils/jid.js'
 
 export default {
-  command:   'admins',
+  command:   ['admins', 'administradores', 'staff', 'mods', 'moderadores'],
   tag:       'admins',
   categoria: 'admin',
   owner:     false,

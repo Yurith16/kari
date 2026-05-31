@@ -3,7 +3,7 @@ import { resolveTarget }       from '../utils/target.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 export default {
-  command:   'warn',
+  command:   ['warn', 'avisar', 'advertir', 'llamadaatencion', 'nota'],
   tag:       'warn',
   categoria: 'admin',
   descripcion: 'Advierte a un usuario del grupo',

@@ -27,15 +27,12 @@ function extractText(msg) {
 }
 
 function matchPrefix(text, groupCfg) {
-  // Si el grupo tiene un prefijo establecido en la DB, evaluar ÚNICAMENTE ese
   if (groupCfg?.prefix) {
     if (text.startsWith(groupCfg.prefix)) {
       return { prefix: groupCfg.prefix, rest: text.slice(groupCfg.prefix.length).trim() }
     }
-    return null // Si tiene prefijo propio y no empieza con él, ignorar por completo
+    return null
   }
-  
-  // Si no hay prefijo en el grupo, usar los prefijos globales por defecto
   for (const p of (global.bot?.prefix || ['.'])) {
     if (text.startsWith(p)) return { prefix: p, rest: text.slice(p.length).trim() }
   }
@@ -189,14 +186,14 @@ async function dispatch(ctx, sock, msg, match) {
 
   for (const cmd of commands.values()) {
     if (cmd.onMessage) {
-      await cmd.onMessage(sock, msg, { 
-        from: ctx.from, 
-        text: textStr,
-        sender: ctx.sender,
-        userNum: ctx.userNum,
-        isGroup: ctx.isGroup,
-        isOwner: ctx.isOwner,
-        isAdmin: ctx.isAdmin,
+      await cmd.onMessage(sock, msg, {
+        from:     ctx.from,
+        text:     textStr,
+        sender:   ctx.sender,
+        userNum:  ctx.userNum,
+        isGroup:  ctx.isGroup,
+        isOwner:  ctx.isOwner,
+        isAdmin:  ctx.isAdmin,
         groupCfg: ctx.groupCfg
       }).catch(() => {})
     }
@@ -207,23 +204,6 @@ async function dispatch(ctx, sock, msg, match) {
   const [cmdName, ...args] = match.rest.split(/\s+/)
   const cmd = commands.get(cmdName.toLowerCase())
   if (!cmd) return
-
-  // ─── Verificación de registro GLOBAL (excepto para main y owner) ───
-  const publicCategories = ['main', 'owner']
-  const requiresRegistration = !publicCategories.includes(cmd.categoria) && !ctx.isOwner
-  
-  if (requiresRegistration && !isRegistered(ctx.userNum)) {
-    await sock.sendMessage(ctx.from, { text: global.messages?.notRegistered }, { quoted: msg })
-    return
-  }
-
-  // ─── Verificaciones específicas por categoría ───
-  if (cmd.categoria === 'economia') {
-    if (ctx.isGroup && ctx.groupCfg?.economia === 0) {
-      await sock.sendMessage(ctx.from, { text: global.messages?.ecoDisabled }, { quoted: msg })
-      return
-    }
-  }
 
   if (cmd.nsfw && ctx.isGroup && ctx.groupCfg?.nsfw !== 1 && !ctx.isOwner) {
     await sock.sendMessage(ctx.from, { text: global.messages?.nsfwDisabled }, { quoted: msg })
@@ -236,6 +216,14 @@ async function dispatch(ctx, sock, msg, match) {
   if (cmd.group && !ctx.isGroup) {
     await sock.sendMessage(ctx.from, { text: global.messages?.groupOnly }, { quoted: msg })
     return
+  }
+
+  // ─── Verificaciones específicas por categoría ───
+  if (cmd.categoria === 'economia') {
+    if (ctx.isGroup && ctx.groupCfg?.economia === 0) {
+      await sock.sendMessage(ctx.from, { text: global.messages?.ecoDisabled }, { quoted: msg })
+      return
+    }
   }
 
   logger.cmd(cmdName, ctx.userNum, ctx.isGroup ? ctx.groupCfg?.name : null)
@@ -258,14 +246,13 @@ export async function handleMessage(sock, msg) {
       if (msg.key?.id) saveMsg(ctx.from, msg.key.id, ctx.sender)
     }
 
-    if (await stepAntiLink(ctx, sock, msg)) return
-    if (await stepMute(ctx, sock, msg))     return
+    if (await stepAntiLink(ctx, sock, msg))  return
+    if (await stepMute(ctx, sock, msg))      return
     if (await stepAntiToxic(ctx, sock, msg)) return
 
-    // Guardamos el texto extraído de forma segura para evitar múltiples lecturas
     const textStr = extractText(msg) || ''
     const match = matchPrefix(textStr, ctx.groupCfg)
-    
+
     if (match && await stepGuards(ctx, sock, msg)) return
 
     await dispatch(ctx, sock, msg, match)

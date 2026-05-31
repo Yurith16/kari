@@ -9,7 +9,7 @@ const _getActivity = db.prepare(`
 `)
 
 export default {
-  command:   'contador',
+  command:   ['contador', 'cont'],
   tag:       'contador',
   categoria: 'admin',
   owner:     false,

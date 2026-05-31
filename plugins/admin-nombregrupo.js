@@ -1,5 +1,5 @@
 export default {
-  command:   'nombre',
+  command:   ['nombre', 'name', 'groupname', 'setname', 'cambiarnombre'],
   tag:       'nombre',
   categoria: 'admin',
   owner:     false,

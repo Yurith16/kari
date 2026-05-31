@@ -2,13 +2,12 @@ import { setGroupField } from '../core/sqlite.js'
 import { existsSync, unlinkSync } from 'fs'
 
 export default {
-  command:     'delfotoadios',
-  alias:       'delfgoodbye',
-  tag:         'goodbye',
-  categoria:   'admin',
-  owner:       false,
-  group:       true,
-  nsfw:        false,
+  command:   'delfadios',
+  tag:       'delfadios',
+  categoria: 'admin',
+  owner:     false,
+  group:     true,
+  nsfw:      false,
   descripcion: 'Elimina la imagen personalizada de despedida y usa la predeterminada',
 
   async execute(sock, msg, { from, isOwner, isAdmin, groupCfg }) {

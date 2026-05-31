@@ -2,7 +2,7 @@
 const pendingConfirm = new Map()
 
 export default {
-  command:   'revoke',
+  command:   ['revoke', 'revocar', 'renovar', 'newlink', 'resetlink'],
   tag:       'revoke',
   categoria: 'admin',
   owner:     false,

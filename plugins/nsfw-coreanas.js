@@ -11,7 +11,13 @@ export default {
   nsfw:      true,
   descripcion: 'Envía fotos de chicas coreanas',
 
-  async execute(sock, msg, { from }) {
+  async execute(sock, msg, { from, groupCfg }) {
+    // Verificación de configuración del grupo para contenido NSFW
+    if (!groupCfg?.nsfw) {
+      await sock.sendMessage(from, { text: '⚠️ Este grupo no tiene activado el contenido NSFW.' }, { quoted: msg })
+      return
+    }
+
     await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
 
     try {

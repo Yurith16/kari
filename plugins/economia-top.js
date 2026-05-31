@@ -1,49 +1,67 @@
 // plugins/top.js
 
+import axios from 'axios'
 import { getTopEconomy, getUser } from '../core/sqlite.js'
 import { toBold } from '../utils/helpers.js'
+import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 export default {
-  command:     ['top', 'ricos'],
-  tag:         'top',
-  categoria:   'economia',
-  owner:       false,
-  group:       false,
-  nsfw:        false,
-  descripcion: 'Muestra a los usuarios más ricos',
+  command: ['top', 'ricos', 'leaderboard'],
+  tag: 'top',
+  categoria: 'economia',
+  owner: false,
+  group: false,
+  nsfw: false,
+  descripcion: 'Muestra a los 15 usuarios más ricos',
 
-  async execute(sock, msg, { from, isGroup, groupCfg }) {
+  async execute(sock, msg, { from, sender, isGroup, groupCfg }) {
     if (isGroup && groupCfg?.economia === 0) {
       return sock.sendMessage(from, { text: global.messages.ecoDisabled }, { quoted: msg })
     }
 
-    await sock.sendMessage(from, { react: { text: '🏆', key: msg.key } })
-
-    const top = getTopEconomy(10)
-
-    if (!top.length) {
-      return sock.sendMessage(from, {
-        text: '🌸 Aún no hay ricos en Midori. ¡Sé el primero en usar *.work*!'
-      }, { quoted: msg })
+    const allData = getTopEconomy(100)
+    if (!allData.length) {
+      return sock.sendMessage(from, { text: '🌿 Aún no hay fortunas registradas.' }, { quoted: msg })
     }
 
-    const medallas = ['🥇', '🥈', '🥉']
+    const top15 = allData.slice(0, 15)
+    const selfJid = await getRealJid(sock, sender, msg).catch(() => sender)
+    const selfNum = cleanNumber(selfJid)
+    const posicionUsuario = allData.findIndex(u => u.user_num === selfNum) + 1
 
-    let txt = `╭─〔 ${toBold('🏆 TOP MÁS RICOS')} 〕\n`
-    txt += `│\n`
+    await sock.sendMessage(from, { react: { text: '🏆', key: msg.key } })
 
-    top.forEach(({ user_num, total }, i) => {
+    // Título con separación
+    let txt = `> ╭─〔 🏆 *TOP 15 MÁS RICOS* 〕\n> │\n`
+    
+    top15.forEach(({ user_num, total }, i) => {
       const perfil = getUser(user_num)
       const nombre = perfil?.apodo || perfil?.nombre || user_num
-      const medalla = medallas[i] || `${i + 1}.`
-      txt += `│ ${medalla} ${nombre}\n`
-      txt += `> ✦ ${total.toLocaleString()} kryons\n`
+      const nivel = perfil?.level || 1 // Asumiendo que existe el campo level
+      const medalla = i < 3 ? ['🥇', '🥈', '🥉'][i] : `*${i + 1}.*`
+      
+      // Estilo de lista con espaciado
+      txt += `> ${medalla} *${nombre}*\n`
+      txt += `> ↳ _Nivel ${nivel} • ${total.toLocaleString()} kryons_\n`
+      txt += `> \n` // Espacio pequeño entre usuarios
     })
 
-    txt += `│\n`
-    txt += `│ 🌸 ${top.length} fortunas en Midori\n`
-    txt += `╰─── ── ── ── ──\n`
+    // Separación antes del pie de página
+    txt += `> ──────────────\n`
+    
+    if (posicionUsuario > 0) {
+      txt += `> 📍 *Tu posición actual:* #${posicionUsuario}\n`
+    }
 
-    await sock.sendMessage(from, { text: txt }, { quoted: msg })
+    txt += `> ╰─── ${toBold(global.bot?.name || 'Bot')} 🌿`
+
+    const urlImagen = 'https://www.image2url.com/r2/default/images/1780188047912-ed5733cb-bc43-43d0-8a85-109dfb1c8c8a.jpg'
+
+    try {
+      const imgRes = await axios.get(urlImagen, { responseType: 'arraybuffer', timeout: 10000 })
+      await sock.sendMessage(from, { image: Buffer.from(imgRes.data), caption: txt }, { quoted: msg })
+    } catch (err) {
+      await sock.sendMessage(from, { text: txt }, { quoted: msg })
+    }
   }
 }

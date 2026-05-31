@@ -1,7 +1,7 @@
 // plugins/link.js
 
 export default {
-  command:   'link',
+  command:   ['link', 'enlace', 'invite', 'invitacion'],
   tag:       'link',
   categoria: 'admin',
   owner:     false,

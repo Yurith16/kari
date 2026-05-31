@@ -1,3 +1,5 @@
+// plugins/xnxxdl.js
+
 export default {
   command:   'xnxxdl',
   tag:       'xnxxdl',
@@ -7,7 +9,13 @@ export default {
   nsfw:      true,
   descripcion: 'Descarga videos de XNXX',
 
-  async execute(sock, msg, { from, args }) {
+  async execute(sock, msg, { from, args, groupCfg }) {
+    // Verificación de configuración del grupo para contenido NSFW
+    if (!groupCfg?.nsfw) {
+      await sock.sendMessage(from, { text: '⚠️ Este grupo no tiene activado el contenido NSFW.' }, { quoted: msg })
+      return
+    }
+
     const url = args[0]
 
     if (!url || !url.includes('xnxx.com')) {

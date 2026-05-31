@@ -3,7 +3,7 @@ import axios from 'axios'
 import { getBotSignature } from '../utils/formatters.js'
 
 export default {
-  command: ['pinterest', 'pin'],
+  command: ['pinterest', 'pin','pindl'],
   tag: 'pinterest',
   categoria: 'descargas',
   descripcion: 'Busca y descarga un álbum de 10 imágenes de Pinterest',

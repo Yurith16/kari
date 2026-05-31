@@ -1,7 +1,7 @@
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 
 export default {
-  command:   'tag',
+  command:   ['tag', 'mention', 'mencionar', 'all', 'everyone'],
   tag:       'tag',
   categoria: 'main',
   owner:     false,
@@ -14,12 +14,10 @@ export default {
       const meta     = await sock.groupMetadata(from)
       const mentions = meta.participants.map(m => m.id)
 
-      // Si responde a un mensaje
       const quoted = msg.message?.extendedTextMessage?.contextInfo
       if (quoted?.quotedMessage) {
         const qm = quoted.quotedMessage
 
-        // Si es imagen
         if (qm.imageMessage) {
           const buffer = await downloadMediaMessage(
             { message: qm },
@@ -34,7 +32,6 @@ export default {
           return
         }
 
-        // Si es video
         if (qm.videoMessage) {
           const buffer = await downloadMediaMessage(
             { message: qm },
@@ -49,7 +46,6 @@ export default {
           return
         }
 
-        // Si es sticker
         if (qm.stickerMessage) {
           const buffer = await downloadMediaMessage(
             { message: qm },
@@ -63,7 +59,6 @@ export default {
           return
         }
 
-        // Si es texto
         const quotedText = qm.conversation ||
                           qm.extendedTextMessage?.text ||
                           qm.imageMessage?.caption ||
@@ -75,7 +70,6 @@ export default {
         }
       }
 
-      // Si no responde, usar el texto con saltos de línea respetados
       const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
       const cmdEnd = fullText.indexOf(' ')
       const texto = cmdEnd > -1 ? fullText.slice(cmdEnd + 1) : ''

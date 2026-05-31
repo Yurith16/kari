@@ -1,5 +1,5 @@
 export default {
-  command:   'abrir',
+  command:   ['abrir', 'open', 'aperturar', 'desbloquear', 'unlock'],
   tag:       'abrir (abre grupo)',
   categoria: 'admin',
   owner:     false,

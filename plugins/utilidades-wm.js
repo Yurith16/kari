@@ -4,7 +4,7 @@ import { downloadMediaMessage } from '@whiskeysockets/baileys'
 import { Sticker, StickerTypes } from 'wa-sticker-formatter'
 
 export default {
-  command:   ['wm', 'take', 'robar'],
+  command:   ['wm', 'take'],
   tag:       'wm',
   categoria: 'utilidad',
   owner:     false,

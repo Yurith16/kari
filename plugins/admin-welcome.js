@@ -1,12 +1,12 @@
 import { setGroupField } from '../core/sqlite.js'
 
 export default {
-  command:     'welcome',
-  tag:         'welcome',
-  categoria:   'admin',
-  owner:       false,
-  group:       true,
-  nsfw:        false,
+  command:   ['welcome', 'bienvenida', 'saludo'],
+  tag:       'welcome',
+  categoria: 'admin',
+  owner:     false,
+  group:     true,
+  nsfw:      false,
   descripcion: 'Activa/Desactiva y configura la bienvenida del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin, groupCfg }) {
@@ -18,7 +18,6 @@ export default {
     const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
     const args = fullText.split(' ').slice(1)
 
-    // ─── Configurar por URL ───────────────────────────────────────────────────
     if (args.length && /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i.test(args[0])) {
       setGroupField(from, 'welcomeImg', args[0])
       await sock.sendMessage(from, {
@@ -27,7 +26,6 @@ export default {
       return
     }
 
-    // ─── Configurar texto ─────────────────────────────────────────────────────
     const texto = args.join(' ')
     if (texto) {
       setGroupField(from, 'welcomeText', texto)
@@ -37,7 +35,6 @@ export default {
       return
     }
 
-    // ─── Toggle on/off ────────────────────────────────────────────────────────
     const estado = groupCfg?.welcomeMsg
     setGroupField(from, 'welcomeMsg', estado ? 0 : 1)
     await sock.sendMessage(from, {

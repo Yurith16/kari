@@ -13,7 +13,7 @@ function parseTime(str) {
 
 export default {
   command:   'purgue',
-  tag:       'purge',
+  tag:       'purgue',
   categoria: 'admin',
   owner:     false,
   group:     true,

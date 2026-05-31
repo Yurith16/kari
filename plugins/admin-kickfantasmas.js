@@ -5,15 +5,15 @@ import { toBold } from '../utils/helpers.js'
 const _getActive = db.prepare(`SELECT user FROM activity WHERE group_id = ? AND msgs > 0`)
 
 const enProceso   = new Set()
-const pendingConf = new Map() // group_id → { fantasmas, timestamp }
+const pendingConf = new Map()
 
 export default {
-  command:     'kickfantasmas',
-  tag:         'kickfantasmas',
-  categoria:   'admin',
-  owner:       false,
-  group:       true,
-  nsfw:        false,
+  command:   ['kickfantasmas', 'expulsarfantasmas', 'limpiarinactivos', 'kikinactivos'],
+  tag:       'kickfantasmas',
+  categoria: 'admin',
+  owner:     false,
+  group:     true,
+  nsfw:      false,
   descripcion: 'Expulsa a los miembros sin actividad del grupo',
 
   async onMessage(sock, msg, { from, text, isOwner, isAdmin }) {
@@ -22,7 +22,6 @@ export default {
 
     const { fantasmas, timestamp } = pendingConf.get(from)
 
-    // Expirar confirmación tras 30 segundos
     if (Date.now() - timestamp > 30_000) {
       pendingConf.delete(from)
       return
@@ -40,7 +39,6 @@ export default {
       return
     }
 
-    // Confirmar — iniciar expulsión
     if (enProceso.has(from)) {
       await sock.sendMessage(from, {
         text: '⏳ Ya hay una limpieza en proceso en este grupo.'
@@ -118,7 +116,6 @@ export default {
 
       const tiempoEst = ((fantasmas.length * 5) / 60).toFixed(1)
 
-      // Guardar fantasmas y esperar confirmación
       pendingConf.set(from, { fantasmas, timestamp: Date.now() })
 
       await sock.sendMessage(from, {

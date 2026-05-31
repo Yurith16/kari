@@ -8,12 +8,12 @@ const _getActive = db.prepare(`
 `)
 
 export default {
-  command:     'fantasmas',
-  tag:         'fantasmas',
-  categoria:   'admin',
-  owner:       false,
-  group:       true,
-  nsfw:        false,
+  command:   ['fantasmas', 'inactivos', 'silenciosos', 'mudos'],
+  tag:       'fantasmas',
+  categoria: 'admin',
+  owner:     false,
+  group:     true,
+  nsfw:      false,
   descripcion: 'Detecta y lista los miembros inactivos del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
@@ -28,18 +28,14 @@ export default {
       const members = meta.participants
       const total   = members.length
 
-      // Resolver número real de cada miembro usando todas las fuentes disponibles
       const miembros = members.map(p => {
         let num = cleanNumber(p.id)
 
-        // Si es @lid o el número parece interno (> 10 dígitos sin código de país válido)
-        // intentar resolver desde caché global del pipeline
         if (p.id.endsWith('@lid') || num.length > 13) {
           const cached = global.lidCache?.get(p.id)
           if (cached) num = cleanNumber(cached)
         }
 
-        // Si el participante tiene phoneNumber en el metadata (versión nueva de Baileys)
         if (p.phoneNumber) {
           const fromPhone = cleanNumber(p.phoneNumber)
           if (fromPhone.length >= 8) num = fromPhone

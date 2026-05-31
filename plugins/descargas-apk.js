@@ -57,13 +57,13 @@ async function getDownloadUrl(uname) {
 }
 
 export default {
-  command: ['apk'],
+  command: ['apk','app','aplicacion'],
   tag: 'apk',
   categoria: 'descargas',
   owner: false,
   group: false,
   nsfw: false,
-  descripcion: '🌸 Busca y descarga APKs desde Aptoide',
+  descripcion: '🌸 Busca y descarga APKs para android',
 
   async onMessage(sock, msg, { from, text, userNum }) {
     const sesion = sesiones.get(userNum)

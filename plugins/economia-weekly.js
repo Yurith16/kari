@@ -2,18 +2,18 @@
 
 import { addKryons, addXp, isRegistered, checkCooldown, setCooldown } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
-import { formatCooldown } from '../utils/helpers.js'
+import { formatCooldown, toBold } from '../utils/helpers.js'
 
 const COOLDOWN = 7 * 24 * 60 * 60 // 7 días
 
 export default {
-  command:     ['weekly', 'semanal'],
+  command:     ['weekly', 'semanal', 'semana'],
   tag:         'weekly',
   categoria:   'economia',
   owner:       false,
   group:       false,
   nsfw:        false,
-  descripcion: 'Recompensa semanal',
+  descripcion: 'Recompensa semanal por tu lealtad',
 
   async execute(sock, msg, { from, sender, isGroup, groupCfg }) {
     if (isGroup && groupCfg?.economia === 0) {
@@ -30,7 +30,7 @@ export default {
     const cd = checkCooldown(selfNum, 'weekly', COOLDOWN)
     if (!cd.ok) {
       return sock.sendMessage(from, {
-        text: `🌸 Ya recogiste tu premio semanal. Vuelve en *${formatCooldown(cd.secsLeft)}*.`
+        text: `> 🌿 *Paciencia, corazón*\n> ↳ _Aún no es momento de tu recompensa semanal. Vuelve en ${formatCooldown(cd.secsLeft)}._`
       }, { quoted: msg })
     }
 
@@ -41,16 +41,22 @@ export default {
     addXp(selfNum, xp)
     setCooldown(selfNum, 'weekly')
 
-    await sock.sendMessage(from, { react: { text: '🌟', key: msg.key } })
+    const reacciones = ['🌟', '🏆', '💎', '🎉', '🍀', '👑']
+    const react = reacciones[Math.floor(Math.random() * reacciones.length)]
 
     const frases = [
-      `🌟 Una semana más en Midori merece un gran premio. Toma *${ganancia.toLocaleString()}* kryons.`,
-      `💫 Siete días de lealtad no se ven todos los días. Ganaste *${ganancia.toLocaleString()}* kryons.`,
-      `🏆 Gracias por estar una semana más conmigo. Aquí tienes *${ganancia.toLocaleString()}* kryons.`
+      `🌟 Una semana más junto a Midori-Hana florece en *${ganancia.toLocaleString()}* kryons y *${xp}* XP.`,
+      `🏆 Siete días de lealtad merecen una gran recompensa. Toma *${ganancia.toLocaleString()}* kryons.`,
+      `💎 El tiempo ha dado sus frutos, has obtenido un cofre semanal con *${ganancia.toLocaleString()}* kryons.`,
+      `👑 Tu constancia te hace destacar. Recibe *${ganancia.toLocaleString()}* kryons como bonificación especial.`,
+      `🎉 ¡Felicidades! Has completado otra semana. Tu tesoro aumenta en *${ganancia.toLocaleString()}* kryons.`
     ]
 
-    await sock.sendMessage(from, {
-      text: frases[Math.floor(Math.random() * frases.length)]
+    const msgFinal = frases[Math.floor(Math.random() * frases.length)]
+
+    await sock.sendMessage(from, { react: { text: react, key: msg.key } })
+    await sock.sendMessage(from, { 
+        text: `> 🏆 *RECOMPENSA SEMANAL*\n> \n> ↳ _${msgFinal}_\n> \n> 📈 *Obtuviste ${xp} XP.*` 
     }, { quoted: msg })
   }
 }

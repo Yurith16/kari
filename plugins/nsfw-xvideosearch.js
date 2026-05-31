@@ -1,3 +1,5 @@
+// plugins/xvideosearch.js
+
 export default {
   command:   'xvideosearch',
   tag:       'xvideosearch',
@@ -7,7 +9,13 @@ export default {
   nsfw:      true,
   descripcion: 'Busca videos en XVideos',
 
-  async execute(sock, msg, { from, args }) {
+  async execute(sock, msg, { from, args, groupCfg }) {
+    // Verificación de configuración del grupo para contenido NSFW
+    if (!groupCfg?.nsfw) {
+      await sock.sendMessage(from, { text: '⚠️ Este grupo no tiene activado el contenido NSFW.' }, { quoted: msg })
+      return
+    }
+
     if (!args.length) {
       await sock.sendMessage(from, {
         text: '✦ Ingresa el título a buscar.\n\nEjemplo: *.xvideos latina*'

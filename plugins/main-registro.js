@@ -3,29 +3,8 @@ import { getRealJid, cleanNumber }  from '../utils/jid.js'
 
 const sesiones = new Map()
 
-const GENEROS = ['hombre', 'mujer', 'prefiero no decir']
-const PAISES  = [
-  // Centroamérica
-  'Belice', 'Costa Rica', 'El Salvador', 'Guatemala', 'Honduras',
-  'Nicaragua', 'Panamá',
-  // Norteamérica
-  'México', 'Estados Unidos', 'Canadá',
-  // Caribe / Antillas
-  'Cuba', 'Haití', 'República Dominicana', 'Jamaica', 'Puerto Rico',
-  'Trinidad y Tobago', 'Bahamas', 'Barbados', 'Granada',
-  // Sudamérica
-  'Argentina', 'Bolivia', 'Brasil', 'Chile', 'Colombia',
-  'Ecuador', 'Guyana', 'Paraguay', 'Perú', 'Surinam',
-  'Uruguay', 'Venezuela',
-  // Europa
-  'España', 'Portugal', 'Francia', 'Italia', 'Alemania',
-  'Reino Unido', 'Países Bajos', 'Suiza', 'Suecia', 'Noruega',
-  // Otros
-  'Otro'
-]
-
 export default {
-  command:     'registro',
+  command:     ['registro', 'reg', 'registrar', 'register', 'registrer', 'verify', 'verificar'],
   tag:         'registro',
   categoria:   'main',
   owner:       false,
@@ -35,7 +14,7 @@ export default {
 
   async onMessage(sock, msg, { from, text, userNum }) {
     if (!userNum) return
-    
+
     const sesion = sesiones.get(userNum)
     if (!sesion) return
 
@@ -48,10 +27,8 @@ export default {
       return
     }
 
-    const { paso } = sesion
-
-    // Para pasos 1 y 2 (texto libre), solo procesar si no es un comando
-    if (paso === 1) {
+    // Paso 1: nombre (texto libre)
+    if (sesion.paso === 1) {
       if (respuesta.length < 2 || respuesta.length > 30) {
         await sock.sendMessage(from, {
           text: '🌸 El nombre debe tener entre 2 y 30 caracteres. Intenta de nuevo.'
@@ -61,84 +38,31 @@ export default {
       sesion.nombre = respuesta
       sesion.paso   = 2
       await sock.sendMessage(from, {
-        text: `🌿 Perfecto, *${respuesta}*. Ahora dime tu apodo o nickname.\n\n_Escribe *saltar* si prefieres no tener apodo._`
+        text: `🌿 Hola, *${respuesta}*! ¿Cuántos años tienes? (10-60)`
       }, { quoted: msg })
       return
     }
 
-    if (paso === 2) {
-      sesion.apodo = respuesta.toLowerCase() === 'saltar' ? '' : respuesta.slice(0, 25)
-      sesion.paso  = 3
+    // Paso 2: edad (solo números, ignorar silenciosamente si no es número)
+    if (sesion.paso === 2) {
+      if (!/^\d+$/.test(respuesta)) return
+
+      const edad = parseInt(respuesta)
+      if (isNaN(edad) || edad < 10 || edad > 60) {
+        await sock.sendMessage(from, {
+          text: global.messages?.edadInvalida || '🌸 Edad inválida. Debe ser un número entre 10 y 60.'
+        }, { quoted: msg })
+        return
+      }
+
+      registerUser(userNum, { nombre: sesion.nombre, edad })
+      sesiones.delete(userNum)
+
+      const msgOk = global.messages?.registroOk || '✅ Registro completado, {nombre}'
       await sock.sendMessage(from, {
-        text: `🌸 Entendido. ¿Cuántos años tienes? (10-60)`
+        text: msgOk.replace('{nombre}', sesion.nombre) + `\n\n🌸 Ya puedes usar todos los comandos. Usa *setperfil* para completar tu perfil.`
       }, { quoted: msg })
-      return
     }
-
-    // Para pasos 3, 4, 5 — solo procesar si es un número
-    if (paso >= 3) {
-      const num = parseInt(respuesta)
-      
-      if (paso === 3) {
-        if (isNaN(num) || num < 10 || num > 60) {
-          await sock.sendMessage(from, { text: global.messages?.edadInvalida || '🌸 Edad inválida. Debe ser entre 10 y 60.' }, { quoted: msg })
-          return
-        }
-        sesion.edad = num
-        sesion.paso = 4
-        const lista = GENEROS.map((g, i) => `${i + 1}. ${g}`).join('\n')
-        await sock.sendMessage(from, {
-          text: `🌿 ¿Con qué género te identificas?\n\n${lista}\n\n_Responde con el número._`
-        }, { quoted: msg })
-        return
-      }
-
-      if (paso === 4) {
-        const idx = num - 1
-        if (isNaN(idx) || idx < 0 || idx >= GENEROS.length) {
-          await sock.sendMessage(from, {
-            text: '🌸 Responde con el número de la opción.'
-          }, { quoted: msg })
-          return
-        }
-        sesion.genero = GENEROS[idx]
-        sesion.paso   = 5
-        const lista = PAISES.map((p, i) => `${i + 1}. ${p}`).join('\n')
-        await sock.sendMessage(from, {
-          text: `🌿 ¿De qué país eres?\n\n${lista}\n\n_Responde con el número._`
-        }, { quoted: msg })
-        return
-      }
-
-      if (paso === 5) {
-        const idx = num - 1
-        if (isNaN(idx) || idx < 0 || idx >= PAISES.length) {
-          await sock.sendMessage(from, {
-            text: '🌸 Responde con el número del país.'
-          }, { quoted: msg })
-          return
-        }
-        sesion.pais = PAISES[idx]
-
-        registerUser(userNum, { 
-          nombre: sesion.nombre, 
-          apodo: sesion.apodo, 
-          edad: sesion.edad, 
-          genero: sesion.genero, 
-          pais: sesion.pais 
-        })
-        sesiones.delete(userNum)
-
-        const msgOk = global.messages?.registroOk || '✅ Registro completado, {nombre}'
-        await sock.sendMessage(from, {
-          text: msgOk.replace('{nombre}', sesion.nombre) +
-            `\n\n🌸 Ya puedes usar todos los comandos`
-        }, { quoted: msg })
-        return
-      }
-    }
-
-    // Si no coincide con ningún paso esperado, ignorar
   },
 
   async execute(sock, msg, { from, userNum }) {
@@ -158,7 +82,7 @@ export default {
 
     await sock.sendMessage(from, {
       text: `🌿 ¡Hola! Voy a ayudarte a crear tu perfil en *${global.bot?.name || 'Midori-Hana'}*.\n\n` +
-        `Son 5 preguntas. Escribe *cancelar* para detener el proceso.\n\n` +
+        `Escribe *cancelar* para detener el proceso.\n\n` +
         `🌸 ¿Cuál es tu nombre?`
     }, { quoted: msg })
   }

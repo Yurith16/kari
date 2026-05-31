@@ -1,20 +1,27 @@
+// plugins/reaccion_anal.js
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
 export default {
-  command:   ['besar', 'kiss', 'besito', 'beso'],
-  tag:       'besar',
-  categoria: 'diversion',
+  command:   ['anal'],
+  tag:       'anal',
+  categoria: 'nsfw',
   owner:     false,
-  group:     false,
-  nsfw:      false,
-  descripcion: 'Envía un gif de besos',
+  group:     true,
+  nsfw:      true,
+  descripcion: 'Reacción NSFW intensa',
 
-  async execute(sock, msg, { from }) {
-    await sock.sendMessage(from, { react: { text: '💋', key: msg.key } })
+  async execute(sock, msg, { from, groupCfg }) {
+    // Verificación de configuración del grupo
+    if (!groupCfg?.nsfw) {
+      await sock.sendMessage(from, { text: '⚠️ Este grupo no tiene activado el contenido NSFW.' }, { quoted: msg })
+      return
+    }
+
+    await sock.sendMessage(from, { react: { text: '🔞', key: msg.key } })
 
     try {
-      const apiUrl = `https://api.delirius.store/reactions/kiss`
+      const apiUrl = `https://api.delirius.store/reactions/anal`
       const { data: res } = await axios.get(apiUrl)
 
       if (!res.status || !res.data) throw new Error()
@@ -61,19 +68,25 @@ export default {
       
       if (victimas.length === 1) {
         const victimTag = victimas[0].split('@')[0]
-        txt = `💋 ¡El amor está en el aire! @${selfTag} le dio un beso a @${victimTag}... ❤️`
+        const frases1 = [
+          `🔞 @${selfTag} agarró a @${victimTag} y le dio como si no hubiera un mañana. ¡Pobre @${victimTag}, no va a poder ni sentarse!`,
+          `😈 @${selfTag} se puso modo animal con @${victimTag}. ¡Se lo/la está estirando hasta el alma!`,
+          `💦 @${selfTag} tiene a @${victimTag} rogando piedad... ¡qué salvajada se están dando!`,
+          `🔥 @${selfTag} no tiene piedad, está dejando a @${victimTag} viendo estrellas.`
+        ]
+        txt = frases1[Math.floor(Math.random() * frases1.length)]
       } 
       else if (victimas.length >= 2) {
         const victim1Tag = victimas[0].split('@')[0]
         const victim2Tag = victimas[1].split('@')[0]
-        txt = `💋 @${selfTag} repartió besos entre @${victim1Tag} y @${victim2Tag}. ¡Qué romántico! ❤️`
+        txt = `🔥 @${selfTag} está haciendo un banquete con @${victim1Tag} y @${victim2Tag}. ¡Esto es una orgía de descontrol total, los está dejando secos! 🔞`
       }
       else {
         const frasesRandom = [
-          `💋 @${selfTag} está lanzando besos a todo el mundo, ¡cuidado que enamora!`,
-          `✨ @${selfTag} anda cariñoso hoy, repartiendo besos por todos lados.`,
-          `🌹 @${selfTag} mandó un beso volador, ¿alguien lo atrapó?`,
-          `💖 @${selfTag} se puso romántico y soltó besos al aire.`
+          `🔞 @${selfTag} anda con una calentura que no se la quita nadie, ¡se va a romper a sí mismo/a!`,
+          `😈 @${selfTag} busca quién se atreva a aguantar semejante tamaño. ¿Quién se apunta al castigo?`,
+          `🥵 @${selfTag} está en su modo más cochino, ¡va a dejar la cama hecha trizas!`,
+          `💦 @${selfTag} se está dando un banquete solo/a, ¡esto es puro vicio y degeneración!`
         ]
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
@@ -86,7 +99,7 @@ export default {
       }, { quoted: msg })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      await sock.sendMessage(from, { text: global.messages?.error || '⚠️ Ocurrió un error.' }, { quoted: msg })
     }
   }
 }

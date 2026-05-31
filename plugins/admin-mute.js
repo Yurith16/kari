@@ -3,7 +3,7 @@ import { resolveTarget } from '../utils/target.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 export default {
-  command:   'mute',
+  command:   ['mute', 'silenciar', 'callar', 'mutear'],
   tag:       'mute',
   categoria: 'admin',
   descripcion: 'Silencia a un usuario del grupo',

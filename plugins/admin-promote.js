@@ -3,7 +3,7 @@
 import { resolveTarget } from '../utils/target.js'
 
 export default {
-  command:   'promote',
+  command:   ['promote', 'ascender', 'subir', 'haceradmin', 'daradmin'],
   tag:       'promote',
   categoria: 'admin',
   owner:     false,

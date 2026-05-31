@@ -1,5 +1,5 @@
 export default {
-  command:   'cerrar',
+  command:   ['cerrar', 'close', 'bloquear', 'lock'],
   tag:       'cerrar',
   categoria: 'admin',
   owner:     false,

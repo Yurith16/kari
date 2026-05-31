@@ -4,7 +4,7 @@ import { cleanNumber } from '../utils/jid.js'
 import { toBold } from '../utils/helpers.js'
 
 export default {
-  command:   'tagall',
+  command:   ['tagall', 'mencionartodos', 'llamar', 'invocar', 'everyone'],
   tag:       'tagall',
   categoria: 'admin',
   owner:     false,
@@ -22,7 +22,6 @@ export default {
       const meta = await sock.groupMetadata(from)
       const participantes = meta.participants
 
-      // Separar admins y miembros
       const admins = participantes.filter(p => p.admin)
       const miembros = participantes.filter(p => !p.admin)
 

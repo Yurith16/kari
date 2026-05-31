@@ -4,7 +4,7 @@ import db            from '../core/sqlite.js'
 const _getWarns = db.prepare(`SELECT user, count FROM warns WHERE group_id = ? AND count > 0 ORDER BY count DESC`)
 
 export default {
-  command:   'warnlist',
+  command:   ['warnlist', 'avisos', 'advertencias', 'listaavisos', 'warns'],
   tag:       'warnlist',
   categoria: 'admin',
   descripcion: 'Muestra la lista de usuarios con advertencias activas',

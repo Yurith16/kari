@@ -3,7 +3,7 @@
 import axios from 'axios'
 
 export default {
-  command:   'imagen',
+  command:   ['imagen', 'img', 'image', 'foto'],
   tag:       'imagen',
   categoria: 'busqueda',
   owner:     false,

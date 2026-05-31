@@ -3,7 +3,7 @@
 import { resolveTarget } from '../utils/target.js'
 
 export default {
-  command:   'demote',
+  command:   ['demote', 'quitaradmin', 'sacaradmin', 'degradar'],
   tag:       'demote',
   categoria: 'admin',
   owner:     false,

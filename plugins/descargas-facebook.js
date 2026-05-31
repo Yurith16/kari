@@ -98,7 +98,7 @@ const sources = [
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default {
-  command: ['fb', 'facebook'],
+  command: ['fb', 'facebook','fbdl'],
   tag: 'facebook',
   categoria: 'descargas',
   owner: false,

@@ -1,5 +1,5 @@
 export default {
-  command:   'desc',
+  command:   ['desc', 'description', 'descripcion', 'setdesc'],
   tag:       'desc',
   categoria: 'admin',
   owner:     false,
