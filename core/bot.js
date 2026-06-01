@@ -14,7 +14,8 @@ import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { logger, startAutoBio } from '../utils/helpers.js'
 import { handleMessage } from './pipeline.js'
 import { getGroup } from './sqlite.js'
-import { startReminderChecker } from '../plugins/main-recordatorio.js' // ← Importación agregada
+import { startReminderChecker } from '../plugins/main-recordatorio.js'
+import { startAllSubbots } from './subbot-manager.js'
 
 // ─── Store liviano ────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ const store = {
 const processed = new Set()
 setInterval(() => processed.clear(), 5 * 60 * 1000)
 
-// ─── Pairing code ────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
@@ -52,7 +53,7 @@ function normalizeNumber(num) {
   return (pn.valid ? pn.number : num).replace(/\D/g, '')
 }
 
-// ─── Bot ──────────────────────────────────────────────────────────────────────
+// ─── Bot principal ────────────────────────────────────────────────────────────
 
 export async function startBot() {
   const bot        = global.bot
@@ -81,17 +82,12 @@ export async function startBot() {
 
   store.bind(sock.ev)
 
-  // ─── Caché de JIDs reales por grupo ──────────────────────────────────────
-  // Guarda lid→número mientras el usuario está en el grupo
-  // así cuando sale podemos resolver su número aunque ya no esté en metadata
-  const lidCache = new Map() // lid → numero@s.whatsapp.net
+  // ─── Caché de JIDs ────────────────────────────────────────────────────────
+  const lidCache = new Map()
 
   async function resolveParticipant(pid, groupId) {
-    // 1. Caché local del bot
-    if (lidCache.has(pid)) return lidCache.get(pid)
-    // 2. Caché global del pipeline (se llena con cada mensaje)
-    if (global.lidCache?.has(pid)) return global.lidCache.get(pid)
-    // 3. Intentar resolver via metadata (funciona si aún está en el grupo)
+    if (lidCache.has(pid))          return lidCache.get(pid)
+    if (global.lidCache?.has(pid))  return global.lidCache.get(pid)
     try {
       const real = await getRealJid(sock, pid, { key: { remoteJid: groupId } })
       const num  = cleanNumber(real)
@@ -102,12 +98,10 @@ export async function startBot() {
         return jid
       }
     } catch {}
-    // 4. Fallback — extraer número del pid directamente
     const raw = pid.replace(/@.*$/, '').replace(/\D/g, '')
     return raw.length >= 8 ? `${raw}@s.whatsapp.net` : pid
   }
 
-  // Pre-cachear participantes cuando el bot se conecta o entra a un grupo
   sock.ev.on('groups.update', async (updates) => {
     for (const update of updates) {
       try {
@@ -122,7 +116,7 @@ export async function startBot() {
     }
   })
 
-  // ─── Pairing code (único método de conexión) ───────────────────────────────
+  // ─── Pairing code ─────────────────────────────────────────────────────────
   if (!hasSession) {
     let numero = bot.botNumber
     if (numero) {
@@ -147,9 +141,9 @@ export async function startBot() {
   sock.ev.on('group-participants.update', async ({ id, participants, action }) => {
     if (!['add', 'remove'].includes(action)) return
     try {
-      const cfg = getGroup(id)
+      const cfg   = getGroup(id)
       const isAdd = action === 'add'
-      if (isAdd && !cfg.welcomeMsg && !global.features?.welcomeMsg) return
+      if (isAdd  && !cfg.welcomeMsg && !global.features?.welcomeMsg) return
       if (!isAdd && !cfg.goodbyeMsg && !global.features?.goodbyeMsg) return
 
       const plantilla = isAdd
@@ -161,34 +155,21 @@ export async function startBot() {
         : (cfg.goodbyeImg || global.bot?.goodbyeImg || '')
 
       for (const p of participants) {
-        const pid = typeof p === 'string' ? p : (p.id || p.jid)
-
-        // resolveParticipant usa caché global+local antes de intentar metadata
-        // — clave para 'remove' donde el usuario ya no está en el grupo
+        const pid      = typeof p === 'string' ? p : (p.id || p.jid)
         const jidFinal = await resolveParticipant(pid, id)
         const num      = cleanNumber(jidFinal)
-
-        const plantillaLimpia = plantilla.replace(/[⁨⁩‎‏‪-‮]/g, '')
-        const texto = plantillaLimpia.replace(/@user/gi, `@${num}`)
+        const texto    = plantilla.replace(/[⁨⁩‎‏‪-‮]/g, '').replace(/@user/gi, `@${num}`)
 
         if (imgUrl) {
           let imageBuffer
           if (imgUrl.startsWith('file://')) {
-            // Leer archivo local como buffer
-            const filePath = imgUrl.replace('file://', '')
-            imageBuffer = fs.readFileSync(filePath)
+            imageBuffer = fs.readFileSync(imgUrl.replace('file://', ''))
           } else {
-            // URL remota, descargar
-            const response = await fetch(imgUrl)
+            const response   = await fetch(imgUrl)
             const arrayBuffer = await response.arrayBuffer()
-            imageBuffer = Buffer.from(arrayBuffer)
+            imageBuffer      = Buffer.from(arrayBuffer)
           }
-
-          await sock.sendMessage(id, {
-            image: imageBuffer,
-            caption: texto,
-            mentions: [jidFinal]
-          })
+          await sock.sendMessage(id, { image: imageBuffer, caption: texto, mentions: [jidFinal] })
         } else {
           await sock.sendMessage(id, { text: texto, mentions: [jidFinal] })
         }
@@ -220,19 +201,18 @@ export async function startBot() {
         logger.error('Conexión', 'Sesión cerrada, vuelve a emparejar.')
       }
     }
+
     if (connection === 'open') {
       logger.info('Conexión', `${global.messages?.online} — ${sock.user.id.split(':')[0]}`)
       logger.info('Config', `Prefix: ${global.bot?.prefix?.join(' ')} | Grupos: activos`)
       startAutoBio(sock)
-      
-      // ← Iniciar el checker de recordatorios cuando el bot se conecta
       startReminderChecker(sock)
 
-      // Pre-cachear @lid → número de todos los grupos al conectar
+      // Pre-cachear JIDs
       setTimeout(async () => {
         try {
           const groups = await sock.groupFetchAllParticipating()
-          for (const [gid, meta] of Object.entries(groups)) {
+          for (const [, meta] of Object.entries(groups)) {
             for (const p of meta.participants) {
               if (!p.id.endsWith('@lid')) continue
               const num = p.phoneNumber ? cleanNumber(p.phoneNumber) : null
@@ -244,8 +224,13 @@ export async function startBot() {
               }
             }
           }
-          logger.info('Caché', `JIDs pre-cacheados`)
+          logger.info('Caché', 'JIDs pre-cacheados')
         } catch {}
+
+        // ← Arrancar todos los subbots activos después de que el raíz esté listo
+        await startAllSubbots(sock).catch(err => {
+          logger.error('Subbots', `Error al iniciar subbots: ${err.message}`)
+        })
       }, 3000)
     }
   })
