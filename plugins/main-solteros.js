@@ -1,7 +1,5 @@
-// plugins/solteros.js
-
 import db from '../core/sqlite.js'
-import { cleanNumber, getRealJid } from '../utils/jid.js'
+import { cleanNumber } from '../utils/jid.js'
 import { toBold } from '../utils/helpers.js'
 
 const _getSolteros = db.prepare(`
@@ -21,30 +19,44 @@ export default {
 
   async execute(sock, msg, { from }) {
     try {
-      const meta = await sock.groupMetadata(from)
-      
-      // Resolver JID real de cada miembro para obtener su número
-      const miembros = []
+      const meta     = await sock.groupMetadata(from)
+      const miembros = new Set()
+
       for (const p of meta.participants) {
-        try {
-          const realJid = await getRealJid(sock, p.id, { key: { remoteJid: from } })
-          const num = cleanNumber(realJid)
-          if (num) miembros.push(num)
-        } catch {
-          const num = cleanNumber(p.id)
-          if (num) miembros.push(num)
+        const pid = p.id
+
+        // Número normal — extraer directo sin petición
+        if (pid.endsWith('@s.whatsapp.net')) {
+          const num = cleanNumber(pid)
+          if (num) miembros.add(num)
+          continue
         }
+
+        // @lid — buscar en caché global primero (llenado al conectar)
+        if (pid.endsWith('@lid')) {
+          const cached = global.lidCache?.get(pid)
+          if (cached) {
+            const num = cleanNumber(cached)
+            if (num) miembros.add(num)
+            continue
+          }
+
+          // Solo si no está en caché intentar resolverlo
+          // (caso raro, usuario que entró después del arranque)
+          if (p.phoneNumber) {
+            const num = cleanNumber(p.phoneNumber)
+            if (num) miembros.add(num)
+          }
+          continue
+        }
+
+        // Cualquier otro formato — limpiar directo
+        const num = cleanNumber(pid)
+        if (num) miembros.add(num)
       }
 
-      //console.log('[solteros] Miembros del grupo:', miembros)
-
       const todosSolteros = _getSolteros.all()
-      
-      //console.log('[solteros] Solteros en DB:', todosSolteros.map(s => s.user_num))
-      
-      const solteros = todosSolteros.filter(s => miembros.includes(s.user_num))
-
-      //console.log('[solteros] Solteros en el grupo:', solteros.map(s => s.user_num))
+      const solteros      = todosSolteros.filter(s => miembros.has(s.user_num))
 
       if (!solteros.length) {
         return sock.sendMessage(from, {
@@ -53,19 +65,18 @@ export default {
       }
 
       const generoEmoji = (g) => g === 'hombre' ? '👦' : g === 'mujer' ? '👧' : '🌿'
-      const mentions = solteros.map(s => `${s.user_num}@s.whatsapp.net`)
+      const mentions    = solteros.map(s => `${s.user_num}@s.whatsapp.net`)
 
       let txt = `╭─〔 ${toBold('💚 SOLTEROS DEL GRUPO')} 〕\n`
       txt += `│\n`
 
       solteros.forEach(s => {
-        const nombre = s.apodo || s.nombre
         txt += `│ ${generoEmoji(s.genero)} @${s.user_num}\n`
         txt += `│    ✦ ${s.edad} años · ${s.pais}\n`
       })
 
       txt += `│\n`
-      txt += `│ 🌸 ${solteros.length} solteros en este grupo\n`
+      txt += `│ 🌸 ${solteros.length} soltero${solteros.length !== 1 ? 's' : ''} en este grupo\n`
       txt += `╰─── ── ── ── ──\n`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })

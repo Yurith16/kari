@@ -35,6 +35,12 @@ db.exec(`
     PRIMARY KEY (group_id, user)
   );
 
+  CREATE TABLE IF NOT EXISTS ignored (
+  group_id TEXT,
+  user     TEXT,
+  PRIMARY KEY (group_id, user)
+);
+
   CREATE TABLE IF NOT EXISTS activity (
     group_id  TEXT,
     user      TEXT,
@@ -377,6 +383,18 @@ export function countActiveSubbots()       { return _countSubbots.get().n }
 export function activarSubbot(numero)      { _setSubbotActivo.run(1, numero) }
 export function desactivarSubbot(numero)   { _setSubbotActivo.run(0, numero) }
 export function deleteSubbot(numero)       { _deleteSubbot.run(numero) }
+
+// ─── Ignored (ignorar usuario en grupo) ──────────────────────────────────────
+
+const _ignoreUser   = db.prepare(`INSERT OR IGNORE INTO ignored (group_id, user) VALUES (?,?)`)
+const _unignoreUser = db.prepare(`DELETE FROM ignored WHERE group_id = ? AND user = ?`)
+const _isIgnored    = db.prepare(`SELECT 1 FROM ignored WHERE group_id = ? AND user = ?`)
+const _getIgnored   = db.prepare(`SELECT user FROM ignored WHERE group_id = ?`)
+
+export function ignoreUser(groupId, user)   { _ignoreUser.run(groupId, user) }
+export function unignoreUser(groupId, user) { _unignoreUser.run(groupId, user) }
+export function isIgnored(groupId, user)    { return !!_isIgnored.get(groupId, user) }
+export function getIgnored(groupId)         { return _getIgnored.all(groupId).map(r => r.user) }
 
 // ─── Grupos por subbot ────────────────────────────────────────────────────────
 

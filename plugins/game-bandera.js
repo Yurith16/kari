@@ -6,7 +6,7 @@ import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 const sesiones = new Map()
 
-const banderasPath = path.join(process.cwd(), 'data', 'banderas.json')
+const banderasPath = path.join(process.cwd(), 'core', 'banderas.json')
 const banderasData = JSON.parse(fs.readFileSync(banderasPath, 'utf-8'))
 const paises = banderasData.paises
 

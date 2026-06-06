@@ -1,9 +1,7 @@
-// plugins/menu.js
-
 import { toBold, toMono } from '../utils/helpers.js'
 import { commands }       from '../core/plugins.js'
-import db                 from '../core/sqlite.js' 
-import bot                from '../settings/bot.js' // Importación directa de tu configuración de bot.js
+import db                 from '../core/sqlite.js'
+import bot                from '../settings/bot.js'
 
 const startTime = Date.now()
 
@@ -12,10 +10,10 @@ let bulletIdx  = 0
 const getBullet = () => BULLETS[bulletIdx++ % BULLETS.length]
 
 function uptime() {
-  const ms  = Date.now() - startTime
-  const h   = Math.floor(ms / 3600000)
-  const m   = Math.floor(ms / 60000) % 60
-  const s   = Math.floor(ms / 1000) % 60
+  const ms = Date.now() - startTime
+  const h  = Math.floor(ms / 3600000)
+  const m  = Math.floor(ms / 60000) % 60
+  const s  = Math.floor(ms / 1000) % 60
   if (h > 0) return `${h}h ${m}m ${s}s`
   if (m > 0) return `${m}m ${s}s`
   return `${s}s`
@@ -35,7 +33,6 @@ function getTime() {
   })
 }
 
-// Rediseño de la caja: Sin marcos cargados, usando una estructura limpia y legible
 function buildCategoryBox(catName, cmds, descMap, prefix, bullet) {
   let txt = `*───〔 ${catName.toUpperCase()} 〕───*\n\n`
   cmds.sort().forEach(cmd => {
@@ -47,13 +44,13 @@ function buildCategoryBox(catName, cmds, descMap, prefix, bullet) {
 }
 
 export default {
-  command:   'menu',
-  tag:       'menu',
-  categoria: 'main',
+  command:     'menu',
+  tag:         'menu',
+  categoria:   'main',
   descripcion: 'Muestra todos los comandos disponibles',
-  owner:     false,
-  group:     false,
-  nsfw:      false,
+  owner:       false,
+  group:       false,
+  nsfw:        false,
 
   async execute(sock, msg, { from, prefix }) {
     try {
@@ -61,7 +58,7 @@ export default {
       await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
       const latency = Date.now() - ping
 
-      const bullet = getBullet()
+      const bullet  = getBullet()
       const botName = bot.name || 'Midori-Hana'
 
       const seen    = new Set()
@@ -71,7 +68,6 @@ export default {
 
       for (const p of commands.values()) {
         if (!p.command || !p.categoria) continue
-        
         const name = p.tag || (Array.isArray(p.command) ? p.command[0] : p.command)
         if (seen.has(name)) continue
         seen.add(name)
@@ -88,22 +84,18 @@ export default {
         grupos  = Object.keys(g).length
       } catch {}
 
-      // Obtener el total de usuarios registrados usando el gestor core/sqlite.js
       let totalUsuarios = 0
       try {
-        const row = db.prepare(`SELECT COUNT(*) as count FROM users`).get()
+        const row    = db.prepare(`SELECT COUNT(*) as count FROM users`).get()
         totalUsuarios = row?.count || 0
       } catch (e) {
         console.error('Error al obtener el conteo de usuarios:', e)
       }
 
-      const fecha    = getDate()
-      const hora     = getTime()
+      const fecha = getDate()
+      const hora  = getTime()
 
-      // Título principal simétrico con el nombre real del archivo JSON/JS
       let menuTxt = `╭─〔 🌸 *${toMono(botName.toUpperCase())}* 🌸 〕─╮\n\n`
-
-      // Bloque de datos directo y limpio utilizando tu configuración de settings/bot.js
       menuTxt += `> ✦ *Fecha:* ${fecha}\n`
       menuTxt += `> ✦ *Hora:* ${hora} · Honduras\n`
       menuTxt += `> ✦ *Dueño:* ${bot.owner || 'Hernandez'}\n`
@@ -116,16 +108,15 @@ export default {
       menuTxt += `> ✦ *Latencia:* ${latency}ms\n`
       menuTxt += `> ✦ *Total Usuarios:* ${totalUsuarios}\n`
       menuTxt += `> ✦ *Comandos:* ${total}\n\n`
-      
-      // Frasecita mínima integrada de Midori-Hana
       menuTxt += `_Hazme trabajar duro hoy, que para eso estoy aquí..._ 🤭\n\n`
 
-      const orden = ['main', 'admin', 'economia', 'diversion', 'busqueda', 'descargas', 'utilidad', 'nsfw', 'owner']
+      const orden = ['main', 'admin', 'economia', 'diversion', 'juego', 'busqueda', 'descargas', 'utilidad', 'nsfw', 'owner']
       const categoryMap = {
         main:      'PRINCIPAL',
         admin:     'ADMINISTRACIÓN',
         economia:  'ECONOMÍA',
         diversion: 'DIVERSIÓN',
+        juego:     'JUEGOS',
         busqueda:  'BÚSQUEDAS',
         descargas: 'DESCARGAS',
         utilidad:  'HERRAMIENTAS',
@@ -141,7 +132,6 @@ export default {
         menuTxt += '\n'
       }
 
-      // Cierre dramático sutil
       menuTxt += `_🌸 ¿Te vas a quedar un rato más conmigo o solo viniste por mis funciones? No me dejes en visto..._`
 
       try {

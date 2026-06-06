@@ -2,7 +2,7 @@ import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { logger, delay }           from '../utils/helpers.js'
 import { checkSpam }               from '../utils/spam.js'
 import { commands }                from './plugins.js'
-import { getGroup, isMuted, isBanned, muteUser, unmuteUser, trackActivity, updateGroupName, saveMsg, isRegistered } from './sqlite.js'
+import { getGroup, isMuted, isBanned, muteUser, unmuteUser, trackActivity, updateGroupName, saveMsg, isIgnored } from './sqlite.js'
 import { isToxic, getToxicResponse, addWarning, clearWarnings } from '../utils/toxic.js'
 
 const LINK_RE = /(?:https?:\/\/)?(?:www\.)?(?:chat\.whatsapp\.com|wa\.me|t\.me|telegram\.(?:me|dog|org))\/\S+/i
@@ -80,7 +80,7 @@ async function resolveContext(sock, msg) {
 async function stepAntiLink(ctx, sock, msg) {
   if (!global.features?.antiLink)                 return false
   if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin) return false
-  if (!ctx.groupCfg?.antiLink || ctx.groupCfg?.antiLink !== 1)    return false
+  if (!ctx.groupCfg?.antiLink || ctx.groupCfg?.antiLink !== 1) return false
   if (!LINK_RE.test(extractText(msg)))            return false
   try {
     await sock.sendMessage(ctx.from, { delete: msg.key })
@@ -120,10 +120,10 @@ async function stepAntiToxic(ctx, sock, msg) {
     await sock.sendMessage(ctx.from, { delete: msg.key })
 
     const warningCount = addWarning(ctx.userNum)
-    const response = getToxicResponse(ctx.userNum, warningCount)
+    const response     = getToxicResponse(ctx.userNum, warningCount)
 
     await sock.sendMessage(ctx.from, {
-      text: response,
+      text:     response,
       mentions: [`${ctx.userNum}@s.whatsapp.net`]
     })
 
@@ -218,12 +218,17 @@ async function dispatch(ctx, sock, msg, match) {
     return
   }
 
-  // ─── Verificaciones específicas por categoría ───
+  // ─── Verificaciones específicas por categoría ─────────────────────────────
   if (cmd.categoria === 'economia') {
     if (ctx.isGroup && ctx.groupCfg?.economia === 0) {
       await sock.sendMessage(ctx.from, { text: global.messages?.ecoDisabled }, { quoted: msg })
       return
     }
+  }
+
+  // ─── Ignorar usuario en este grupo ────────────────────────────────────────
+  if (ctx.isGroup && !ctx.isOwner && !ctx.isAdmin) {
+    if (isIgnored(ctx.from, ctx.userNum)) return
   }
 
   logger.cmd(cmdName, ctx.userNum, ctx.isGroup ? ctx.groupCfg?.name : null)
@@ -251,7 +256,7 @@ export async function handleMessage(sock, msg) {
     if (await stepAntiToxic(ctx, sock, msg)) return
 
     const textStr = extractText(msg) || ''
-    const match = matchPrefix(textStr, ctx.groupCfg)
+    const match   = matchPrefix(textStr, ctx.groupCfg)
 
     if (match && await stepGuards(ctx, sock, msg)) return
 
