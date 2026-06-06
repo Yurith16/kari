@@ -99,6 +99,9 @@ keys/
 !package.json
 !package-lock.json
 
+# Carpeta data (se sube)
+!data/
+
 # Excluir archivos multimedia (se suben los mp4 en media/)
 !media/
 media/*

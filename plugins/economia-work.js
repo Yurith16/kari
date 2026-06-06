@@ -1,10 +1,9 @@
 // plugins/work.js
-
-import { addKryons, addXp, isRegistered, checkCooldown, setCooldown } from '../core/sqlite.js'
+import { addKryons, addXp, isRegistered, checkCooldown, setCooldown, getInventory, removeItem } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { formatCooldown } from '../utils/helpers.js'
 
-const COOLDOWN = 10 * 60 // 10 minutos
+const COOLDOWN = 10 * 60 // 10 minutos (bájalo a 5 para tus pruebas si gustas)
 
 export default {
   command:     ['work', 'trabajar', 'chamba', 'w'],
@@ -34,10 +33,21 @@ export default {
       }, { quoted: msg })
     }
 
-    const ganancia = Math.floor(Math.random() * 300) + 100 // 100-400 kryons
-    const xp = Math.floor(Math.random() * 15) + 8 // 8-23 xp
+    const baseGanancia = Math.floor(Math.random() * 300) + 300 
+    let gananciaFinal = baseGanancia
+    const xp = Math.floor(Math.random() * 15) + 8
 
-    addKryons(selfNum, ganancia)
+    const inventario = getInventory(selfNum) || []
+    const itemMaletin = inventario.find(i => i.item === 'maletín' && i.cantidad > 0)
+    const tieneMaletin = !!itemMaletin
+
+    if (tieneMaletin) {
+      gananciaFinal = Math.floor(baseGanancia * 6.5)
+      // Restamos 1 uso exacto de la base de datos
+      removeItem(selfNum, 'maletín', 1)
+    }
+
+    addKryons(selfNum, gananciaFinal)
     addXp(selfNum, xp)
     setCooldown(selfNum, 'work')
 
@@ -45,28 +55,45 @@ export default {
     const react = reacciones[Math.floor(Math.random() * reacciones.length)]
 
     const frases = [
-      `💼 Ayudaste en la cafetería local y ganaste *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`,
-      `🍃 Regaste el jardín botánico de Midori y te recompensaron con *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`,
-      `✨ Hiciste un mandado importante y recibiste *${ganancia.toLocaleString()}* kryons. ¡Excelente! (+${xp} XP)`,
-      `☕ Atendiste a los clientes y lograste reunir *${ganancia.toLocaleString()}* kryons en propinas. (+${xp} XP)`,
-      `🌿 Trabajaste podando setos y el dueño te pagó *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`,
-      `📦 Organizaste el almacén central y encontraste *${ganancia.toLocaleString()}* kryons extra. (+${xp} XP)`,
-      `🧬 Ayudaste en el laboratorio botánico y obtuviste *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`,
-      `🐾 Cuidaste las mascotas del vecindario y ganaste *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`,
-      `🧹 Dejaste el área común impecable, te mereces esos *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`,
-      `📜 Transcribiste documentos antiguos y te pagaron *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`,
-      `🎨 Pintaste un mural en la plaza central y te pagaron *${ganancia.toLocaleString()}* kryons por tu arte. (+${xp} XP)`,
-      `🎣 Pesaste algunas piezas en el muelle y ganaste *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`,
-      `📚 Organizaste la biblioteca municipal obteniendo *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`,
-      `🔧 Reparaste un ventilador viejo en el centro y recibiste *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`,
-      `🎤 Cantaste en el metro y la gente te dejó *${ganancia.toLocaleString()}* kryons. (+${xp} XP)`
+      `Ayudaste en la cafetería local sirviendo mesas con entusiasmo.`,
+      `Regaste con cuidado el majestuoso jardín botánico de Midori.`,
+      `Hiciste un mandado sumamente importante y urgente para la alcaldía.`,
+      `Atendiste de forma excelente a los clientes y lograste buenas propinas.`,
+      `Trabajaste duro podando setos bajo el sol de la tarde.`,
+      `Organizaste de arriba a abajo el almacén central de la comunidad.`,
+      `Ayudaste a etiquetar muestras en el laboratorio botánico.`,
+      `Cuidaste las traviesas mascotas del vecindario durante un par de horas.`,
+      `Dejaste el área común del gremio completamente impecable.`,
+      `Transcribiste pacientemente documentos antiguos y delicados.`
     ]
 
-    const msgFinal = frases[Math.floor(Math.random() * frases.length)]
+    const fraseElegida = frases[Math.floor(Math.random() * frases.length)]
+
+    // Diseño limpio de caracteres idéntico al de minar
+    let txt = `💼 ${fraseElegida}\n\n`
+    txt += `> ✦ *Salario base:* ${baseGanancia.toLocaleString()} kryons\n`
+    
+    if (tieneMaletin) {
+      const usosRestantes = itemMaletin.cantidad - 1
+      if (usosRestantes > 0) {
+        txt += `> ✦ *Multiplicador:* x6.5 (Maletín Activo 💼 - ${usosRestantes} usos disponibles)\n`
+      } else {
+        txt += `> ✦ *Multiplicador:* x6.5 (Maletín Activo 💼)\n`
+      }
+    } else {
+      txt += `> ✦ *Multiplicador:* x1.0 (Ninguno)\n`
+    }
+    
+    txt += `> ✦ *Ganancia Total:* *${gananciaFinal.toLocaleString()}* kryons\n`
+    txt += `> ✦ *Experiencia:* +${xp} XP\n\n`
+
+    if (tieneMaletin && itemMaletin.cantidad - 1 === 0) {
+      txt += `⚠️ *¡Tu maletín de trabajo se ha desgastado por completo y se rompió!* Visita la *.tienda* para reponerlo.\n\n`
+    }
+
+    txt += `🌸 _¡Tu esfuerzo hace prosperar a Midori!_`
 
     await sock.sendMessage(from, { react: { text: react, key: msg.key } })
-    await sock.sendMessage(from, { 
-      text: `> ${msgFinal}` 
-    }, { quoted: msg })
+    await sock.sendMessage(from, { text: txt }, { quoted: msg })
   }
 }

@@ -1,10 +1,10 @@
 // plugins/minar.js
 
-import { addKryons, addXp, isRegistered, checkCooldown, setCooldown } from '../core/sqlite.js'
+import { addKryons, addXp, isRegistered, checkCooldown, setCooldown, getInventory, removeItem } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { formatCooldown } from '../utils/helpers.js'
 
-const COOLDOWN = 10 * 60 // 10 minutos
+const COOLDOWN = 10 * 60 // 5 segundos para pruebas
 
 export default {
   command:     ['minar', 'mine', 'minero'],
@@ -34,43 +34,79 @@ export default {
       }, { quoted: msg })
     }
 
-    const ganancia = Math.floor(Math.random() * 250) + 80
+    const baseGanancia = Math.floor(Math.random() * 300) + 300
+    let gananciaFinal = baseGanancia
     const xp = Math.floor(Math.random() * 15) + 8
 
-    addKryons(selfNum, ganancia)
+    const inventario = getInventory(selfNum) || []
+    // Buscamos si el usuario tiene picos disponibles en su inventario
+    const itemPico = inventario.find(i => i.item === 'pico' && i.cantidad > 0)
+    const tienePico = !!itemPico
+
+    if (tienePico) {
+      gananciaFinal = Math.floor(baseGanancia * 8.0)
+      // Restamos 1 de la cantidad (que representa un uso consumido)
+      removeItem(selfNum, 'pico', 1)
+    }
+
+    addKryons(selfNum, gananciaFinal)
     addXp(selfNum, xp)
     setCooldown(selfNum, 'minar')
 
-    // Reacciones aleatorias de minería
     const reacciones = ['⛏️', '💎', '🪨', '✨', '🍀', '🌿']
     const react = reacciones[Math.floor(Math.random() * reacciones.length)]
 
     const frases = [
-      `⛏️ Picaste piedra hasta el cansancio y hallaste *${ganancia.toLocaleString()}* kryons.`,
-      `💎 En lo profundo de la cueva, encontraste un cristal valioso que vendiste por *${ganancia.toLocaleString()}* kryons.`,
-      `🪨 Entre el polvo y la tierra, lograste extraer *${ganancia.toLocaleString()}* kryons.`,
-      `✨ Brillaba en la oscuridad: era un depósito de *${ganancia.toLocaleString()}* kryons esperándote.`,
-      `🍀 Tuviste suerte hoy; al primer golpe de pico, salieron *${ganancia.toLocaleString()}* kryons.`,
-      `🌿 El bosque de Midori ocultaba esta mina secreta con *${ganancia.toLocaleString()}* kryons para ti.`,
-      `⚙️ Tu pico está desgastado, pero valió la pena por estos *${ganancia.toLocaleString()}* kryons.`,
-      `🔨 Golpe a golpe, el muro cedió y te recompensó con *${ganancia.toLocaleString()}* kryons.`,
-      `🏮 Iluminaste un pasadizo olvidado y recuperaste *${ganancia.toLocaleString()}* kryons.`,
-      `🌑 El trabajo nocturno en la mina rindió frutos: *${ganancia.toLocaleString()}* kryons adicionales.`,
-      `🧪 Mezclaste los minerales encontrados y obtuviste un valor total de *${ganancia.toLocaleString()}* kryons.`,
-      `🎒 Llenaste tu mochila de escombros, pero también de *${ganancia.toLocaleString()}* kryons.`,
-      `🦅 Un águila soltó una gema sobre la entrada, la vendiste por *${ganancia.toLocaleString()}* kryons.`,
-      `💧 Encontraste una veta subterránea que contenía *${ganancia.toLocaleString()}* kryons.`,
-      `🧤 Tus manos están sucias, pero tu cuenta bancaria es más feliz con *${ganancia.toLocaleString()}* kryons.`,
-      `🧱 Has removido bloques pesados y has sido recompensado con *${ganancia.toLocaleString()}* kryons.`,
-      `📈 La demanda de minerales subió y vendiste tus hallazgos por *${ganancia.toLocaleString()}* kryons.`,
-      `🍄 Encontraste hongos exóticos junto a los minerales y los vendiste junto a *${ganancia.toLocaleString()}* kryons.`,
-      `🗝️ Usaste una llave vieja en un cofre minero y encontraste *${ganancia.toLocaleString()}* kryons.`,
-      `🔥 El calor de la mina es intenso, pero el botín de *${ganancia.toLocaleString()}* kryons refresca tu espíritu.`
+      `⛏️ Picaste piedra hasta el cansancio en las profundidades de la cueva.`,
+      `💎 En lo profundo de la montaña, encontraste un cristal sumamente valioso.`,
+      `🪨 Entre el polvo y la tierra pesada, lograste extraer material valioso.`,
+      `✨ Brillaba intensamente en la oscuridad: era un depósito olvidado esperándote.`,
+      `🍀 Tuviste muchísima suerte hoy; al primer golpe de tu herramienta, cedió la roca.`,
+      `🌿 El espeso bosque de Midori ocultaba esta mina secreta lista para ser explotada.`,
+      `⚙️ Aunque tus herramientas están desgastadas, valió totalmente la pena el esfuerzo.`,
+      `🔨 Golpe a golpe, el muro de piedra cedió por completo y te recompensó.`,
+      `🏮 Iluminaste un pasadizo antiguo y recuperaste restos de una civilización rica.`,
+      `🌑 El pesado trabajo nocturno en los túneles subterráneos rindió sus frutos.`,
+      `🧪 Mezclaste de forma inteligente los minerales encontrados para aumentar su valor.`,
+      `🎒 Llenaste por completo tu mochila de expedición con rocas brillantes.`,
+      `🦅 Un águila soltó una gema extraña sobre la entrada de la cueva justo a tu llegada.`,
+      `💧 Encontraste una hermosa veta subterránea que filtraba minerales puros.`,
+      `🧤 Tus manos están sucias, pero tu cuenta bancaria es más feliz con *${gananciaFinal.toLocaleString()}* kryons.`,
+      `🧱 Has removido bloques pesados y peligrosos abriendo un nuevo camino.`,
+      `📈 La demanda global de metales subió justo cuando vendiste tus hallazgos.`,
+      `🍄 Encontraste hongos exóticos sumamente caros junto a las vetas principales.`,
+      `🗝️ Usaste una llave oxidada en un viejo cofre minero enterrado en la pared.`,
+      `🔥 El calor de la mina es intenso, pero el botín refresca por completo tu espíritu.`
     ]
 
     const fraseElegida = frases[Math.floor(Math.random() * frases.length)]
 
+    let txt = `⛏️ ${fraseElegida}\n\n`
+    txt += `> ✦ *Minerales base:* ${baseGanancia.toLocaleString()} kryons\n`
+    
+    if (tienePico) {
+      // Como ya restamos 1 arriba, itemPico.cantidad - 1 nos dice con exactitud cuántos usos netos le quedan
+      const usosRestantes = itemPico.cantidad - 1
+      if (usosRestantes > 0) {
+        txt += `> ✦ *Multiplicador:* x8.0 (Pico Premium ⛏️ - ${usosRestantes} usos disponibles)\n`
+      } else {
+        txt += `> ✦ *Multiplicador:* x8.0 (Pico Premium ⛏️)\n`
+      }
+    } else {
+      txt += `> ✦ *Multiplicador:* x1.0 (Ninguno)\n`
+    }
+    
+    txt += `> ✦ *Ganancia Total:* *${gananciaFinal.toLocaleString()}* kryons\n`
+    txt += `> ✦ *Experiencia:* +${xp} XP\n\n`
+
+    // Alerta dramática si se quedó en 0 absoluto
+    if (tienePico && itemPico.cantidad - 1 === 0) {
+      txt += `⚠️ *¡Tus picos premium se han roto por completo!* Ya no te quedan usos acumulados. Visita la *.tienda*.\n\n`
+    }
+
+    txt += `🌸 _¡Sigue explotando los recursos de Midori!_`
+
     await sock.sendMessage(from, { react: { text: react, key: msg.key } })
-    await sock.sendMessage(from, { text: `> ${fraseElegida}\n\n> 📈 *Ganaste ${xp} XP.*` }, { quoted: msg })
+    await sock.sendMessage(from, { text: txt }, { quoted: msg })
   }
 }

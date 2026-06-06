@@ -295,7 +295,7 @@ const _addKryons    = db.prepare(`UPDATE economy SET kryons = kryons + ? WHERE u
 const _removeKryons = db.prepare(`UPDATE economy SET kryons = MAX(0, kryons - ?) WHERE user_num = ?`)
 const _setBanco     = db.prepare(`UPDATE economy SET banco = banco + ? WHERE user_num = ?`)
 const _removeBanco  = db.prepare(`UPDATE economy SET banco = MAX(0, banco - ?) WHERE user_num = ?`)
-const _addXp        = db.prepare(`UPDATE economy SET xp = xp + ?, nivel = MAX(nivel, (xp + ?) / 100 + 1) WHERE user_num = ?`)
+const _addXp        = db.prepare(`UPDATE economy SET xp = xp + ?, nivel = MAX(nivel, (xp + ?) / 120 + 1) WHERE user_num = ?`)
 const _getTopEco    = db.prepare(`SELECT user_num, kryons + banco as total FROM economy ORDER BY total DESC LIMIT ?`)
 
 export function getEconomy(userNum)        { _initEconomy.run(userNum); return _getEconomy.get(userNum) }
@@ -326,13 +326,13 @@ export function setCooldown(userNum, cmd) {
 
 // ─── Inventario ───────────────────────────────────────────────────────────────
 
-const _addItem    = db.prepare(`INSERT INTO inventory (user_num, item, cantidad) VALUES (?,?,1) ON CONFLICT(user_num,item) DO UPDATE SET cantidad = cantidad + 1`)
+const _addItem    = db.prepare(`INSERT INTO inventory (user_num, item, cantidad) VALUES (?,?,?) ON CONFLICT(user_num,item) DO UPDATE SET cantidad = cantidad + ?`)
 const _getInv     = db.prepare(`SELECT item, cantidad FROM inventory WHERE user_num = ? ORDER BY item`)
-const _removeItem = db.prepare(`UPDATE inventory SET cantidad = MAX(0, cantidad - 1) WHERE user_num = ? AND item = ?`)
+const _removeItem = db.prepare(`UPDATE inventory SET cantidad = MAX(0, cantidad - ?) WHERE user_num = ? AND item = ?`)
 
-export function addItem(userNum, item)    { _addItem.run(userNum, item) }
-export function getInventory(userNum)     { return _getInv.all(userNum) }
-export function removeItem(userNum, item) { _removeItem.run(userNum, item) }
+export function addItem(userNum, item, cantidad = 1)    { _addItem.run(userNum, item, cantidad, cantidad) }
+export function getInventory(userNum)                     { return _getInv.all(userNum) }
+export function removeItem(userNum, item, cantidad = 1) { _removeItem.run(cantidad, userNum, item) }
 
 // ─── Tienda ───────────────────────────────────────────────────────────────────
 
@@ -343,12 +343,15 @@ export function getTienda()      { return _getTienda.all() }
 export function getItemTienda(i) { return _getItem.get(i) }
 
 const tiendaCount = db.prepare(`SELECT COUNT(*) as n FROM tienda`).get()
-if (tiendaCount.n === 0) {
+if (tiendaCount.n === 0 || tiendaCount.n > 0) {
+  // Limpiamos los registros antiguos para forzar la actualización de precios
+  db.prepare(`DELETE FROM tienda`).run()
+
   const ins = db.prepare(`INSERT OR IGNORE INTO tienda (item, precio, descripcion, emoji) VALUES (?,?,?,?)`)
-  ins.run('escudo',  500, 'Te protege de robos por 24h',         '🛡')
-  ins.run('pico',    300, 'Aumenta ganancias al minar x1.5',     '⛏')
-  ins.run('maletín', 400, 'Aumenta ganancias al trabajar x1.5',  '💼')
-  ins.run('capa',    600, 'Reduce pérdidas en crímenes fallidos', '🧥')
+  ins.run('escudo',  12000, 'Protección absoluta de tu banco y cartera contra robos por 24h', '🛡️')
+  ins.run('pico',    8000, 'Multiplica tus ganancias x3.5 al usar el comando minar', '⛏️')
+  ins.run('maletín', 6000, 'Aumenta tus ganancias x2.5 en todos tus trabajos diarios', '💼')
+  ins.run('capa',    15000, 'Invisibilidad total: Evita perder kryons si fallas un crimen', '🧥')
 }
 
 // ─── Subbots ──────────────────────────────────────────────────────────────────

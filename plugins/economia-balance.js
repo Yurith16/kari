@@ -10,7 +10,7 @@ export default {
   owner: false,
   group: false,
   nsfw: false,
-  descripcion: 'Muestra tus estadísticas financieras y mochila con interfaz visual',
+  descripcion: 'Mina para conseguir kryons y experiencia',
 
   async execute(sock, msg, { from, sender, isGroup, groupCfg }) {
     if (isGroup && groupCfg?.economia === 0) {
@@ -56,7 +56,15 @@ export default {
       itemsValidos.forEach(({ item, cantidad }) => {
         const emoji = emojiItem[item] || '📦'
         const itemFormateado = item.charAt(0).toUpperCase() + item.slice(1)
-        txt += `> │ 🟢 ${emoji} *${itemFormateado}:* x${cantidad}\n`
+        
+        // Si el objeto actual es el pico, desglosamos picos y usos netos
+        if (item === 'pico') {
+          const picosEnteros = Math.ceil(cantidad / 3)
+          txt += `> │ 🟢 ${emoji} *${itemFormateado}:* x${picosEnteros} (${cantidad} usos restantes)\n`
+        } else {
+          // Los demás artículos se muestran normales con su cantidad intacta
+          txt += `> │ 🟢 ${emoji} *${itemFormateado}:* x${cantidad}\n`
+        }
       })
     }
 
