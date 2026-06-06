@@ -11,16 +11,26 @@ export default {
   descripcion: 'Envía un gif de besos',
 
   async execute(sock, msg, { from }) {
+    console.log('[BESAR] Iniciando comando')
     await sock.sendMessage(from, { react: { text: '💋', key: msg.key } })
 
     try {
       const apiUrl = `https://api.delirius.store/reactions/kiss`
-      const { data: res } = await axios.get(apiUrl)
+      console.log('[BESAR] Solicitando a la API:', apiUrl)
+      
+      const { data: res } = await axios.get(apiUrl, { timeout: 15000 })
+      console.log('[BESAR] Respuesta API:', JSON.stringify(res, null, 2))
 
-      if (!res.status || !res.data) throw new Error()
+      if (!res.status || !res.data) {
+        console.log('[BESAR] API no devolvió status o data válida')
+        throw new Error()
+      }
+
+      console.log('[BESAR] URL del video:', res.data.url)
 
       const selfJid = await getRealJid(sock, msg.key.participant || msg.key.remoteJid, msg)
       const selfTag = selfJid.split('@')[0]
+      console.log('[BESAR] Usuario:', selfTag)
       
       const mentions = [selfJid]
       let victimas = []
@@ -32,10 +42,15 @@ export default {
       const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
       const textMentions = fullText.match(/@(\d+)/g) || []
       
+      console.log('[BESAR] quotedParticipant:', quotedParticipant)
+      console.log('[BESAR] mentionedJids:', mentionedJids)
+      console.log('[BESAR] textMentions:', textMentions)
+      
       if (quotedParticipant) {
         const victimJid = await getRealJid(sock, quotedParticipant, msg)
         victimas.push(victimJid)
         mentions.push(victimJid)
+        console.log('[BESAR] Víctima por respuesta:', victimJid)
       }
       
       for (const jid of mentionedJids) {
@@ -44,6 +59,7 @@ export default {
         if (!victimas.some(v => v === victimJid)) {
           victimas.push(victimJid)
           mentions.push(victimJid)
+          console.log('[BESAR] Víctima por mención:', victimJid)
         }
       }
       
@@ -54,6 +70,7 @@ export default {
         if (!victimas.some(v => v === victimJid)) {
           victimas.push(victimJid)
           mentions.push(victimJid)
+          console.log('[BESAR] Víctima por texto:', victimJid)
         }
       }
 
@@ -78,14 +95,25 @@ export default {
         txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
       }
 
+      console.log('[BESAR] Mensaje final:', txt)
+      console.log('[BESAR] Menciones:', mentions)
+      console.log('[BESAR] Enviando video...')
+
       await sock.sendMessage(from, {
         video: { url: res.data.url },
         caption: txt,
         gifPlayback: true,
         mentions: mentions
       }, { quoted: msg })
+      
+      console.log('[BESAR] Comando completado exitosamente')
 
-    } catch {
+    } catch (error) {
+      console.error('[BESAR] Error:', error.message)
+      if (error.response) {
+        console.error('[BESAR] Status:', error.response.status)
+        console.error('[BESAR] Data:', error.response.data)
+      }
       await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
     }
   }

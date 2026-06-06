@@ -5,6 +5,8 @@ import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { toBold } from '../utils/helpers.js'
 import { resolveTarget } from '../utils/target.js'
 
+const PERFIL_DEFAULT_IMG = 'https://www.image2url.com/r2/default/images/1780714746057-12c23aaf-4846-4012-b243-4d4f3bb09b4e.png'
+
 function formatDate(timestamp) {
   if (!timestamp || timestamp === 0) return null
   const date = new Date(timestamp * 1000)
@@ -103,43 +105,32 @@ export default {
     txt += `> ╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
 
     const mentions = target?.num ? [`${target.num}@s.whatsapp.net`] : []
-    const tipoFoto = esFotoValida(perfil.foto)
+
+    // Foto personalizada o imagen por defecto del perfil
+    const fotoFinal = esFotoValida(perfil.foto) ? perfil.foto : PERFIL_DEFAULT_IMG
+    const tipoFoto  = esFotoValida(fotoFinal)
 
     if (tipoFoto) {
-  try {
-    const imgBuffer = tipoFoto === 'url'
-      ? Buffer.from((await axios.get(perfil.foto, { responseType: 'arraybuffer', timeout: 15000 })).data)
-      : fs.readFileSync(perfil.foto)
+      try {
+        const imgBuffer = tipoFoto === 'url'
+          ? Buffer.from((await axios.get(fotoFinal, { responseType: 'arraybuffer', timeout: 15000 })).data)
+          : fs.readFileSync(fotoFinal)
 
-    const fotoPath = perfil.foto || ''
-    const esVideo = fotoPath.endsWith('.mp4')
-    const esGif   = fotoPath.endsWith('.gif') || fotoPath.endsWith('.webp')
+        const esVideo = fotoFinal.endsWith('.mp4')
+        const esGif   = fotoFinal.endsWith('.gif') || fotoFinal.endsWith('.webp')
 
-    if (esVideo) {
-      await sock.sendMessage(from, {
-        video: imgBuffer,
-        caption: txt,
-        mentions
-      }, { quoted: msg })
-    } else if (esGif) {
-      await sock.sendMessage(from, {
-        video: imgBuffer,
-        gifPlayback: true,
-        caption: txt,
-        mentions
-      }, { quoted: msg })
+        if (esVideo) {
+          await sock.sendMessage(from, { video: imgBuffer, caption: txt, mentions }, { quoted: msg })
+        } else if (esGif) {
+          await sock.sendMessage(from, { video: imgBuffer, gifPlayback: true, caption: txt, mentions }, { quoted: msg })
+        } else {
+          await sock.sendMessage(from, { image: imgBuffer, caption: txt, mentions }, { quoted: msg })
+        }
+      } catch {
+        await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
+      }
     } else {
-      await sock.sendMessage(from, {
-        image: imgBuffer,
-        caption: txt,
-        mentions
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
     }
-  } catch {
-    await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
-  }
-} else {
-  await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
-}
   }
 }

@@ -1,7 +1,6 @@
 // plugins/top.js
-
 import axios from 'axios'
-import { getTopEconomy, getUser } from '../core/sqlite.js'
+import { getTopEconomy, getUser, getEconomy } from '../core/sqlite.js'
 import { toBold } from '../utils/helpers.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
@@ -31,29 +30,30 @@ export default {
 
     await sock.sendMessage(from, { react: { text: '🏆', key: msg.key } })
 
-    // Título con separación
-    let txt = `> ╭─〔 🏆 *TOP 15 MÁS RICOS* 〕\n> │\n`
+    let txt = `╭─〔 🏆 *TOP 15 MÁS RICOS* 〕─╮\n\n`
     
     top15.forEach(({ user_num, total }, i) => {
       const perfil = getUser(user_num)
-      const nombre = perfil?.apodo || perfil?.nombre || user_num
-      const nivel = perfil?.level || 1 // Asumiendo que existe el campo level
-      const medalla = i < 3 ? ['🥇', '🥈', '🥉'][i] : `*${i + 1}.*`
+      const eco = getEconomy(user_num)
       
-      // Estilo de lista con espaciado
-      txt += `> ${medalla} *${nombre}*\n`
-      txt += `> ↳ _Nivel ${nivel} • ${total.toLocaleString()} kryons_\n`
-      txt += `> \n` // Espacio pequeño entre usuarios
+      const nombre = perfil?.apodo || perfil?.nombre || user_num
+      const nivel = eco?.nivel || 1
+      const medalla = i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}.`
+      
+      // Desglose de datos en renglones hacia abajo como lo pediste
+      txt += `> ✦ *Puesto:* ${medalla}\n`
+      txt += `> ✦ *Usuario:* *${nombre}*\n`
+      txt += `> ✦ *Nivel:* ${nivel}\n`
+      txt += `> ✦ *Fortuna:* ${total.toLocaleString()} kryons\n\n`
     })
 
-    // Separación antes del pie de página
-    txt += `> ──────────────\n`
+    txt += `───────────────────\n`
     
     if (posicionUsuario > 0) {
-      txt += `> 📍 *Tu posición actual:* #${posicionUsuario}\n`
+      txt += `📍 *Tu posición actual:* #${posicionUsuario}\n`
     }
 
-    txt += `> ╰─── ${toBold(global.bot?.name || 'Bot')} 🌿`
+    txt += `🌿 ${toBold(global.bot?.name || 'Bot')}`
 
     const urlImagen = 'https://www.image2url.com/r2/default/images/1780188047912-ed5733cb-bc43-43d0-8a85-109dfb1c8c8a.jpg'
 
