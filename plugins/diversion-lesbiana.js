@@ -1,5 +1,4 @@
 // plugins/lesbiana.js
-
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { getRealJid } from '../utils/jid.js'
@@ -11,7 +10,7 @@ export default {
   owner:     false,
   group:     false,
   nsfw:      false,
-  descripcion: 'Envía un gif lésbico',
+  descripcion: 'Envía un gif lesbico',
 
   async execute(sock, msg, { from }) {
     await sock.sendMessage(from, { react: { text: '👩‍❤️‍💋‍👩', key: msg.key } })
@@ -21,7 +20,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -31,49 +30,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `👩‍❤️‍💋‍👩 @${selfTag} dice que @${victimTag} es bien lesbiana... ¡y qué! 💅`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `👩‍❤️‍💋‍👩 @${selfTag} dice que @${victim1Tag} y @${victim2Tag} son bien lesbianas... ¡y qué! 💅`
-      }
-      else {
-        const frasesRandom = [
-          `👩‍❤️‍💋‍👩 @${selfTag} aceptó que le gustan las tortillas, ¡bien por ti!`,
-          `💅 @${selfTag} salió del clóset bailando, ¡así se hace!`,
-          `✨ @${selfTag} dice que tortilla donde sea, ¡date cuenta!`,
-          `🍎 @${selfTag} se declaró fan de la manzana, ¡qué viva el amor!`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `👩‍❤️‍💋‍👩 Con el orgullo temblando y los celos a flor de piel, @${selfTag} encaró a @${victimTag} delatando sus verdaderas pasiones. Un secreto compartido que quema en el chat. 💅`,
+          `🔥 La complicidad estalló: @${selfTag} expuso los deseos ocultos de @${victimTag}... Un reclamo pasional que busca romper el hielo y desafiar la distancia que las separa.`,
+          `✨ @${selfTag} dejó en evidencia las miradas prohibidas de @${victimTag}. Una provocación directa nacida del ego herido ante los ojos curiosos de todo el grupo.`,
+          `🎭 Ocultando el drama detrás de una frase audaz, @${selfTag} sacudió la tranquilidad de @${victimTag}. Palabras cruzadas que delatan una intensa y confusa conexión.`,
+          `📜 Se rompió la tregua en la pantalla: @${selfTag} expuso las indirectas de @${victimTag}, cobrando una vieja deuda de atención con una pizca de malicia.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `👩‍❤️‍💋‍👩 @${selfTag} mandó al diablo las apariencias y aceptó su esencia más libre... Un grito silencioso buscando capturar la atención de un corazón indomable.`,
+          `💅 @${selfTag} asumió su faceta más indomable y orgullosa hoy. Una coraza perfecta para camuflar la nostalgia de un chat vacío y frío.`,
+          `👑 @${selfTag} se declaró fan de su propia libertad en solitario, demostrando que su amor propio brilla con luz propia frente al desdén ajeno.`,
+          `🍎 @${selfTag} prefiere presumir sus gustos sin filtros antes que admitir que extraña los mimos de esa persona que prefiere ignorarle en la pantalla.`,
+          `🩹 @${selfTag} levantó sus defensas con cinismo puro. Un alma rebelde que camina sola, ocultando un drama pasional que nadie más comprende.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       const gifPath = join(process.cwd(), 'media', 'lesbiana.mp4')

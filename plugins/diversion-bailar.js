@@ -1,5 +1,4 @@
 // plugins/bailar.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `💃 ¡Qué ritmo! @${selfTag} y @${victimTag} están bailando juntos, brillan en la pista. ✨`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `💃 ¡Fiesta! @${selfTag}, @${victim1Tag} y @${victim2Tag} están bailando como si nadie los viera. ✨`
-      }
-      else {
-        const frasesRandom = [
-          `🕺 ¡Suelten la música! @${selfTag} se puso a bailar porque la vida es bonita.`,
-          `💃 @${selfTag} tiene los mejores pasos, miren cómo se mueve.`,
-          `✨ @${selfTag} está celebrando solito, no necesita a nadie para brillar.`,
-          `🔥 @${selfTag} sacó los pasos prohibidos, cuidado que quema el suelo.`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `💃 ¡Qué ritmo! @${selfTag} sacó a bailar a @${victimTag}... Sus pasos se coordinan tan bien que por un momento logran olvidar la tensión y los celos que ocultan. ✨`,
+          `🔥 @${selfTag} y @${victimTag} dominan la pista de baile. Una conexión tan intensa que despierta miradas secretas y murmullos en todo el grupo.`,
+          `✨ @${selfTag} comparte un baile suave con @${victimTag}... Dejándose llevar por la música para romper el hielo y ese orgullo que a veces los mantiene distantes.`,
+          `💞 @${selfTag} gira en la pista sosteniendo a @${victimTag}. Un vaivén perfecto que intenta revivir viejos sentimientos que se resisten a apagarse.`,
+          `🎵 En medio de las luces, @${selfTag} guía a @${victimTag} en un baile cerrado. Una tregua romántica perfecta donde las palabras ya no hacen falta.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `🕺 ¡Suelten la música! @${selfTag} se puso a bailar con toda la actitud... Intentando ahogar las penas de un amor que no sabe corresponderle.`,
+          `💃 @${selfTag} sacó los pasos prohibidos en solitario. Demostrando que tiene el control y que no necesita la atención de nadie más para brillar.`,
+          `✨ @${selfTag} está celebrando en medio de la pista solo. Su orgullo brilla tanto como sus movimientos, aunque su mirada busque discretamente a alguien.`,
+          `💔 @${selfTag} baila con su propia sombra. La música suena fuerte, pero el vacío que dejó esa persona especial en el chat se nota en cada paso.`,
+          `🎵 @${selfTag} se deja llevar por el ritmo a solas. Un refugio perfecto para despejar la mente y sanar un corazón indomable.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

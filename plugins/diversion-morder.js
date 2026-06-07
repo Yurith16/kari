@@ -1,5 +1,4 @@
 // plugins/morder.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `🦷 ¡Ouch! @${selfTag} mordió a @${victimTag}... ¿fue con cariño o con hambre?`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `🦷 ¡Doble mordisco! @${selfTag} mordió a @${victim1Tag} y @${victim2Tag}... ¡hoy come bien!`
-      }
-      else {
-        const frasesRandom = [
-          `🦷 @${selfTag} se mordió solito... ¿todo bien en casa?`,
-          `🤕 @${selfTag} se dio un mordisco a sí mismo, eso dolió.`,
-          `😬 @${selfTag} probó su propio brazo, ¿estaba bueno?`,
-          `🫦 @${selfTag} anda con ganas de morder pero no encontró a nadie.`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `🦷 *¡Ouch!* @${selfTag} le plantó un fuerte mordisco a @${victimTag}... Una marca posesiva nacida del orgullo herido y de unos celos imposibles de contener en el chat. 🫦`,
+          `🔥 Un ataque directo: @${selfTag} mordió a @${victimTag} rompiendo la calma. Un impulso salvaje cargado de reclamos guardados y de una complicidad herida.`,
+          `💔 @${selfTag} descargó su frustración con una mordida hacia @${victimTag}. El límite se cruzó de nuevo y el drama pasional estalló ante la mirada oculta de todos.`,
+          `🎭 @${selfTag} dejó su huella en @${victimTag}. Una mezcla peligrosa de rabia y deseo, rebelándose contra la insoportable indiferencia de esa persona especial.`,
+          `📜 Sin pedir permiso, @${selfTag} atacó a @${victimTag}. Un recordatorio doloroso de que las tensiones entre los dos están muy lejos de enfriarse.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `🦷 @${selfTag} se mordió los labios en solitario... Intentando ahogar los impulsos de reclamar la atención de un corazón indomable que prefiere ignorarle.`,
+          `🤕 @${selfTag} se dio un mordisco a sí mismo de pura frustración. Un frío cable a tierra al notar el silencio eterno de su pantalla vacía.`,
+          `😬 @${selfTag} probó su propio orgullo y le supo amargo. Una coraza cínica para ocultar cuánto le duele sentirse distante en el chat.`,
+          `🫦 @${selfTag} anda con ganas de morder pero se quedó a solas con su drama, dándose cuenta de que la nostalgia es su única compañía esta noche.`,
+          `🩹 @${selfTag} apretó los dientes ante la indiferencia ajena. Un alma rebelde arrepentida de haber bajado la guardia por quien no sabe corresponderle.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

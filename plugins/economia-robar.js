@@ -61,7 +61,8 @@ export default {
 
     setCooldown(selfNum, 'robar')
 
-    const exito = Math.random() < 0.40
+    // Modificado a 65% de probabilidad de éxito
+    const exito = Math.random() < 0.65
     const perfil = getUser(targetNum)
     const nombre = perfil.apodo || perfil.nombre
 
@@ -121,7 +122,7 @@ export default {
         `🎥 Una cámara de seguridad te capturó robando a *${nombre}*. Multa: *${multa.toLocaleString()}* kryons.`,
         `🩹 En el forcejeo con *${nombre}* te lesionaste y perdiste *${multa.toLocaleString()}* kryons en curación.`,
         `🕸️ Te quedaste enredado en sus trampas. Perdiste *${multa.toLocaleString()}* kryons tratando de librarte.`,
-        `🔥 El explosivo falló y quemaste tus reservas: *${multa.toLocaleString()}* kryons perdidos.`,
+        `🔥 El explosivo falló y quemaste tus reservas: *${multa.toLocaleString()}* kryons lost.`,
         `🚁 Intentaste escapar por aire pero te interceptaron. Perdiste *${multa.toLocaleString()}* kryons por el atraco fallido.`,
         `🎭 Tu máscara se cayó frente a *${nombre}*. Perdiste *${multa.toLocaleString()}* kryons en silencio.`,
         `😭 *${nombre}* lloró tanto que te dio lástima y le pagaste *${multa.toLocaleString()}* kryons por el mal trago.`,

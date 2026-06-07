@@ -1,5 +1,4 @@
 // plugins/sonrojar.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `😳 @${selfTag} se sonrojó por culpa de @${victimTag}... ¡hay amor en el grupo! 💖`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `😳 @${selfTag} se sonrojó por culpa de @${victim1Tag} y @${victim2Tag}... ¡doble sonrojo! 💖`
-      }
-      else {
-        const frasesRandom = [
-          `🍅 @${selfTag} se puso rojo como un tomate sin razón.`,
-          `😳 @${selfTag} anda tímido hoy, ¿quién le dijo algo lindo?`,
-          `🤫 @${selfTag} se sonrojó solito... tiene un secreto.`,
-          `🌸 @${selfTag} está sintiendo mucha penita ahora mismo.`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `😳 @${selfTag} se sonrojó por culpa de @${victimTag}... Un color carmín que delata unos celos silenciosos y un afecto que el orgullo ya no puede seguir ocultando. 💖`,
+          `🔥 Las defensas cayeron: las palabras de @${victimTag} hicieron que @${selfTag} se pusiera completamente rojo. Un instante de drama pasional que expone su vieja complicidad ante el grupo.`,
+          `✨ @${selfTag} sintió una timidez profunda bajo la mirada de @${victimTag}. Delatando con su sonrojo cuánto le quema la atención de esa persona especial.`,
+          `🎭 Intentando fingir desinterés, @${selfTag} no pudo evitar sonrojarse ante @${victimTag}. Una dulce traición de su propio cuerpo que aviva las dudas del chat.`,
+          `📜 Con el ego temblando, @${selfTag} se puso rojito al notar que @${victimTag} rompía la distancia. Una conexión indomable que se niega a morir.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `🍅 @${selfTag} se puso rojo como un tomate a solas frente a la pantalla... Recordando un viejo mensaje nostálgico de un corazón distante que prefiere ignorarle.`,
+          `😳 @${selfTag} anda con mucha penita en el chat hoy. Una coraza tímida para ocultar el drama pasional de sentirse completamente solo en el grupo.`,
+          `🤫 @${selfTag} se sonrojó solito porque guarda un secreto. Un alma indomable que prefiere callar antes que admitir que extraña unos mimos del pasado.`,
+          `🌸 @${selfTag} sintió un repentino calor de timidez en la soledad de su pantalla vacía, arrepentido de haber bajado la guardia por quien no sabe corresponderle.`,
+          `🩹 El orgullo herido y las mejillas rojas: @${selfTag} sonríe con timidez cínica, disimulando una dolorosa falta de atención con un silencio absoluto.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

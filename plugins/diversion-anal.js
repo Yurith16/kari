@@ -12,7 +12,6 @@ export default {
   descripcion: 'Reacción NSFW intensa',
 
   async execute(sock, msg, { from, groupCfg }) {
-    // Verificación de configuración del grupo
     if (!groupCfg?.nsfw) {
       await sock.sendMessage(from, { text: '⚠️ Este grupo no tiene activado el contenido NSFW.' }, { quoted: msg })
       return
@@ -30,7 +29,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -40,55 +39,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        const frases1 = [
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
           `🔞 @${selfTag} agarró a @${victimTag} y le dio como si no hubiera un mañana. ¡Pobre @${victimTag}, no va a poder ni sentarse!`,
-          `😈 @${selfTag} se puso modo animal con @${victimTag}. ¡Se lo/la está estirando hasta el alma!`,
-          `💦 @${selfTag} tiene a @${victimTag} rogando piedad... ¡qué salvajada se están dando!`,
-          `🔥 @${selfTag} no tiene piedad, está dejando a @${victimTag} viendo estrellas.`
+          `😈 @${selfTag} se puso modo animal con @${victimTag}. ¡Se lo/la está estirando hasta el alma sin piedad!`,
+          `💦 @${selfTag} tiene a @${victimTag} rogando por aire y gimiendo... ¡qué salvajada se están dando en esa cama!`,
+          `🔥 @${selfTag} no tiene compasión alguna, está dejando a @${victimTag} viendo estrellas del puro castigo.`,
+          `🍑 @${selfTag} tomó el control absoluto por completo y destrozó la retaguardia de @${victimTag} en un segundo.`
         ]
-        txt = frases1[Math.floor(Math.random() * frases1.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
       } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `🔥 @${selfTag} está haciendo un banquete con @${victim1Tag} y @${victim2Tag}. ¡Esto es una orgía de descontrol total, los está dejando secos! 🔞`
-      }
       else {
-        const frasesRandom = [
-          `🔞 @${selfTag} anda con una calentura que no se la quita nadie, ¡se va a romper a sí mismo/a!`,
-          `😈 @${selfTag} busca quién se atreva a aguantar semejante tamaño. ¿Quién se apunta al castigo?`,
-          `🥵 @${selfTag} está en su modo más cochino, ¡va a dejar la cama hecha trizas!`,
-          `💦 @${selfTag} se está dando un banquete solo/a, ¡esto es puro vicio y degeneración!`
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `🔞 @${selfTag} anda con una calentura desatada que nadie le quita, ¡se va a romper a sí mismo/a del vicio!`,
+          `😈 @${selfTag} busca urgentemente quién se atreva a aguantar semejante castigo. ¿Quién se apunta a la perversión?`,
+          `🥵 @${selfTag} está en su modo más cochino e insaciable, ¡va a dejar las sábanas hechas un desastre total!`,
+          `💦 @${selfTag} se está dando un banquete a solas, ¡esto es puro exhibicionismo, degeneración y descontrol!`,
+          `💥 @${selfTag} no encuentra con quién desquitarse y la lujuria lo está volviendo loco frente a la pantalla.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

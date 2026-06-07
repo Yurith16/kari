@@ -1,3 +1,4 @@
+// plugins/besar.js
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -33,7 +34,7 @@ export default {
       console.log('[BESAR] Usuario:', selfTag)
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -47,52 +48,49 @@ export default {
       console.log('[BESAR] textMentions:', textMentions)
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-        console.log('[BESAR] Víctima por respuesta:', victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-          console.log('[BESAR] Víctima por mención:', victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-          console.log('[BESAR] Víctima por texto:', victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+        console.log('[BESAR] Víctima por respuesta:', victima)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+        console.log('[BESAR] Víctima por mención:', victima)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
+        console.log('[BESAR] Víctima por texto:', victima)
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `💋 ¡El amor está en el aire! @${selfTag} le dio un beso a @${victimTag}... ❤️`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `💋 @${selfTag} repartió besos entre @${victim1Tag} y @${victim2Tag}. ¡Qué romántico! ❤️`
-      }
-      else {
-        const frasesRandom = [
-          `💋 @${selfTag} está lanzando besos a todo el mundo, ¡cuidado que enamora!`,
-          `✨ @${selfTag} anda cariñoso hoy, repartiendo besos por todos lados.`,
-          `🌹 @${selfTag} mandó un beso volador, ¿alguien lo atrapó?`,
-          `💖 @${selfTag} se puso romántico y soltó besos al aire.`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `💋 En un impulso que desafía todo orgullo, @${selfTag} atrapó los labios de @${victimTag} en un beso apasionado... uniendo los silencios que tanto los distancian. ❤️`,
+          `🔥 @${selfTag} le plantó un beso intenso a @${victimTag}. De esos que queman el pecho, despiertan celos en el grupo y dejan en duda si fue por juego o por amor prohibido.`,
+          `🌹 Un tierno beso de @${selfTag} para @${victimTag}... rompiendo el hielo, calmando las dudas y deteniendo el tiempo en una complicidad secreta. ✨`,
+          `💞 @${selfTag} besó dulcemente a @${victimTag}... intentando reconstruir con caricias una conexión que el chat y la distancia querían enfriar.`,
+          `🍿 @${selfTag} selló los labios de @${victimTag} con un beso robado. Un reclamo silencioso de atención que dice muchísimo más de lo que jamás se atreverán a confesar.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `💋 @${selfTag} está lanzando besos al aire con desesperación... buscando en vano calmar el vacío que dejó un corazón indomable y distante.`,
+          `✨ @${selfTag} mandó un beso volador cargado de romance, pero la persona en quien pensaba prefirió ignorar la pantalla esta noche.`,
+          `💔 @${selfTag} se quedó con los labios listos. Un beso nostálgico que muere en el chat debido al orgullo ajeno.`,
+          `💖 @${selfTag} se puso romántico en solitario... presumiendo su amor propio para no admitir que extraña los mimos que ya no le dan.`,
+          `🌹 @${selfTag} dejó un beso flotando en el grupo. Una indirecta muy directa que esconde un drama silencioso que pocos logran notar.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       console.log('[BESAR] Mensaje final:', txt)

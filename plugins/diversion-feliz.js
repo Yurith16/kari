@@ -1,5 +1,4 @@
 // plugins/feliz.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `✨ @${selfTag} está feliz junto a @${victimTag}... ¡qué bonito verlos así! 🥳`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `✨ @${selfTag} comparte su felicidad con @${victim1Tag} y @${victim2Tag}... ¡qué bonito grupo! 🥳`
-      }
-      else {
-        const frasesRandom = [
-          `🌈 @${selfTag} se siente la persona más feliz del mundo hoy.`,
-          `😁 @${selfTag} anda con una sonrisa que no le cabe en la cara.`,
-          `🎊 @${selfTag} decidió ser feliz y lo está logrando.`,
-          `☀️ @${selfTag} está irradiando pura felicidad, nada puede salir mal.`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `✨ @${selfTag} desborda felicidad al estar junto a @${victimTag}... Una alegría tan intensa que por fin logra derribar los muros del orgullo y alejar los celos. 🥳`,
+          `💖 La complicidad volvió: @${selfTag} sonríe de verdad cuando habla con @${victimTag}. Un instante perfecto donde los dramas del chat parecen quedar en el olvido.`,
+          `☀️ @${selfTag} encontró un motivo para celebrar al lado de @${victimTag}. Olvidando las dudas del pasado en un cálido abrazo digital.`,
+          `🎈 @${selfTag} comparte un momento dichoso con @${victimTag}... Presumiendo una conexión única ante las miradas indiscretas de todo el grupo.`,
+          `🎭 En medio de tantas discusiones, @${selfTag} recupera la paz y la alegría al ver que @${victimTag} por fin le presta atención.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `🌈 @${selfTag} decidió ser feliz y sonreírle a la vida hoy... Intentando convencerse de que no necesita la atención de nadie para brillar.`,
+          `😁 @${selfTag} anda con una sonrisa enorme en el chat. Una coraza de orgullo para ocultar que se cansó de esperar a quien prefiere ignorarle.`,
+          `🎊 @${selfTag} celebra en solitario con la frente en alto. Un alma indomable que festeja su libertad, aunque su mirada busque discretamente a alguien.`,
+          `☀️ @${selfTag} irradia luz propia y se declara dichoso... Un refugio perfecto para sanar un corazón que estuvo demasiado expuesto al drama.`,
+          `🩹 @${selfTag} ríe a solas frente a la pantalla vacía. Demostrando que su amor propio es mucho más fuerte que el silencio de esa persona especial.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

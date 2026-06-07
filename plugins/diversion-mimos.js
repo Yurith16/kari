@@ -1,5 +1,4 @@
 // plugins/mimo.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `☁️ @${selfTag} se puso cariñoso con @${victimTag}... ¡demasiada ternura para este grupo! 💖`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `☁️ @${selfTag} repartió mimos entre @${victim1Tag} y @${victim2Tag}... ¡lluvia de ternura! 💖`
-      }
-      else {
-        const frasesRandom = [
-          `🌸 @${selfTag} anda en modo esponjoso, ¡qué lindo!`,
-          `☁️ @${selfTag} se siente como una nube hoy, pura ternura.`,
-          `🧸 @${selfTag} está repartiendo vibras bonitas a todos.`,
-          `🍬 @${selfTag} entró en modo dulce, cuidado que se contagia.`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `☁️ @${selfTag} dejó de lado su orgullo por un segundo para llenarle el chat de mimos a @${victimTag}... Un intento desesperado por curar los celos y la distancia. 💖`,
+          `🔥 Entre tantos silencios y verdades reprimidas, @${selfTag} se puso dulce con @${victimTag}. Un abrazo digital cargado de un drama pasional indomable.`,
+          `✨ @${selfTag} buscó refugio en los brazos de @${victimTag} con timidez. Dejando expuesto ante todo el grupo lo mucho que le quema su fría indiferencia.`,
+          `🎭 Rompiendo el hielo de la peor forma, @${selfTag} le da cariño a @${victimTag}. Un destello de ternura pura que busca revivir la complicidad perdida.`,
+          `📜 @${selfTag} no pudo fingir más desinterés y se rindió ante @${victimTag}, cobrando una vieja deuda de amor con caricias que nadie más comprende.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `🌸 @${selfTag} anda en modo esponjoso en solitario... Buscando desesperadamente llamar la atención de un corazón distante que prefiere ignorarle.`,
+          `☁️ @${selfTag} se mima a sí mismo en el chat para ocultar el vacío de su pantalla. Un drama silencioso de ego herido al notar la soledad del grupo.`,
+          `🧸 @${selfTag} está repartiendo vibras bonitas al aire. Una coraza cínica para no aceptar que se muere por unos cariños que hoy no va a recibir.`,
+          `🍬 @${selfTag} entró en modo dulce consigo mismo. Sus defensas cayeron por completo al darse cuenta de que su orgullo no basta para sanar la nostalgia.`,
+          `🩹 @${selfTag} abraza la nada frente al chat vacío. Un alma lastimada que simula ternura para no estallar en reclamos ante esa persona especial.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

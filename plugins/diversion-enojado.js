@@ -1,5 +1,4 @@
 // plugins/enojado.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `😡 ¡Corran! @${selfTag} perdió la paciencia con @${victimTag}... ¡que alguien los separe! 💢`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `😡 @${selfTag} está furioso con @${victim1Tag} y @${victim2Tag}... ¡truenan los platos! 💢`
-      }
-      else {
-        const frasesRandom = [
-          `💢 @${selfTag} está que explota de rabia, mejor no digan nada.`,
-          `🤬 @${selfTag} entró en modo furia, no se le acerquen.`,
-          `😤 @${selfTag} está enojado con el mundo entero.`,
-          `💥 @${selfTag} reventó de la ira, aguas con esa persona.`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `😡 @${selfTag} perdió la paciencia por completo con @${victimTag}... Un estallido de furia nacido de verdades reprimidas y de celos que ya no se pueden ocultar. 💢`,
+          `🔥 La tensión estalló: @${selfTag} arde de rabia ante las actitudes de @${victimTag}. El orgullo dolió tanto que las palabras dulces se transformaron en reclamos.`,
+          `💥 @${selfTag} se cansó del silencio y arremetió furioso contra @${victimTag}... Destrozando la poca paciencia que quedaba entre los dos esta noche.`,
+          `🎭 @${selfTag} no pudo contener su ira frente a @${victimTag}. Un drama pasional que dejó en evidencia cuánto le afecta lo que pasa con esa persona especial.`,
+          `📜 Con el ego herido y el corazón inquieto, @${selfTag} le declaró la guerra en el chat a @${victimTag}. Una desconexión total que quema el suelo.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `💢 @${selfTag} está que explota de rabia en solitario... Intentando ahogar la frustración de esperar a quien simplemente prefiere ignorarle.`,
+          `🤬 @${selfTag} entró en modo furia frente a la pantalla vacía. Una coraza de enojo para no admitir que le duele demasiado esa maldita distancia.`,
+          `😤 @${selfTag} se enojó con el mundo entero hoy. Un alma indomable que prefiere quemar el chat antes de mostrar un segundo de debilidad.`,
+          `💥 @${selfTag} reventó de la ira al recordar que bajó la guardia por alguien frío. Su orgullo le exige bloquear los pensamientos nostálgicos.`,
+          `🩹 @${selfTag} camina furioso y a solas. Escondiendo un corazón lastimado detrás de una actitud destructiva que nadie en el grupo comprende.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

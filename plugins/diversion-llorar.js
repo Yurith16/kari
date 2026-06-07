@@ -1,5 +1,4 @@
 // plugins/llorar.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `😭 @${selfTag} está llorando por culpa de @${victimTag}... ¡qué cruel! 💔`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `😭 @${selfTag} está llorando por culpa de @${victim1Tag} y @${victim2Tag}... ¡qué maldad doble! 💔`
-      }
-      else {
-        const frasesRandom = [
-          `😭 @${selfTag} se puso a llorar sin razón, traigan pañuelos.`,
-          `💔 @${selfTag} está llorando solito, ¿quién le rompió el corazón?`,
-          `🥺 @${selfTag} entró en modo tristeza, denle un abrazo.`,
-          `💧 @${selfTag} empezó a llorar porque sí, el drama es su pasión.`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `😭 Las lágrimas vencieron al orgullo: @${selfTag} se quebró por culpa del desdén de @${victimTag}... Un llanto amargo nacido de celos silenciosos que ya no puede ocultar. 💔`,
+          `🔥 @${selfTag} no pudo contener la tristeza ante la fría actitud de @${victimTag}. Un drama pasional que estalla en reproches silenciosos y miradas vacías en el chat.`,
+          `💥 Con el ego destrozado, @${selfTag} llora amargamente por @${victimTag}. Las palabras hirientes cruzaron el límite, quebrando una vieja complicidad.`,
+          `🎭 Detrás de la máscara de indiferencia, @${selfTag} se desahoga en llanto frente a @${victimTag}... Un ruego desesperado por un poco de atención ante el grupo.`,
+          `📜 El silencio de @${victimTag} fue un golpe devastador. @${selfTag} derrama lágrimas esta noche al notar que la distancia se volvió insalvable.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `😭 @${selfTag} se hundió en un llanto silencioso frente a la pantalla vacía... Intentando asimilar el dolor de amar a un corazón indomable y distante.`,
+          `💔 El orgullo cayó por completo: @${selfTag} llora a solas en el chat. Una crisis pasional nacida de la dolorosa certeza de no ser correspondido hoy.`,
+          `🥺 @${selfTag} entró en modo tristeza profunda y se ahoga en sus propias indirectas. Un alma lastimada que extraña unos mimos que ya no llegarán.`,
+          `💧 @${selfTag} empezó a llorar con cinismo para no aceptar el vacío. El drama de la soledad le ganó la partida ante el silencio absoluto de esa persona especial.`,
+          `🩹 @${selfTag} abraza sus propios recuerdos con nostalgia. Escondiendo un corazón herido detrás de un llanto amargo que nadie en el grupo logra comprender.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

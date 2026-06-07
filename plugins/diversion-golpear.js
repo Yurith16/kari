@@ -1,5 +1,4 @@
 // plugins/golpear.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `👊 ¡Fight! @${selfTag} le metió un golpe a @${victimTag}... ¡eso tuvo que doler! 💥`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `👊 ¡Doble golpe! @${selfTag} le pegó a @${victim1Tag} y @${victim2Tag}... ¡alto ahí! 💥`
-      }
-      else {
-        const frasesRandom = [
-          `🤡 @${selfTag} se dio un golpe solito, ¿y a este qué le dio?`,
-          `💨 @${selfTag} anda tirando golpes al aire porque sí.`,
-          `🤕 @${selfTag} se metió un golpe para ver si despertaba.`,
-          `🥊 @${selfTag} quería pelear pero no encontró contrincante.`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `💥 *¡Fight!* @${selfTag} descargó toda su frustración metiéndole un fuerte golpe a @${victimTag}... Un estallido violento nacido de los celos y del orgullo herido que ya no pudo reprimir.`,
+          `🔥 Un impacto seco que dolió en el alma: @${selfTag} arremetió contra @${victimTag} en el chat. Un reclamo pasional envuelto en furia para romper una distancia insoportable.`,
+          `💔 @${selfTag} le plantó un golpe certero a @${victimTag}. Destrozando las apariencias y exponiendo las verdades amargas que ambos intentaban ocultar ante el grupo.`,
+          `🎭 @${selfTag} atacó a @${victimTag} sin piedad. Una muestra de rabia desatada para no admitir cuánto le quema la maldita indiferencia de esa persona especial.`,
+          `📜 Se quebró la tregua: @${selfTag} arrolló con un golpe a @${victimTag}. El límite se cruzó y el drama se apoderó por completo de la pantalla esta noche.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `🤡 @${selfTag} se dio un golpe solito contra la realidad... Intentando borrar de su mente el recuerdo constante de un amor indomable que prefiere ignorarle.`,
+          `💨 @${selfTag} anda tirando golpes cínicos al aire. Una coraza hostil para ocultar que se siente completamente solo y abandonado en el chat.`,
+          `🤕 @${selfTag} se metió un golpe propio para ver si despertaba del letargo, dándose cuenta de que su orgullo cayó buscando una atención que no va a recibir.`,
+          `🥊 @${selfTag} quería pelear con todas sus fuerzas pero no encontró contrincante, quedando atrapado en un drama pasional en solitario frente a la pantalla vacía.`,
+          `🩹 @${selfTag} se castigó a sí mismo con un frío golpe de realidad. Un alma lastimada que disfraza su nostalgia con una actitud destructiva.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

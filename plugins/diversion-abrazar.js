@@ -1,5 +1,4 @@
 // plugins/abrazar.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,47 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `🫂 ¡Ay, qué bonito! @${selfTag} se acurrucó con @${victimTag}... el tiempo se detuvo un ratito. ✨`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `🫂 ¡Qué bonito! @${selfTag} dio un abrazo grupal a @${victim1Tag} y @${victim2Tag}. Todos juntitos ✨`
-      }
-      else {
-        const frasesRandom = [
-          `🧸 @${selfTag} anda buscando un abracito... ¿alguien se ofrece?`,
-          `🫂 @${selfTag} se abrazó a su almohada, nadie le hace caso hoy.`,
-          `💔 @${selfTag} entró en modo cariñoso pero no encontró a nadie.`,
-          `🥺 @${selfTag} quiere un abrazo, ¿tan difícil es?`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `🫂 @${selfTag} envolvió entre sus brazos a @${victimTag}... Un refugio perfecto donde el orgullo se desarma y las palabras románticas ya no hacen falta. ✨`,
+          `🔥 @${selfTag} le dio un abrazo eterno a @${victimTag}... De esos que se sienten en el pecho y dejan la duda de si es un tierno afecto o el inicio de algo prohibido.`,
+          `🫂 ¡Qué momento! @${selfTag} se acurrucó con @${victimTag}. Un abrazo tan cálido que logró congelar el tiempo, acallando por un instante todos los celos y los miedos del pasado.`,
+          `💞 @${selfTag} abrazó con fuerza a @${victimTag}... Como queriendo unir los pedazos rotos de una historia que se resiste a morir en el olvido.`,
+          `✨ @${selfTag} buscó el calor de @${victimTag} en un abrazo... De esos que extrañas en las noches frías y que te recuerdan a quién le pertenece realmente tu atención.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        // Entra aquí si se abraza a sí mismo o si no mencionó a nadie
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `💔 @${selfTag} se abrazó a sí mismo... Hay ausencias que pesan demasiado y verdades en el alma que ni el mejor de los orgullos puede ocultar.`,
+          `🧸 @${selfTag} anda buscando un abracito desesperadamente... ¿Alguien se ofrece a calmar ese corazón indomable que se esconde detrás de la pantalla?`,
+          `🫂 @${selfTag} se quedó con los brazos abiertos en el chat. A veces, el silencio de esa persona especial duele más que un rechazo directo.`,
+          `🥺 @${selfTag} entró en modo cariñoso, pero la persona que habita en sus pensamientos parece no darse cuenta. Le tocó abrazar su almohada hoy.`,
+          `🩹 @${selfTag} se dio un auto-abrazo para sanar un poquito. A veces hay que ser el propio refugio cuando los demás solo saben jugar con tus emociones.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

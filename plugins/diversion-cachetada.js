@@ -1,5 +1,4 @@
 // plugins/cachetada.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `✋ ¡Reacciona! @${selfTag} le dio una cachetada a @${victimTag}... ¡eso sonó fuerte! 💥`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `✋ ¡Doble castigo! @${selfTag} les dio una cachetada a @${victim1Tag} y @${victim2Tag}... ¡zas, zas! 💥`
-      }
-      else {
-        const frasesRandom = [
-          `🤦 @${selfTag} se dio una cachetada solito, perdió el sentido.`,
-          `🤡 @${selfTag} se pegó solo porque tenía ganas de drama.`,
-          `😤 @${selfTag} se dio un golpe en la cara, no puede creer lo que leyó.`,
-          `💥 @${selfTag} se cacheteó sin razón... ¡reacciona!`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `💥 ¡Reacciona! @${selfTag} le cruzó la cara de una cachetada a @${victimTag}... Un golpe seco nacido del orgullo herido y los celos que ya no pudo contener. ✋`,
+          `🔥 El impacto de @${selfTag} dejó mudo a @${victimTag}. Una bofetada cargada de verdades amargas y de reclamos guardados en lo más profundo del pecho.`,
+          `💔 @${selfTag} descargó toda su frustración en un manotazo hacia @${victimTag}... Destrozando la tregua en el chat y exponiendo lo mucho que aún le duele su distancia.`,
+          `🎭 @${selfTag} le dio una cachetada a @${victimTag} ante las miradas secretas de todos. Un drama pasional que estalló de la peor forma posible.`,
+          `📜 Una bofetada rotunda de @${selfTag} para @${victimTag}. El límite se cruzó, el orgullo ganó y la complicidad se quebró por completo esta noche.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `🤦 @${selfTag} se dio una fuerte cachetada solito... Intentando reaccionar y borrar de su mente el recuerdo de un amor que prefiere ignorarlo.`,
+          `🤡 @${selfTag} se pegó a sí mismo en la cara por culpa del drama. Una coraza cínica para ocultar que se siente completamente solo en el chat.`,
+          `😤 @${selfTag} se dio un manotazo en la frente. No puede creer hasta dónde ha caído su orgullo buscando la atención de un corazón indomable.`,
+          `💥 @${selfTag} se cacheteó para despertar del letargo. Su mente le exige olvidar a quien habita en sus pensamientos y no sabe corresponderle.`,
+          `🩹 @${selfTag} se dio un golpe propio, un frío cable a tierra al notar que la pantalla vacía y el silencio ajeno son su única realidad.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {

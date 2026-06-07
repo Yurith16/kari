@@ -1,5 +1,4 @@
 // plugins/gay.js
-
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { getRealJid } from '../utils/jid.js'
@@ -21,7 +20,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -31,49 +30,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `🏳️‍🌈 @${selfTag} dice que @${victimTag} es bien gay... ¡y qué! 💅`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `🏳️‍🌈 @${selfTag} dice que @${victim1Tag} y @${victim2Tag} son bien gay... ¡y qué! 💅`
-      }
-      else {
-        const frasesRandom = [
-          `🏳️‍🌈 @${selfTag} salió del clóset con todo, ¡así se hace!`,
-          `💅 @${selfTag} aceptó que le gusta el arroz con popote, bien por ti.`,
-          `✨ @${selfTag} dice que plátano donde sea, ¡date cuenta!`,
-          `🌈 @${selfTag} se declaró fan de la salchicha, ¡qué viva el amor!`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `🏳️‍🌈 Con una mirada que delata celos silenciosos, @${selfTag} señaló a @${victimTag} y le soltó un crudo: ¡eres bien gay! Un juego peligroso que esconde deseos reprimidos. 💅`,
+          `🔥 La tensión entre @${selfTag} y @${victimTag} estalló en el chat. Una provocación directa nacida del orgullo herido y de secretos que ambos callan ante el grupo.`,
+          `✨ @${selfTag} expuso las verdaderas inclinaciones de @${victimTag}... Un reclamo apasionado que busca romper el hielo y revivir una vieja complicidad.`,
+          `🎭 @${selfTag} catalogó a @${victimTag} con picardía, ocultando detrás de una broma el drama y las dudas que le carcomen el pecho por su fría distancia.`,
+          `📜 Rompiendo la tregua, @${selfTag} dejó en evidencia a @${victimTag}. Palabras cruzadas que despiertan murmullos y agitan pasiones prohibidas.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `🏳️‍🌈 @${selfTag} mandó al diablo el orgullo y liberó su esencia más auténtica... Un grito desesperado buscando la atención de un corazón indomable.`,
+          `💅 @${selfTag} asumió su faceta más libre y desatada hoy. Una coraza perfecta para tapar la nostalgia de un mensaje que nunca llegó a su pantalla.`,
+          `👑 @${selfTag} se declaró la reina indiscutible del drama en solitario, demostrando que su amor propio brilla con luz propia, sin importar los silencios ajenos.`,
+          `🌈 @${selfTag} prefiere presumir sus gustos extravagantes antes que admitir que se muere por los mimos de esa persona que prefiere ignorarle.`,
+          `🩹 @${selfTag} levantó sus defensas con cinismo. Un alma libre y rebelde que camina sola frente al vacío del chat.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       const gifPath = join(process.cwd(), 'media', 'gay.mp4')

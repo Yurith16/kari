@@ -1,5 +1,4 @@
 // plugins/cringe.js
-
 import axios from 'axios'
 import { getRealJid } from '../utils/jid.js'
 
@@ -25,7 +24,7 @@ export default {
       const selfTag = selfJid.split('@')[0]
       
       const mentions = [selfJid]
-      let victimas = []
+      let victima = null
 
       const contextInfo = msg.message?.extendedTextMessage?.contextInfo
       const quotedParticipant = contextInfo?.participant
@@ -35,49 +34,46 @@ export default {
       const textMentions = fullText.match(/@(\d+)/g) || []
       
       if (quotedParticipant) {
-        const victimJid = await getRealJid(sock, quotedParticipant, msg)
-        victimas.push(victimJid)
-        mentions.push(victimJid)
-      }
-      
-      for (const jid of mentionedJids) {
-        if (victimas.length >= 2) break
-        const victimJid = await getRealJid(sock, jid, msg)
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
-      }
-      
-      for (const match of textMentions) {
-        if (victimas.length >= 2) break
-        const num = match.replace('@', '')
-        const victimJid = `${num}@s.whatsapp.net`
-        if (!victimas.some(v => v === victimJid)) {
-          victimas.push(victimJid)
-          mentions.push(victimJid)
-        }
+        victima = await getRealJid(sock, quotedParticipant, msg)
+      } 
+      else if (mentionedJids.length > 0) {
+        victima = await getRealJid(sock, mentionedJids[0], msg)
+      } 
+      else if (textMentions.length > 0) {
+        const num = textMentions[0].replace('@', '')
+        victima = `${num}@s.whatsapp.net`
       }
 
       let txt = ''
       
-      if (victimas.length === 1) {
-        const victimTag = victimas[0].split('@')[0]
-        txt = `😬 @${selfTag} sintió un cringe extremo por lo que hizo @${victimTag}... ¡alguien borre eso! 💀`
-      } 
-      else if (victimas.length >= 2) {
-        const victim1Tag = victimas[0].split('@')[0]
-        const victim2Tag = victimas[1].split('@')[0]
-        txt = `😬 @${selfTag} sufrió cringe doble por @${victim1Tag} y @${victim2Tag}... ¡qué horror! 💀`
-      }
-      else {
-        const frasesRandom = [
-          `😬 @${selfTag} no puede con tanta pena ajena, denle un respiro.`,
-          `🤢 @${selfTag} está sufriendo de cringe nivel experto.`,
-          `💀 @${selfTag} se murió de cringe, ya no puede más.`,
-          `🙈 @${selfTag} se tapó los ojos, no quiere ver más.`
+      if (victima && victima !== selfJid) {
+        mentions.push(victima)
+        const victimTag = victima.split('@')[0]
+        
+        const frasesPareja = [
+          `😬 @${selfTag} sintió un cringe profundo por la actitud de @${victimTag}... Un intento desesperado de llamar la atención que solo dejó expuesto su orgullo herido. 💀`,
+          `🤢 @${selfTag} vio la escena de @${victimTag} y prefirió desviar la mirada. Hay textos en el chat que dan pena ajena y delatan unos celos imposibles de ocultar.`,
+          `✨ @${selfTag} vio cómo @${victimTag} rogaba afecto y sintió un escalofrío. El drama pasional se volvió ridículo ante las miradas secretas del grupo.`,
+          `🎭 Qué amargo momento... @${selfTag} presenció el espectáculo de @${victimTag} y se le congeló la sonrisa. Hay silencios que salvan, pero esto dio puro cringe.`,
+          `📜 El ego por los suelos: @${selfTag} no pudo ocultar su incomodidad ante las palabras de @${victimTag}. Una desconexión total que enterró los recuerdos de su vieja complicidad.`
         ]
-        txt = frasesRandom[Math.floor(Math.random() * frasesRandom.length)]
+        
+        txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
+      } 
+      else {
+        if (victima === selfJid) {
+          mentions.push(selfJid)
+        }
+        
+        const frasesSolo = [
+          `😬 @${selfTag} recordó sus propios mensajes del pasado y sufrió de cringe nivel experto... El precio de haber bajado la guardia por alguien indiferente.`,
+          `🤢 @${selfTag} no puede con tanta pena ajena consigo mismo. Su orgullo le exige borrar el chat para no aceptar que se humilló buscando atención.`,
+          `💀 @${selfTag} entró en crisis total y se ahoga en su propio drama. Un alma indomable arrepentida de haber mostrado un segundo de vulnerabilidad.`,
+          `🙈 @${selfTag} se tapó los ojos ante la pantalla vacía. Le da cringe recordar cuánto esperó un mensaje de esa persona que habita en sus pensamientos.`,
+          `🩹 @${selfTag} se arrepintió de sus indirectas románticas. El silencio del chat transformó su gran declaración en un incómodo momento de soledad.`
+        ]
+        
+        txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
       }
 
       await sock.sendMessage(from, {
