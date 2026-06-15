@@ -1,3 +1,4 @@
+// core/sqlite.js
 import Database from 'better-sqlite3'
 import { logger } from '../utils/helpers.js'
 
@@ -36,10 +37,10 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS ignored (
-  group_id TEXT,
-  user     TEXT,
-  PRIMARY KEY (group_id, user)
-);
+    group_id TEXT,
+    user     TEXT,
+    PRIMARY KEY (group_id, user)
+  );
 
   CREATE TABLE IF NOT EXISTS activity (
     group_id  TEXT,
@@ -73,20 +74,20 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS economy (
-    user_num TEXT PRIMARY KEY,
-    kryons   INTEGER DEFAULT 0,
-    banco    INTEGER DEFAULT 0,
-    nivel    INTEGER DEFAULT 1,
-    xp       INTEGER DEFAULT 0,
+    user_num       TEXT PRIMARY KEY,
+    kryons         INTEGER DEFAULT 0,
+    banco          INTEGER DEFAULT 0,
+    nivel          INTEGER DEFAULT 1,
+    xp             INTEGER DEFAULT 0,
+    ultimo_trabajo INTEGER DEFAULT 0,
+    ultimo_minar   INTEGER DEFAULT 0,
+    ultimo_crimen  INTEGER DEFAULT 0,
+    ultimo_robo    INTEGER DEFAULT 0,
+    ultimo_diario  INTEGER DEFAULT 0,
+    ultimo_semanal INTEGER DEFAULT 0,
+    ultimo_mensual INTEGER DEFAULT 0,
+    ultimo_cofre   INTEGER DEFAULT 0,
     FOREIGN KEY (user_num) REFERENCES users(user_num)
-  );
-
-  CREATE TABLE IF NOT EXISTS inventory (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_num TEXT,
-    item     TEXT,
-    cantidad INTEGER DEFAULT 1,
-    UNIQUE(user_num, item)
   );
 
   CREATE TABLE IF NOT EXISTS cooldowns (
@@ -94,13 +95,6 @@ db.exec(`
     cmd      TEXT,
     last_use INTEGER DEFAULT 0,
     PRIMARY KEY (user_num, cmd)
-  );
-
-  CREATE TABLE IF NOT EXISTS tienda (
-    item        TEXT PRIMARY KEY,
-    precio      INTEGER DEFAULT 0,
-    descripcion TEXT DEFAULT '',
-    emoji       TEXT DEFAULT '📦'
   );
 
   CREATE TABLE IF NOT EXISTS proposals (
@@ -111,41 +105,39 @@ db.exec(`
     created_at INTEGER DEFAULT (unixepoch()),
     UNIQUE(from_user, to_user, type)
   );
-
-  CREATE TABLE IF NOT EXISTS subbots (
-    numero     TEXT PRIMARY KEY,
-    moderador  TEXT DEFAULT '',
-    nombre     TEXT DEFAULT '',
-    sesion     TEXT DEFAULT '',
-    activo     INTEGER DEFAULT 1,
-    created_at INTEGER DEFAULT (unixepoch())
-  );
-
-  CREATE TABLE IF NOT EXISTS subbot_grupos (
-    subbot_num TEXT,
-    group_id   TEXT,
-    activo     INTEGER DEFAULT 1,
-    PRIMARY KEY (subbot_num, group_id)
-  );
 `)
 
 // ─── Migraciones seguras ──────────────────────────────────────────────────────
 
-try { db.exec(`ALTER TABLE groups ADD COLUMN prefix TEXT DEFAULT ''`) }       catch {}
-try { db.exec(`ALTER TABLE groups ADD COLUMN antiToxic INTEGER DEFAULT 1`) }  catch {}
-try { db.exec(`ALTER TABLE groups ADD COLUMN welcomeImg TEXT DEFAULT ''`) }   catch {}
-try { db.exec(`ALTER TABLE groups ADD COLUMN goodbyeImg TEXT DEFAULT ''`) }   catch {}
-try { db.exec(`ALTER TABLE groups ADD COLUMN economia INTEGER DEFAULT 1`) }   catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN prefix TEXT DEFAULT ''`) }        catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN antiToxic INTEGER DEFAULT 1`) }   catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN welcomeImg TEXT DEFAULT ''`) }    catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN goodbyeImg TEXT DEFAULT ''`) }    catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN economia INTEGER DEFAULT 1`) }    catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN detect INTEGER DEFAULT 0`) }      catch {}
 
 for (const col of ['frase', 'color', 'animal', 'foto', 'pareja']) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT DEFAULT ''`) } catch {}
 }
-try { db.exec(`ALTER TABLE users ADD COLUMN estado TEXT DEFAULT 'soltero'`) }    catch {}
-try { db.exec(`ALTER TABLE users ADD COLUMN noviazgo_fecha INTEGER DEFAULT 0`) } catch {}
-try { db.exec(`ALTER TABLE users ADD COLUMN matrimonio_fecha INTEGER DEFAULT 0`) } catch {}
+try { db.exec(`ALTER TABLE users ADD COLUMN estado TEXT DEFAULT 'soltero'`) }      catch {}
+try { db.exec(`ALTER TABLE users ADD COLUMN noviazgo_fecha INTEGER DEFAULT 0`) }   catch {}
+try { db.exec(`ALTER TABLE users ADD COLUMN matrimonio_fecha INTEGER DEFAULT 0`) }  catch {}
 
-// Migración subbot_grupos — agregar columna activo si no existe
-try { db.exec(`ALTER TABLE subbot_grupos ADD COLUMN activo INTEGER DEFAULT 1`) } catch {}
+for (const col of [
+  'ultimo_trabajo', 'ultimo_minar', 'ultimo_crimen',
+  'ultimo_robo', 'ultimo_diario', 'ultimo_semanal',
+  'ultimo_mensual', 'ultimo_cofre'
+]) {
+  try { db.exec(`ALTER TABLE economy ADD COLUMN ${col} INTEGER DEFAULT 0`) } catch {}
+}
+
+try { db.exec(`DROP TABLE IF EXISTS tienda`) }    catch {}
+try { db.exec(`DROP TABLE IF EXISTS inventory`) } catch {}
+try { db.exec(`DROP TABLE IF EXISTS subbots`) }       catch {}
+try { db.exec(`DROP TABLE IF EXISTS subbot_grupos`) } catch {}
+
+// Corregir niveles con decimales y ajustar fórmula
+db.exec(`UPDATE economy SET nivel = FLOOR(xp / 200) + 1`)
 
 logger.info('SQLite', 'Base de datos lista ✦')
 
@@ -195,7 +187,7 @@ const _trackActivity  = db.prepare(`
 `)
 const _getTopActivity = db.prepare(`SELECT user, msgs FROM activity WHERE group_id = ? ORDER BY msgs DESC LIMIT ?`)
 
-export function trackActivity(groupId, user)       { _trackActivity.run(groupId, user) }
+export function trackActivity(groupId, user)        { _trackActivity.run(groupId, user) }
 export function getTopActivity(groupId, limit = 10) { return _getTopActivity.all(groupId, limit) }
 
 // ─── Historial de mensajes ────────────────────────────────────────────────────
@@ -299,18 +291,48 @@ const _initEconomy  = db.prepare(`INSERT OR IGNORE INTO economy (user_num) VALUE
 const _getEconomy   = db.prepare(`SELECT * FROM economy WHERE user_num = ?`)
 const _addKryons    = db.prepare(`UPDATE economy SET kryons = kryons + ? WHERE user_num = ?`)
 const _removeKryons = db.prepare(`UPDATE economy SET kryons = MAX(0, kryons - ?) WHERE user_num = ?`)
-const _setBanco     = db.prepare(`UPDATE economy SET banco = banco + ? WHERE user_num = ?`)
+const _addBanco     = db.prepare(`UPDATE economy SET banco = banco + ? WHERE user_num = ?`)
 const _removeBanco  = db.prepare(`UPDATE economy SET banco = MAX(0, banco - ?) WHERE user_num = ?`)
-const _addXp        = db.prepare(`UPDATE economy SET xp = xp + ?, nivel = MAX(nivel, (xp + ?) / 120 + 1) WHERE user_num = ?`)
+const _addXp        = db.prepare(`UPDATE economy SET xp = xp + ?, nivel = MAX(nivel, FLOOR((xp + ?) / 200) + 1) WHERE user_num = ?`)
+const _removeXp     = db.prepare(`UPDATE economy SET xp = MAX(0, xp - ?), nivel = MAX(1, FLOOR(MAX(0, xp - ?) / 200) + 1) WHERE user_num = ?`)
 const _getTopEco    = db.prepare(`SELECT user_num, kryons + banco as total FROM economy ORDER BY total DESC LIMIT ?`)
+const _setUltimo    = (col) => db.prepare(`UPDATE economy SET ${col} = ? WHERE user_num = ?`)
+const _getUltimo    = (col) => db.prepare(`SELECT ${col} FROM economy WHERE user_num = ?`)
 
-export function getEconomy(userNum)        { _initEconomy.run(userNum); return _getEconomy.get(userNum) }
-export function addKryons(userNum, amt)    { _initEconomy.run(userNum); _addKryons.run(amt, userNum) }
-export function removeKryons(userNum, amt) { _removeKryons.run(amt, userNum) }
-export function depositBanco(userNum, amt) { _removeKryons.run(amt, userNum); _setBanco.run(amt, userNum) }
-export function withdrawBanco(userNum, amt){ _removeBanco.run(amt, userNum); _addKryons.run(amt, userNum) }
-export function addXp(userNum, amt)        { _initEconomy.run(userNum); _addXp.run(amt, amt, userNum) }
-export function getTopEconomy(limit = 10)  { return _getTopEco.all(limit) }
+export function getEconomy(userNum)         { _initEconomy.run(userNum); return _getEconomy.get(userNum) }
+export function addKryons(userNum, amt)     { _initEconomy.run(userNum); _addKryons.run(amt, userNum) }
+export function removeKryons(userNum, amt)  { _removeKryons.run(amt, userNum) }
+export function depositBanco(userNum, amt)  { _removeKryons.run(amt, userNum); _addBanco.run(amt, userNum) }
+export function withdrawBanco(userNum, amt) { _removeBanco.run(amt, userNum); _addKryons.run(amt, userNum) }
+export function addXp(userNum, amt)         { _initEconomy.run(userNum); _addXp.run(amt, amt, userNum) }
+export function removeXp(userNum, amt)      { _removeXp.run(amt, amt, userNum) }
+export function getTopEconomy(limit = 10)   { return _getTopEco.all(limit) }
+
+export function setUltimo(userNum, col, ts) { _setUltimo(col).run(ts, userNum) }
+export function getUltimo(userNum, col)     { return _getUltimo(col).get(userNum)?.[col] || 0 }
+
+export function checkLevelUp(userNum) {
+  const eco = _getEconomy.get(userNum)
+  if (!eco) return null
+  const nivelNuevo = Math.floor(eco.xp / 200) + 1
+  if (nivelNuevo > eco.nivel) {
+    db.prepare(`UPDATE economy SET nivel = ? WHERE user_num = ?`).run(nivelNuevo, userNum)
+    return nivelNuevo
+  }
+  return null
+}
+
+// ─── Reset global de perfiles ─────────────────────────────────────────────────
+
+const _resetAllProfiles = db.prepare(`DELETE FROM users`)
+const _resetAllNivelXp  = db.prepare(`UPDATE economy SET nivel = 1, xp = 0`)
+
+export function resetTodosLosPerfiles() {
+  db.pragma('foreign_keys = OFF')
+  _resetAllProfiles.run()
+  _resetAllNivelXp.run()
+  db.pragma('foreign_keys = ON')
+}
 
 // ─── Cooldowns ────────────────────────────────────────────────────────────────
 
@@ -330,61 +352,7 @@ export function setCooldown(userNum, cmd) {
   _setCooldown.run(userNum, cmd, now, now)
 }
 
-// ─── Inventario ───────────────────────────────────────────────────────────────
-
-const _addItem    = db.prepare(`INSERT INTO inventory (user_num, item, cantidad) VALUES (?,?,?) ON CONFLICT(user_num,item) DO UPDATE SET cantidad = cantidad + ?`)
-const _getInv     = db.prepare(`SELECT item, cantidad FROM inventory WHERE user_num = ? ORDER BY item`)
-const _removeItem = db.prepare(`UPDATE inventory SET cantidad = MAX(0, cantidad - ?) WHERE user_num = ? AND item = ?`)
-
-export function addItem(userNum, item, cantidad = 1)    { _addItem.run(userNum, item, cantidad, cantidad) }
-export function getInventory(userNum)                     { return _getInv.all(userNum) }
-export function removeItem(userNum, item, cantidad = 1) { _removeItem.run(cantidad, userNum, item) }
-
-// ─── Tienda ───────────────────────────────────────────────────────────────────
-
-const _getTienda = db.prepare(`SELECT * FROM tienda ORDER BY precio`)
-const _getItem   = db.prepare(`SELECT * FROM tienda WHERE item = ?`)
-
-export function getTienda()      { return _getTienda.all() }
-export function getItemTienda(i) { return _getItem.get(i) }
-
-const tiendaCount = db.prepare(`SELECT COUNT(*) as n FROM tienda`).get()
-if (tiendaCount.n === 0 || tiendaCount.n > 0) {
-  // Limpiamos los registros antiguos para forzar la actualización de precios
-  db.prepare(`DELETE FROM tienda`).run()
-
-  const ins = db.prepare(`INSERT OR IGNORE INTO tienda (item, precio, descripcion, emoji) VALUES (?,?,?,?)`)
-  ins.run('escudo',  12000, 'Protección absoluta de tu banco y cartera contra robos por 24h', '🛡️')
-  ins.run('pico',    8000, 'Multiplica tus ganancias x3.5 al usar el comando minar', '⛏️')
-  ins.run('maletín', 6000, 'Aumenta tus ganancias x2.5 en todos tus trabajos diarios', '💼')
-  ins.run('capa',    15000, 'Invisibilidad total: Evita perder kryons si fallas un crimen', '🧥')
-}
-
-// ─── Subbots ──────────────────────────────────────────────────────────────────
-
-const _createSubbot     = db.prepare(`INSERT OR IGNORE INTO subbots (numero, moderador, nombre, sesion, activo) VALUES (?,?,?,?,1)`)
-const _getSubbot        = db.prepare(`SELECT * FROM subbots WHERE numero = ?`)
-const _getAllSubbots     = db.prepare(`SELECT * FROM subbots`)
-const _getActiveSubbots = db.prepare(`SELECT * FROM subbots WHERE activo = 1`)
-const _setSubbotActivo  = db.prepare(`UPDATE subbots SET activo = ? WHERE numero = ?`)
-const _deleteSubbot     = db.prepare(`DELETE FROM subbots WHERE numero = ?`)
-const _countSubbots     = db.prepare(`SELECT COUNT(*) as n FROM subbots WHERE activo = 1`)
-const _getSubbotByMod   = db.prepare(`SELECT * FROM subbots WHERE moderador = ?`)
-
-export function createSubbot(numero, sesion) {
-  // El moderador es el mismo número — dueño de su propio subbot
-  _createSubbot.run(numero, numero, `Subbot-${numero}`, sesion)
-}
-export function getSubbot(numero)          { return _getSubbot.get(numero) }
-export function getSubbotByModerador(mod)  { return _getSubbotByMod.get(mod) }
-export function getAllSubbots()             { return _getAllSubbots.all() }
-export function getActiveSubbots()         { return _getActiveSubbots.all() }
-export function countActiveSubbots()       { return _countSubbots.get().n }
-export function activarSubbot(numero)      { _setSubbotActivo.run(1, numero) }
-export function desactivarSubbot(numero)   { _setSubbotActivo.run(0, numero) }
-export function deleteSubbot(numero)       { _deleteSubbot.run(numero) }
-
-// ─── Ignored (ignorar usuario en grupo) ──────────────────────────────────────
+// ─── Ignored ─────────────────────────────────────────────────────────────────
 
 const _ignoreUser   = db.prepare(`INSERT OR IGNORE INTO ignored (group_id, user) VALUES (?,?)`)
 const _unignoreUser = db.prepare(`DELETE FROM ignored WHERE group_id = ? AND user = ?`)
@@ -395,22 +363,5 @@ export function ignoreUser(groupId, user)   { _ignoreUser.run(groupId, user) }
 export function unignoreUser(groupId, user) { _unignoreUser.run(groupId, user) }
 export function isIgnored(groupId, user)    { return !!_isIgnored.get(groupId, user) }
 export function getIgnored(groupId)         { return _getIgnored.all(groupId).map(r => r.user) }
-
-// ─── Grupos por subbot ────────────────────────────────────────────────────────
-
-const _addSubbotGrupo    = db.prepare(`INSERT OR IGNORE INTO subbot_grupos (subbot_num, group_id, activo) VALUES (?,?,1)`)
-const _removeSubbotGrupo = db.prepare(`DELETE FROM subbot_grupos WHERE subbot_num = ? AND group_id = ?`)
-const _toggleSubbotGrupo = db.prepare(`UPDATE subbot_grupos SET activo = ? WHERE subbot_num = ? AND group_id = ?`)
-const _getSubbotGrupos   = db.prepare(`SELECT group_id FROM subbot_grupos WHERE subbot_num = ? AND activo = 1`)
-const _getAllSubbotGrupos = db.prepare(`SELECT group_id, activo FROM subbot_grupos WHERE subbot_num = ?`)
-const _isGrupoActivo     = db.prepare(`SELECT 1 FROM subbot_grupos WHERE subbot_num = ? AND group_id = ? AND activo = 1`)
-
-export function addSubbotGrupo(subbotNum, groupId)         { _addSubbotGrupo.run(subbotNum, groupId) }
-export function removeSubbotGrupo(subbotNum, groupId)      { _removeSubbotGrupo.run(subbotNum, groupId) }
-export function activarSubbotGrupo(subbotNum, groupId)     { _toggleSubbotGrupo.run(1, subbotNum, groupId) }
-export function desactivarSubbotGrupo(subbotNum, groupId)  { _toggleSubbotGrupo.run(0, subbotNum, groupId) }
-export function getSubbotGrupos(subbotNum)                 { return _getSubbotGrupos.all(subbotNum).map(r => r.group_id) }
-export function getAllSubbotGrupos(subbotNum)               { return _getAllSubbotGrupos.all(subbotNum) }
-export function isGrupoActivoParaSubbot(subbotNum, groupId){ return !!_isGrupoActivo.get(subbotNum, groupId) }
 
 export default db

@@ -1,9 +1,25 @@
-// plugins/transferir.js
-
-import { getEconomy, addKryons, removeKryons, isRegistered, getUser } from '../core/sqlite.js'
+// plugins/eco-transferir.js
+import { getEconomy, addKryons, removeKryons, withdrawBanco, isRegistered, getUser } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { resolveTarget } from '../utils/target.js'
-import { toBold } from '../utils/helpers.js'
+
+const frases = [
+  { texto: 'Le transferiste', cierre: 'Que lindo gesto de tu parte.' },
+  { texto: 'Le enviaste', cierre: 'Así se comparte la abundancia.' },
+  { texto: 'Le diste', cierre: 'Tu generosidad florece.' },
+  { texto: 'Le regalaste', cierre: 'Un detalle que vale más que el oro.' },
+  { texto: 'Le compartiste', cierre: 'Eso habla bien de vos.' },
+  { texto: 'Le dejaste', cierre: 'Sin esperar nada a cambio.' },
+  { texto: 'Le pasaste', cierre: 'La amistad también se riega.' },
+  { texto: 'Le entregaste', cierre: 'Hecho con el corazón.' },
+  { texto: 'Le sembraste', cierre: 'Tu jardín crece compartiendo.' },
+  { texto: 'Le donaste', cierre: 'Midori aplaude tu gesto.' },
+  { texto: 'Le alcanzaste', cierre: 'Un empujoncito que ayuda mucho.' },
+  { texto: 'Le soltaste', cierre: 'Dar también es soltar.' },
+  { texto: 'Le ofreciste', cierre: 'Así se cultivan las buenas relaciones.' },
+  { texto: 'Le cediste', cierre: 'Pequeño gesto, gran diferencia.' },
+  { texto: 'Le acercaste', cierre: 'Porque compartir es de almas bonitas.' },
+]
 
 export default {
   command: ['transferir', 'pay', 'pagar', 'enviar'],
@@ -28,14 +44,14 @@ export default {
 
     if (args.length < 2) {
       return sock.sendMessage(from, {
-        text: `> 🌿 *Uso incorrecto*\n\n> ↳ _Ejemplo: .pay @usuario 500_`
+        text: '🌸 ¿A quién y cuánto? Ejemplo: .pay @usuario 500'
       }, { quoted: msg })
     }
 
     const target = await resolveTarget(sock, msg, args)
     if (!target?.num) {
       return sock.sendMessage(from, {
-        text: `> 🌿 Menciona a la persona o responde a su mensaje para realizar la transferencia.`
+        text: '🌸 Menciona a la persona o responde a su mensaje.'
       }, { quoted: msg })
     }
 
@@ -43,49 +59,48 @@ export default {
     const targetJid = `${targetNum}@s.whatsapp.net`
 
     if (selfNum === targetNum) {
-      return sock.sendMessage(from, { text: `> 🌿 No puedes transferirte fondos a ti mismo.` }, { quoted: msg })
+      return sock.sendMessage(from, { text: '🌸 No puedes transferirte a ti mismo.' }, { quoted: msg })
     }
 
     if (!isRegistered(targetNum)) {
-      return sock.sendMessage(from, { text: `> 🌿 Esa persona no está registrada en el sistema.` }, { quoted: msg })
+      return sock.sendMessage(from, { text: '🌸 Esa persona no está registrada.' }, { quoted: msg })
     }
 
     const cantidad = parseInt(args[args.length - 1])
     if (isNaN(cantidad) || cantidad <= 0) {
-      return sock.sendMessage(from, { text: `> 🌿 Indica una cantidad numérica válida.` }, { quoted: msg })
+      return sock.sendMessage(from, { text: '🌸 Indica una cantidad válida.' }, { quoted: msg })
     }
 
     const eco = getEconomy(selfNum)
-    if (cantidad > eco.kryons) {
+    const total = eco.kryons + eco.banco
+
+    if (cantidad > total) {
       return sock.sendMessage(from, {
-        text: `> 🌿 Fondos insuficientes. Solo tienes *${eco.kryons.toLocaleString()}* kryons en mano.`
+        text: `🌸 Lo siento, no se puede hacer la transferencia. Solo tienes *${total.toLocaleString()} kryons* en total.`
       }, { quoted: msg })
     }
 
-    removeKryons(selfNum, cantidad)
+    // Primero quitar de mano lo que se pueda
+    const deMano = Math.min(eco.kryons, cantidad)
+    const delBanco = cantidad - deMano
+
+    if (deMano > 0) removeKryons(selfNum, deMano)
+    if (delBanco > 0) withdrawBanco(selfNum, delBanco)
+    if (delBanco > 0) removeKryons(selfNum, delBanco)
+
     addKryons(targetNum, cantidad)
 
     const perfil = getUser(targetNum)
-    const nombre = perfil.apodo || perfil.nombre
+    const nombre = perfil?.nombre || targetNum
+    const frase = frases[Math.floor(Math.random() * frases.length)]
 
-    // Reacciones aleatorias
-    const reacciones = ['💸', '💌', '✨', '🍀', '💚']
-    const react = reacciones[Math.floor(Math.random() * reacciones.length)]
+    await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
 
-    const mensajesExito = [
-      `💸 Has transferido *${cantidad.toLocaleString()}* kryons a *${nombre}*. ¡Qué generosidad!`,
-      `💌 *${nombre}* ha recibido *${cantidad.toLocaleString()}* kryons de tu parte.`,
-      `✨ Has enviado *${cantidad.toLocaleString()}* kryons a *${nombre}*. El flujo de riqueza continúa.`,
-      `🍀 Transferencia exitosa. *${nombre}* ahora cuenta con *${cantidad.toLocaleString()}* kryons adicionales gracias a ti.`,
-      `💚 Has compartido *${cantidad.toLocaleString()}* kryons con *${nombre}*. Un gesto muy noble.`
-    ]
+    const txt = `🌸 ${frase.texto} ${cantidad.toLocaleString()} kryons a ${nombre}. ${frase.cierre}`
 
-    const msgFinal = mensajesExito[Math.floor(Math.random() * mensajesExito.length)]
-
-    await sock.sendMessage(from, { react: { text: react, key: msg.key } })
     await sock.sendMessage(from, {
-      text: `> 🏦 *Transferencia completada*\n\n> ↳ _${msgFinal}_`,
-      mentions: [selfJid, targetJid]
+      text: txt,
+      mentions: [targetJid]
     }, { quoted: msg })
   }
 }

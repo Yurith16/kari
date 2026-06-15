@@ -2,6 +2,23 @@
 
 import axios from 'axios'
 
+const frases = [
+  'Encontré esto para vos. Disfrutalo.',
+  'Esto es lo que pediste. Lindo, ¿no?',
+  'Acá está. Ojalá te guste.',
+  'Salió esto. Por si te sirve.',
+  'Encontré algo bonito. Es para vos.',
+  'Lo que buscabas, recién salido.',
+  'Esto me gustó. Capaz a vos también.',
+  'Busqué y apareció esto. De nada.',
+  'Acá tenés. Estaba escondido.',
+  'Justo lo que necesitabas, creo.',
+  'Apareció esto. Aprovechalo.',
+  'Te traje algo. Espero que te sirva.',
+  'Salió esta joyita. Para vos.',
+  'Encontré algo. No me lo agradezcas.',
+]
+
 export default {
   command: ['tiktoks', 'tks', 'tiktoksearch'],
   tag: 'tiktoksearch',
@@ -21,33 +38,20 @@ export default {
     try {
       await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
-      const { data } = await axios.post('https://tikwm.com/api/feed/search',
-        new URLSearchParams({
-          keywords: query,
-          count: '12',
-          cursor: '0',
-          HD: '1',
-          web: '1'
-        }),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            'User-Agent': 'Mozilla/5.0'
-          },
-          timeout: 20000
-        }
-      )
+      const { data } = await axios.get('https://api.delirius.store/search/tiktoksearch', {
+        params: { query },
+        timeout: 20000
+      })
 
-      const videos = data?.data?.videos || []
+      const videos = data?.meta || []
       if (!videos.length) {
         return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
       }
 
       const urlsValidas = []
       for (const v of videos) {
-        let url = v.play || v.wmplay || v.hdplay
+        const url = v.hd
         if (!url) continue
-        if (url.startsWith('/')) url = 'https://tikwm.com' + url
         urlsValidas.push({ url, v })
       }
 
@@ -58,6 +62,7 @@ export default {
       let albumKey = null
       let enviados = 0
       let intentos = 0
+      const frase = frases[Math.floor(Math.random() * frases.length)]
 
       while (enviados < 5 && intentos < urlsValidas.length) {
         const { url, v } = urlsValidas[intentos]
@@ -70,7 +75,6 @@ export default {
           })
           const buffer = Buffer.from(videoRes.data)
           const sizeMB = buffer.length / (1024 * 1024)
-
           if (sizeMB > 80 || sizeMB === 0) continue
 
           if (!albumKey) {
@@ -95,7 +99,7 @@ export default {
           const author = v.author?.nickname || 'Usuario'
           const description = v.title ? v.title.slice(0, 100) : ''
           const caption = enviados === 0
-            ? `🎶 ${query}`
+            ? `🎶 ${query}\n${frase}`
             : `🎶 ${author}\n${description}`
 
           const mediaMsg = await sock.generateWAMessage(from, {

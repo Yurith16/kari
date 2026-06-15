@@ -8,15 +8,19 @@ export default {
   descripcion: 'Elimina un mensaje del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '🗑️', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
+
     const ctx = msg.message?.extendedTextMessage?.contextInfo
     if (!ctx?.stanzaId) {
       await sock.sendMessage(from, { text: global.messages.replyNeeded }, { quoted: msg })
       return
     }
+
     try {
       await sock.sendMessage(from, {
         delete: {

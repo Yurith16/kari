@@ -2,19 +2,20 @@ import fs from 'fs'
 import axios from 'axios'
 import { getUser } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
-import { toBold } from '../utils/helpers.js'
 import { resolveTarget } from '../utils/target.js'
+import { toMono } from '../utils/helpers.js'
 
 const PERFIL_DEFAULT_IMG = 'https://www.image2url.com/r2/default/images/1780714746057-12c23aaf-4846-4012-b243-4d4f3bb09b4e.png'
+
+const BULLETS = ['🐞', '📍', '🐝']
 
 function formatDate(timestamp) {
   if (!timestamp || timestamp === 0) return null
   const date = new Date(timestamp * 1000)
-  return date.toLocaleDateString('es-HN', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
+  const dia = String(date.getDate()).padStart(2, '0')
+  const mes = String(date.getMonth() + 1).padStart(2, '0')
+  const año = date.getFullYear()
+  return `${dia}/${mes}/${año}`
 }
 
 function tiempoTranscurrido(timestamp) {
@@ -44,7 +45,7 @@ export default {
   owner: false,
   group: false,
   nsfw: false,
-  descripcion: 'Muestra tu perfil',
+  descripcion: 'Muestra tu perfil o el de alguien más',
 
   async execute(sock, msg, { from, args, sender }) {
     const target = args.length ? await resolveTarget(sock, msg, args) : null
@@ -58,57 +59,60 @@ export default {
     }
 
     if (!user) {
-      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
-      return
+      return sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
 
     const perfil = getUser(user)
     if (!perfil) {
       const esSelf = !target?.num
-      await sock.sendMessage(from, {
-        text: esSelf
-          ? global.messages.notRegistered
-          : '🌸 Ese usuario aún no tiene un perfil creado.'
+      return sock.sendMessage(from, {
+        text: esSelf ? global.messages.notRegistered : 'Ese usuario aún no tiene un perfil creado.'
       }, { quoted: msg })
-      return
     }
 
-    const estadoEmoji = perfil.estado === 'en_relacion' ? '💑' : perfil.estado === 'casado' ? '💍' : '🌿'
-    const estadoTexto = perfil.estado === 'en_relacion' ? 'En relación' : perfil.estado === 'casado' ? 'Casado/a' : 'Soltero/a'
-    const fechaRegistro = formatDate(perfil.registered_at)
+    const bullet = BULLETS[Math.floor(Math.random() * BULLETS.length)]
 
-    let txt = `> ╭─〔 🌸 *PERFIL* 〕\n`
-    txt += `> │\n`
-    txt += `> │ ✦ *Nombre:* ${perfil.nombre}\n`
-    if (perfil.apodo)  txt += `> │ ✦ *Apodo:* ${perfil.apodo}\n`
-    txt += `> │ ✦ *Edad:* ${perfil.edad} años\n`
-    if (perfil.genero) txt += `> │ ✦ *Género:* ${perfil.genero === 'hombre' ? '👦' : perfil.genero === 'mujer' ? '👧' : '🌿'} ${perfil.genero}\n`
-    if (perfil.pais)   txt += `> │ ✦ *País:* ${perfil.pais}\n`
-    if (fechaRegistro) txt += `> │ ✦ *Registrado:* ${fechaRegistro}\n`
-    if (perfil.frase)  txt += `> │ ✦ *Frase:* ${perfil.frase}\n`
-    if (perfil.color)  txt += `> │ ✦ *Color favorito:* ${perfil.color}\n`
-    if (perfil.animal) txt += `> │ ✦ *Animal favorito:* ${perfil.animal}\n`
-    txt += `> │ ✦ *Estado:* ${estadoEmoji} ${estadoTexto}\n`
+    let txt = `> ╭─〔 🌸 *Esencia* 🌸 〕\n`
+
+    txt += `> │ ${bullet} *Nombre* · ${perfil.nombre}\n`
+    if (perfil.apodo) txt += `> │ ${bullet} *Apodo* · ${perfil.apodo}\n`
+    txt += `> │ ${bullet} *Edad* · ${perfil.edad} años\n`
+    if (perfil.genero) txt += `> │ ${bullet} *Género* · ${perfil.genero}\n`
+    if (perfil.pais) txt += `> │ ${bullet} *País* · ${perfil.pais}\n`
+    if (perfil.registered_at) txt += `> │ ${bullet} *Registrado* · ${formatDate(perfil.registered_at)}\n`
+
+    if (perfil.frase || perfil.color || perfil.animal) {
+      if (perfil.frase) txt += `> │ ${bullet} *Frase* · _${perfil.frase}_\n`
+      if (perfil.color) txt += `> │ ${bullet} *Color* · ${perfil.color}\n`
+      if (perfil.animal) txt += `> │ ${bullet} *Animal* · ${perfil.animal}\n`
+    }
+
+    if (perfil.estado === 'en_relacion') {
+      txt += `> │ ${bullet} *Estado* · En relación\n`
+    } else if (perfil.estado === 'casado') {
+      txt += `> │ ${bullet} *Estado* · Casado\n`
+    } else {
+      txt += `> │ ${bullet} *Estado* · Soltero\n`
+    }
 
     if (perfil.pareja) {
       const parejaPerfil = getUser(perfil.pareja)
-      txt += `> │ ✦ *Pareja:* ${parejaPerfil?.nombre || perfil.pareja}\n`
+      txt += `> │ ${bullet} *Pareja* · ${parejaPerfil?.nombre || perfil.pareja}\n`
     }
     if (perfil.noviazgo_fecha) {
-      txt += `> │ ✦ *Novios desde:* ${formatDate(perfil.noviazgo_fecha)} (${tiempoTranscurrido(perfil.noviazgo_fecha)})\n`
+      txt += `> │ ${bullet} *Novios* · ${tiempoTranscurrido(perfil.noviazgo_fecha)}\n`
     }
     if (perfil.matrimonio_fecha) {
-      txt += `> │ ✦ *Casados desde:* ${formatDate(perfil.matrimonio_fecha)} (${tiempoTranscurrido(perfil.matrimonio_fecha)})\n`
+      txt += `> │ ${bullet} *Casados* · ${tiempoTranscurrido(perfil.matrimonio_fecha)}\n`
     }
 
-    txt += `> │\n`
-    txt += `> ╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
+    txt += `> ╰─── ${toMono(global.bot?.name || 'Midori-Hana')}`
 
     const mentions = target?.num ? [`${target.num}@s.whatsapp.net`] : []
-
-    // Foto personalizada o imagen por defecto del perfil
     const fotoFinal = esFotoValida(perfil.foto) ? perfil.foto : PERFIL_DEFAULT_IMG
-    const tipoFoto  = esFotoValida(fotoFinal)
+    const tipoFoto = esFotoValida(fotoFinal)
+
+    await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
 
     if (tipoFoto) {
       try {
@@ -117,7 +121,7 @@ export default {
           : fs.readFileSync(fotoFinal)
 
         const esVideo = fotoFinal.endsWith('.mp4')
-        const esGif   = fotoFinal.endsWith('.gif') || fotoFinal.endsWith('.webp')
+        const esGif = fotoFinal.endsWith('.gif') || fotoFinal.endsWith('.webp')
 
         if (esVideo) {
           await sock.sendMessage(from, { video: imgBuffer, caption: txt, mentions }, { quoted: msg })

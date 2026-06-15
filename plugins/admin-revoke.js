@@ -1,4 +1,3 @@
-// Confirma antes de revocar el enlace actual
 const pendingConfirm = new Map()
 
 export default {
@@ -11,10 +10,13 @@ export default {
   descripcion: 'Revoca y regenera el enlace de invitación',
 
   async execute(sock, msg, { from, sender, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '🔄', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
+
     const key  = `${from}:${sender}`
     const now  = Date.now()
 

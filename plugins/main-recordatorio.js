@@ -73,7 +73,7 @@ export default {
   owner: false,
   group: true,
   nsfw: false,
-  descripcion: '🌸 Crea un recordatorio para todo el grupo',
+  descripcion: 'Crea un recordatorio para todo el grupo',
 
   async execute(sock, msg, { from, args, sender }) {
     if (!args.length) {

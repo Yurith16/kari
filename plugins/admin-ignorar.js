@@ -11,6 +11,8 @@ export default {
   descripcion: 'Ignora a un usuario en este grupo',
 
   async execute(sock, msg, { from, args, isAdmin, isOwner }) {
+    await sock.sendMessage(from, { react: { text: '🔇', key: msg.key } })
+
     if (!isAdmin && !isOwner) {
       await sock.sendMessage(from, { text: global.messages?.notAdmin }, { quoted: msg })
       return
@@ -24,14 +26,14 @@ export default {
 
     if (target.isAdmin || target.isOwner) {
       await sock.sendMessage(from, {
-        text: '🌸 No puedo ignorar a un admin o al owner.'
+        text: '_No puedo ignorar a un admin o al owner._'
       }, { quoted: msg })
       return
     }
 
     if (isIgnored(from, target.num)) {
       await sock.sendMessage(from, {
-        text: '🌸 Ese usuario ya estaba siendo ignorado en este grupo.'
+        text: '_Ese usuario ya estaba ignorado en este grupo._'
       }, { quoted: msg })
       return
     }
@@ -39,7 +41,7 @@ export default {
     ignoreUser(from, target.num)
 
     await sock.sendMessage(from, {
-      text: `🔇 @${target.num} será ignorado en este grupo. Sus comandos no tendrán efecto.`,
+      text: `_@${target.num} será ignorado, sus comandos no tendrán efecto._`,
       mentions: [`${target.num}@s.whatsapp.net`]
     }, { quoted: msg })
   }

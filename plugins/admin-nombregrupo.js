@@ -8,17 +8,21 @@ export default {
   descripcion: 'Cambia el nombre del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '✏️', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
+
     const nombre = args.join(' ')
     if (!nombre) {
       await sock.sendMessage(from, {
-        text: '🌸 Dime qué nombre le pongo al grupo.\n\n_Ejemplo: .nombre Los mejores_'
+        text: '_Dime qué nombre le pongo al grupo._'
       }, { quoted: msg })
       return
     }
+
     try {
       await sock.groupUpdateSubject(from, nombre)
       await sock.sendMessage(from, { text: global.messages.groupNameChanged }, { quoted: msg })

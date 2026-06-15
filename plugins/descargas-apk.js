@@ -63,7 +63,7 @@ export default {
   owner: false,
   group: false,
   nsfw: false,
-  descripcion: '🌸 Busca y descarga APKs para android',
+  descripcion: 'Busca y descarga APKs para android',
 
   async onMessage(sock, msg, { from, text, userNum }) {
     const sesion = sesiones.get(userNum)

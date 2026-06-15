@@ -34,14 +34,14 @@ export default {
 
     if (respuesta === 'no') {
       await sock.sendMessage(from, {
-        text: '✦ Operación cancelada.'
+        text: '_Operación cancelada._'
       }, { quoted: msg })
       return
     }
 
     if (enProceso.has(from)) {
       await sock.sendMessage(from, {
-        text: '⏳ Ya hay una limpieza en proceso en este grupo.'
+        text: '_Ya hay una limpieza en proceso en este grupo._'
       }, { quoted: msg })
       return
     }
@@ -49,7 +49,7 @@ export default {
     enProceso.add(from)
 
     await sock.sendMessage(from, {
-      text: `⚙️ Iniciando limpieza...\n✦ ${fantasmas.length} usuario${fantasmas.length !== 1 ? 's' : ''} serán expulsados.\n✦ Intervalo: 5 segundos por usuario.`
+      text: `_Iniciando limpieza..._\n> ✦ *Usuarios:* ${fantasmas.length}\n> ✦ *Intervalo:* 5 segundos por usuario.`
     }, { quoted: msg })
 
     let expulsados = 0
@@ -68,11 +68,13 @@ export default {
     enProceso.delete(from)
 
     await sock.sendMessage(from, {
-      text: `✦ Limpieza completada.\n✦ Expulsados: *${expulsados}*\n✦ Fallidos: *${fallidos}*\n✦ Tiempo estimado: ${((expulsados + fallidos) * 5 / 60).toFixed(1)} minutos`
+      text: `_Limpieza completada._\n> ✦ *Expulsados:* ${expulsados}\n> ✦ *Fallidos:* ${fallidos}\n> ✦ *Tiempo:* ${((expulsados + fallidos) * 5 / 60).toFixed(1)} min`
     }, { quoted: msg })
   },
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '💀', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
@@ -80,7 +82,7 @@ export default {
 
     if (enProceso.has(from)) {
       await sock.sendMessage(from, {
-        text: '⏳ Ya hay una limpieza en proceso en este grupo. Espera a que termine.'
+        text: '_Ya hay una limpieza en proceso, espera a que termine._'
       }, { quoted: msg })
       return
     }
@@ -109,7 +111,7 @@ export default {
 
       if (!fantasmas.length) {
         await sock.sendMessage(from, {
-          text: '✦ No se detectaron fantasmas. Todos los miembros tienen actividad registrada.'
+          text: '_No se detectaron fantasmas, todos tienen actividad._'
         }, { quoted: msg })
         return
       }
@@ -118,18 +120,15 @@ export default {
 
       pendingConf.set(from, { fantasmas, timestamp: Date.now() })
 
-      await sock.sendMessage(from, {
-        text: `╭─〔 ${toBold('KICKFANTASMAS')} 〕\n` +
-          `│\n` +
-          `│ ✦ *Fantasmas detectados:* ${fantasmas.length}\n` +
-          `│ ✦ *Miembros activos:* ${activos.size}\n` +
-          `│ ✦ *Total grupo:* ${members.length}\n` +
-          `│ ✦ *Tiempo estimado:* ${tiempoEst} min\n` +
-          `│\n` +
-          `│ ⚠️ Esta acción expulsará a *${fantasmas.length}* usuario${fantasmas.length !== 1 ? 's' : ''} sin actividad.\n` +
-          `│\n` +
-          `╰─── ¿Desea continuar? Responda *si* o *no*`
-      }, { quoted: msg })
+      let txt = `𝙺𝙸𝙲𝙺 𝙵𝙰𝙽𝚃𝙰𝚂𝙼𝙰𝚂\n`
+      txt += `⊰᯽⊱┈──╌❊╌──┈⊰᯽⊱\n\n`
+      txt += `> ✦ *Fantasmas:* ${fantasmas.length}\n`
+      txt += `> ✦ *Activos:* ${activos.size}\n`
+      txt += `> ✦ *Total:* ${members.length}\n`
+      txt += `> ✦ *Tiempo est.:* ${tiempoEst} min\n\n`
+      txt += `_¿Deseas continuar? Responde *si* o *no*_`
+
+      await sock.sendMessage(from, { text: txt }, { quoted: msg })
 
     } catch {
       await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })

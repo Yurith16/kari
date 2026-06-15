@@ -27,12 +27,12 @@ async function getTikTokInfo(tiktokUrl) {
 
 export default {
   command: ['tiktok', 'tt', 'ttphoto', 'dltt'],
-  tag: 'download',
+  tag: 'tiktok',
   categoria: 'descargas',
   owner: false,
   group: false,
   nsfw: false,
-  descripcion: '🌸 Descarga videos HD o álbumes de imágenes de TikTok',
+  descripcion: 'Descarga videos HD o álbumes de imágenes de TikTok',
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {

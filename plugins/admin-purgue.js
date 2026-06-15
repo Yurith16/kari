@@ -18,8 +18,11 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      false,
+  descripcion: 'Borrar mensajes de forma manual',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '🧹', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
@@ -27,10 +30,7 @@ export default {
 
     if (!args.length) {
       await sock.sendMessage(from, {
-        text: `🌸 *¿Cómo quieres limpiar?*\n\n` +
-          `✨ Por cantidad:\n  .purge 50\n\n` +
-          `⏳ Por tiempo:\n  .purge 10m  (últimos 10 minutitos)\n  .purge 30s  (últimos 30 segundos)\n  .purge 2h   (últimas 2 horas)\n\n` +
-          `📦 Máximo 500 mensajitos por vez.`
+        text: '_¿Cómo quieres limpiar?_\n\n> ✦ *Cantidad:* .purge 50\n> ✦ *Tiempo:* .purge 10m / 30s / 2h\n> ✦ *Máx:* 500 mensajes.'
       }, { quoted: msg })
       return
     }
@@ -45,7 +45,7 @@ export default {
       const n = parseInt(arg)
       if (isNaN(n) || n < 1) {
         await sock.sendMessage(from, {
-          text: '⚠️ Eso no lo entiendo. Usa un número (.purge 50) o tiempo (.purge 10m).'
+          text: '_Eso no lo entiendo. Usa un número (.purge 50) o tiempo (.purge 10m)._'
         }, { quoted: msg })
         return
       }
@@ -54,12 +54,10 @@ export default {
 
     if (!mensajes.length) {
       await sock.sendMessage(from, {
-        text: '🌸 No hay mensajes que limpiar en ese rango.'
+        text: '_No hay mensajes que limpiar en ese rango._'
       }, { quoted: msg })
       return
     }
-
-    await sock.sendMessage(from, { react: { text: '🗑', key: msg.key } })
 
     let eliminados = 0
     let fallidos   = 0
@@ -82,9 +80,8 @@ export default {
       }
     }
 
-    await sock.sendMessage(from, { react: { text: '✅', key: msg.key } })
     await sock.sendMessage(from, {
-      text: `✨ Limpieza lista.\n🗑 Eliminados: *${eliminados}*${fallidos ? `\n⚠️ No se pudieron borrar: *${fallidos}* (muy viejitos o sin permisos)` : ''}`
+      text: `_Limpieza lista._\n> ✦ *Eliminados:* ${eliminados}${fallidos ? `\n> ✦ *Fallidos:* ${fallidos}` : ''}`
     }, { quoted: msg })
   }
 }

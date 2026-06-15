@@ -6,16 +6,15 @@ import makeWASocket, {
   generateWAMessageFromContent,
   generateWAMessage
 } from '@whiskeysockets/baileys'
-import pino from 'pino'
+import pino     from 'pino'
 import readline from 'readline'
 import { parsePhoneNumber } from 'awesome-phonenumber'
 import fs from 'fs'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
-import { logger, startAutoBio } from '../utils/helpers.js'
-import { handleMessage } from './pipeline.js'
-import { getGroup } from './sqlite.js'
-import { startReminderChecker } from '../plugins/main-recordatorio.js'
-import { startAllSubbots } from './subbot-manager.js'
+import { logger, startAutoBio }    from '../utils/helpers.js'
+import { handleMessage }           from './pipeline.js'
+import { getGroup }                from './sqlite.js'
+import { startReminderChecker }    from '../plugins/main-recordatorio.js'
 
 // ─── Store liviano ────────────────────────────────────────────────────────────
 
@@ -45,12 +44,26 @@ setInterval(() => processed.clear(), 5 * 60 * 1000)
 
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-  return new Promise(r => rl.question(question, a => { rl.close(); r(a) }))
+  process.stdout.write('')
+  return new Promise(r => rl.question(question, a => { rl.close(); r(a.trim()) }))
 }
 
 function normalizeNumber(num) {
-  const pn = parsePhoneNumber(num)
-  return (pn.valid ? pn.number : num).replace(/\D/g, '')
+  const pn = parsePhoneNumber(String(num))
+  let limpio = (pn.valid ? pn.number : num).replace(/\D/g, '')
+  if (limpio.startsWith('52') && !limpio.startsWith('521') && limpio.length === 12) {
+    limpio = '521' + limpio.slice(2)
+  }
+  return limpio
+}
+
+function resolveNum(pid, lidCache) {
+  if (pid.endsWith('@s.whatsapp.net')) return cleanNumber(pid)
+  if (pid.endsWith('@lid')) {
+    const cached = lidCache.get(pid) || global.lidCache?.get(pid)
+    if (cached) return cleanNumber(cached)
+  }
+  return cleanNumber(pid)
 }
 
 // ─── Bot principal ────────────────────────────────────────────────────────────
@@ -82,12 +95,49 @@ export async function startBot() {
 
   store.bind(sock.ev)
 
+  // ─── Pairing code si no hay sesión ────────────────────────────────────────
+  if (!hasSession) {
+    await new Promise(r => setTimeout(r, 1500))
+
+    let numero = bot.botNumber ? normalizeNumber(String(bot.botNumber)) : ''
+
+    if (numero) {
+      process.stdout.write(`\n`)
+      const usar = await ask(`  📱 Número detectado en config: ${numero}\n  ¿Usar este número? (s/n): `)
+      if (!['s', 'si', 'sí', 'y', 'yes'].includes(usar.toLowerCase())) {
+        const nuevo = await ask('  Ingresa el número con código de país (ej: 50412345678): ')
+        numero = normalizeNumber(nuevo)
+      }
+    } else {
+      process.stdout.write(`\n`)
+      const ingresado = await ask('  Ingresa el número del bot con código de país (ej: 50412345678): ')
+      numero = normalizeNumber(ingresado)
+    }
+
+    if (!numero || numero.length < 8) {
+      logger.error('Pairing', 'Número inválido. Reiniciando...')
+      setTimeout(startBot, 3000)
+      return
+    }
+
+    logger.info('Pairing', `Solicitando código para ${numero}...`)
+    try {
+      const code = await sock.requestPairingCode(numero)
+      const fmt  = code.match(/.{1,4}/g)?.join('-') || code
+      process.stdout.write(`\n  🔑 Código de emparejamiento: ${fmt}\n\n`)
+      process.stdout.write(`  Ingresa este código en WhatsApp:\n`)
+      process.stdout.write(`  Dispositivos vinculados → Vincular dispositivo → Ingresar código\n\n`)
+    } catch (err) {
+      logger.error('Pairing', `Error al pedir código: ${err.message}`)
+    }
+  }
+
   // ─── Caché de JIDs ────────────────────────────────────────────────────────
   const lidCache = new Map()
 
   async function resolveParticipant(pid, groupId) {
-    if (lidCache.has(pid))          return lidCache.get(pid)
-    if (global.lidCache?.has(pid))  return global.lidCache.get(pid)
+    if (lidCache.has(pid))         return lidCache.get(pid)
+    if (global.lidCache?.has(pid)) return global.lidCache.get(pid)
     try {
       const real = await getRealJid(sock, pid, { key: { remoteJid: groupId } })
       const num  = cleanNumber(real)
@@ -102,9 +152,48 @@ export async function startBot() {
     return raw.length >= 8 ? `${raw}@s.whatsapp.net` : pid
   }
 
+  // ─── Caché grupos.update ──────────────────────────────────────────────────
   sock.ev.on('groups.update', async (updates) => {
     for (const update of updates) {
       try {
+        const cfg = getGroup(update.id)
+
+        if (cfg?.detect === 1) {
+          if (update.subject !== undefined) {
+            const quien = update.subjectOwner ? resolveNum(update.subjectOwner, lidCache) : null
+            await sock.sendMessage(update.id, {
+              text: quien
+                ? `📝 *+${quien}* cambió el nombre del grupo a *${update.subject}*`
+                : `📝 El nombre del grupo cambió a *${update.subject}*`
+            }).catch(() => {})
+          }
+
+          if (update.desc !== undefined) {
+            const quien = update.descOwner ? resolveNum(update.descOwner, lidCache) : null
+            await sock.sendMessage(update.id, {
+              text: quien
+                ? `📋 *+${quien}* cambió la descripción del grupo.`
+                : `📋 La descripción del grupo fue actualizada.`
+            }).catch(() => {})
+          }
+
+          if (update.pictureUrl !== undefined || update.imgUrl !== undefined) {
+            await sock.sendMessage(update.id, {
+              text: `🖼️ *La foto del grupo fue actualizada.*`
+            }).catch(() => {})
+          }
+
+          if (update.announce !== undefined) {
+            const quien  = update.announceOwner ? resolveNum(update.announceOwner, lidCache) : null
+            const estado = update.announce ? 'cerrado (solo admins)' : 'abierto (todos)'
+            await sock.sendMessage(update.id, {
+              text: quien
+                ? `🔒 *+${quien}* ${update.announce ? 'cerró' : 'abrió'} el grupo. Ahora está *${estado}*.`
+                : `🔒 El grupo ahora está *${estado}*.`
+            }).catch(() => {})
+          }
+        }
+
         const meta = await sock.groupMetadata(update.id)
         for (const p of meta.participants) {
           if (p.id.endsWith('@lid') && p.phoneNumber) {
@@ -116,65 +205,76 @@ export async function startBot() {
     }
   })
 
-  // ─── Pairing code ─────────────────────────────────────────────────────────
-  if (!hasSession) {
-    let numero = bot.botNumber
-    if (numero) {
-      const usar = await ask(`Número detectado: ${numero}\n¿Usar este? (s/n): `)
-      if (!['s', 'si', 'sí'].includes(usar.toLowerCase())) {
-        numero = await ask('Ingresa el número del bot: ')
-      }
-    } else {
-      numero = await ask('Ingresa el número del bot: ')
-    }
-    const limpio = normalizeNumber(numero)
-    logger.info('Pairing', `Solicitando código para ${limpio}...`)
-    try {
-      const code = await sock.requestPairingCode(limpio)
-      console.log(`\n  🔑 Código: ${code.match(/.{1,4}/g)?.join('-') || code}\n`)
-    } catch (err) {
-      logger.error('Pairing', err)
-    }
-  }
+  // ─── Detect: cambios de admin ─────────────────────────────────────────────
+  sock.ev.on('group-participants.update', async ({ id, participants, action, author }) => {
+    if (['add', 'remove'].includes(action)) {
+      try {
+        const cfg   = getGroup(id)
+        const isAdd = action === 'add'
 
-  // ─── Bienvenidas / despedidas ──────────────────────────────────────────────
-  sock.ev.on('group-participants.update', async ({ id, participants, action }) => {
-    if (!['add', 'remove'].includes(action)) return
-    try {
-      const cfg   = getGroup(id)
-      const isAdd = action === 'add'
-      if (isAdd  && !cfg.welcomeMsg && !global.features?.welcomeMsg) return
-      if (!isAdd && !cfg.goodbyeMsg && !global.features?.goodbyeMsg) return
+        // El grupo es la única fuente de verdad — sin fallback a global.features
+        if (isAdd  && cfg.welcomeMsg !== 1) return
+        if (!isAdd && cfg.goodbyeMsg !== 1) return
 
-      const plantilla = isAdd
-        ? (cfg.welcomeText || global.bot?.welcomeText || '')
-        : (cfg.goodbyeText || global.bot?.goodbyeText || '')
+        const plantilla = isAdd
+          ? (cfg.welcomeText || global.bot?.welcomeText || '')
+          : (cfg.goodbyeText || global.bot?.goodbyeText || '')
 
-      const imgUrl = isAdd
-        ? (cfg.welcomeImg || global.bot?.welcomeImg || '')
-        : (cfg.goodbyeImg || global.bot?.goodbyeImg || '')
+        const imgUrl = isAdd
+          ? (cfg.welcomeImg || global.bot?.welcomeImg || '')
+          : (cfg.goodbyeImg || global.bot?.goodbyeImg || '')
 
-      for (const p of participants) {
-        const pid      = typeof p === 'string' ? p : (p.id || p.jid)
-        const jidFinal = await resolveParticipant(pid, id)
-        const num      = cleanNumber(jidFinal)
-        const texto    = plantilla.replace(/[⁨⁩‎‏‪-‮]/g, '').replace(/@user/gi, `@${num}`)
+        for (const p of participants) {
+          const pid      = typeof p === 'string' ? p : (p.id || p.jid)
+          const jidFinal = await resolveParticipant(pid, id)
+          const num      = cleanNumber(jidFinal)
+          const texto    = plantilla.replace(/[⁨⁩‎‏‪-‮]/g, '').replace(/@user/gi, `@${num}`)
 
-        if (imgUrl) {
-          let imageBuffer
-          if (imgUrl.startsWith('file://')) {
-            imageBuffer = fs.readFileSync(imgUrl.replace('file://', ''))
+          if (imgUrl) {
+            let imageBuffer
+            if (imgUrl.startsWith('file://')) {
+              imageBuffer = fs.readFileSync(imgUrl.replace('file://', ''))
+            } else {
+              const response    = await fetch(imgUrl)
+              const arrayBuffer = await response.arrayBuffer()
+              imageBuffer       = Buffer.from(arrayBuffer)
+            }
+            await sock.sendMessage(id, { image: imageBuffer, caption: texto, mentions: [jidFinal] })
           } else {
-            const response   = await fetch(imgUrl)
-            const arrayBuffer = await response.arrayBuffer()
-            imageBuffer      = Buffer.from(arrayBuffer)
+            await sock.sendMessage(id, { text: texto, mentions: [jidFinal] })
           }
-          await sock.sendMessage(id, { image: imageBuffer, caption: texto, mentions: [jidFinal] })
-        } else {
-          await sock.sendMessage(id, { text: texto, mentions: [jidFinal] })
         }
-      }
-    } catch {}
+      } catch {}
+    }
+
+    if (['promote', 'demote'].includes(action)) {
+      try {
+        const cfg = getGroup(id)
+        if (cfg?.detect !== 1) return
+
+        const quienNum = author ? resolveNum(author, lidCache) : null
+
+        for (const p of participants) {
+          const pid    = typeof p === 'string' ? p : (p.id || p.jid)
+          const target = resolveNum(pid, lidCache)
+
+          const texto = action === 'promote'
+            ? quienNum
+              ? `👑 *+${quienNum}* le dio admin a *+${target}*`
+              : `👑 *+${target}* ahora es administrador`
+            : quienNum
+              ? `🔻 *+${quienNum}* le quitó admin a *+${target}*`
+              : `🔻 *+${target}* ya no es administrador`
+
+          const mentions = [
+            ...(quienNum ? [`${quienNum}@s.whatsapp.net`] : []),
+            `${target}@s.whatsapp.net`
+          ]
+
+          await sock.sendMessage(id, { text: texto, mentions }).catch(() => {})
+        }
+      } catch {}
+    }
   })
 
   // ─── Anti-call ────────────────────────────────────────────────────────────
@@ -208,7 +308,6 @@ export async function startBot() {
       startAutoBio(sock)
       startReminderChecker(sock)
 
-      // Pre-cachear JIDs
       setTimeout(async () => {
         try {
           const groups = await sock.groupFetchAllParticipating()
@@ -226,11 +325,6 @@ export async function startBot() {
           }
           logger.info('Caché', 'JIDs pre-cacheados')
         } catch {}
-
-        // ← Arrancar todos los subbots activos después de que el raíz esté listo
-        await startAllSubbots(sock).catch(err => {
-          logger.error('Subbots', `Error al iniciar subbots: ${err.message}`)
-        })
       }, 3000)
     }
   })

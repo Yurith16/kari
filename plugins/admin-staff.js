@@ -11,22 +11,23 @@ export default {
   descripcion: 'Muestra la lista de administradores del grupo',
 
   async execute(sock, msg, { from }) {
+    await sock.sendMessage(from, { react: { text: '👥', key: msg.key } })
+
     try {
       const meta     = await sock.groupMetadata(from)
       const admins   = meta.participants.filter(p => p.admin)
       const mentions = admins.map(a => a.id)
-      const div      = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-      let txt = `╭─〔 ${toBold('👮 STAFF DEL GRUPO')} 〕\n│\n`
-      txt += `│ ${div}\n`
+      let txt = `  𝚂𝚃𝙰𝙵𝙵 𝙳𝙴𝙻 𝙶𝚁𝚄𝙿𝙾\n`
+      txt += `⊰᯽⊱┈──╌❊╌──┈⊰᯽⊱\n\n`
+
       admins.forEach(a => {
         const num = cleanNumber(a.id)
-        const rol = a.admin === 'superadmin' ? '⭐ Creador' : '👮 Admin'
-        txt += `│ ${rol} @${num}\n`
+        const rol = a.admin === 'superadmin' ? 'Creador' : 'Admin'
+        txt += `> ✦ *${rol}* @${num}\n\n`
       })
-      txt += `│\n`
-      txt += `│ 🌿 ${admins.length} personitas al mando\n`
-      txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
+
+      txt += `> ✦ *Total:* ${admins.length} administradores`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
     } catch {

@@ -5,13 +5,16 @@ export default {
   owner:     false,
   group:     true,
   nsfw:      false,
-  descripcion: 'Abre el grupo para que cualquiera pueda entrar',
+  descripcion: 'Abre el grupo para que cualquiera pueda escribir',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '🪷', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
+
     try {
       await sock.groupSettingUpdate(from, 'not_announcement')
       await sock.sendMessage(from, { text: global.messages.groupOpened }, { quoted: msg })

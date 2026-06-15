@@ -12,18 +12,23 @@ export default {
   nsfw:      false,
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '🤫', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
+
     const target = await resolveTarget(sock, msg, args)
     if (!target?.num) {
       await sock.sendMessage(from, { text: global.messages.userNeeded }, { quoted: msg })
       return
     }
+
     const realJid  = await getRealJid(sock, target.jid, msg).catch(() => target.jid)
     const num      = cleanNumber(realJid)
     const jidFinal = `${num}@s.whatsapp.net`
+
     muteUser(from, num)
     await sock.sendMessage(from, {
       text: global.messages.muteSuccess,

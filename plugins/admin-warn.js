@@ -12,10 +12,13 @@ export default {
   nsfw:      false,
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
+
     const target = await resolveTarget(sock, msg, args)
     if (!target?.num) {
       await sock.sendMessage(from, { text: global.messages.userNeeded }, { quoted: msg })
@@ -29,7 +32,7 @@ export default {
 
     if (count >= 3) {
       await sock.sendMessage(from, {
-        text: `🚫 @${num} juntó 🔴🔴🔴 *3 avisos* y será expulsado en 5 segundos...`,
+        text: `_@${num} llegó a 3 avisos y será expulsado en 5 segundos._`,
         mentions: [jidFinal]
       }, { quoted: msg })
       setTimeout(async () => {
@@ -39,9 +42,9 @@ export default {
         } catch {}
       }, 5000)
     } else {
-      const circulos = '🔴'.repeat(count) + '⚪'.repeat(3 - count)
+      const circulos = '●'.repeat(count) + '○'.repeat(3 - count)
       await sock.sendMessage(from, {
-        text: `⚠️ @${num} ${circulos} *${count}/3* avisos. Una más y te tengo que sacar.`,
+        text: `_@${num} ${circulos} ${count}/3 avisos. Una más y serás expulsado._`,
         mentions: [jidFinal]
       }, { quoted: msg })
     }

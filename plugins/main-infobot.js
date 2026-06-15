@@ -2,7 +2,7 @@ export default {
   command: 'info',       // string o array: ['ping', 'p']
   tag: 'info',           // nombre del comando para identificación
   categoria: 'main',     // categoría para organizar en el menú
-  descripcion: 'Cuentas oficiales', 
+  descripcion: 'Cuentas oficiales de Midori-Hana', 
   owner:   false,        // true = solo owner
   group:   false,        // true = solo en grupos
  

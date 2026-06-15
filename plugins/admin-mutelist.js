@@ -13,6 +13,8 @@ export default {
   descripcion: 'Muestra la lista de usuarios silenciados',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '📋', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
@@ -22,20 +24,21 @@ export default {
 
     if (!lista.length) {
       await sock.sendMessage(from, {
-        text: '🌸 No hay nadie silenciado, todos pueden hablar libremente.'
+        text: '_No hay nadie silenciado._'
       }, { quoted: msg })
       return
     }
 
     const mentions = lista.map(r => `${r.user}@s.whatsapp.net`)
-    const div      = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-    let txt = `╭─〔 ${toBold('🔇 SILENCIADOS')} 〕\n│\n│ ${div}\n`
-    lista.forEach((r, i) => {
-      txt += `│  ${i + 1}. @${r.user}\n`
+    let txt = `𝚂𝙸𝙻𝙴𝙽𝙲𝙸𝙰𝙳𝙾𝚂\n`
+    txt += `⊰᯽⊱┈──╌❊╌──┈⊰᯽⊱\n\n`
+
+    lista.forEach((r) => {
+      txt += `> ✦ *Usuario* @${r.user}\n\n`
     })
-    txt += `│\n│ 🌿 ${lista.length} personita(s) en silencio\n`
-    txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
+
+    txt += `> ✦ *Total:* ${lista.length} usuario(s)`
 
     await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
   }

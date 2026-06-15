@@ -1,5 +1,3 @@
-// plugins/promote.js
-
 import { resolveTarget } from '../utils/target.js'
 
 export default {
@@ -12,6 +10,8 @@ export default {
   descripcion: 'Asciende a un miembro a administrador',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '📈', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
@@ -26,7 +26,8 @@ export default {
     try {
       await sock.groupParticipantsUpdate(from, [target.jid], 'promote')
       await sock.sendMessage(from, {
-        text: `👮 +${target.num} ahora es admin, ¡a mandar se ha dicho!`
+        text: `_@${target.num} ahora es admin._`,
+        mentions: [target.jid]
       }, { quoted: msg })
     } catch {
       await sock.sendMessage(from, { text: global.messages.botNotAdmin }, { quoted: msg })

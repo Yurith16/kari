@@ -1,5 +1,3 @@
-// plugins/tagall.js
-
 import { cleanNumber } from '../utils/jid.js'
 import { toBold } from '../utils/helpers.js'
 
@@ -13,6 +11,8 @@ export default {
   descripcion: 'Etiqueta a todos los miembros del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '📢', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
@@ -27,30 +27,26 @@ export default {
 
       const mentions = participantes.map(p => p.id)
 
-      const texto = args.join(' ') || '🌸 Han sido invocados.'
+      const texto = args.join(' ') || '_Han sido invocados._'
 
-      let txt = `╭─〔 ${toBold('👥 INVOCACIÓN')} 〕\n`
-      txt += `│\n`
-      txt += `│ ${texto}\n`
-      txt += `│\n`
+      let txt = `𝙸𝙽𝚅𝙾𝙲𝙰𝙲𝙸𝙾𝙽\n`
+      txt += `⊰᯽⊱┈──╌❊╌──┈⊰᯽⊱\n\n`
+      txt += `${texto}\n\n`
 
       if (admins.length) {
-        txt += `│ ${toBold('👮 Admins:')}\n`
+        txt += `> ✦ *Admins:*\n`
         admins.forEach(a => {
           const num = cleanNumber(a.id)
-          txt += `│    @${num}\n`
+          txt += `> @${num}\n`
         })
-        txt += `│\n`
+        txt += `\n`
       }
 
-      txt += `│ ${toBold('👤 Miembros:')}\n`
+      txt += `> ✦ *Miembros:*\n`
       miembros.forEach(m => {
         const num = cleanNumber(m.id)
-        txt += `│    @${num}\n`
+        txt += `> @${num}\n`
       })
-
-      txt += `│\n`
-      txt += `╰─── ── ── ── ──\n`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
 

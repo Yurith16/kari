@@ -1,21 +1,42 @@
-// plugins/robar.js
-
-import { getEconomy, addKryons, removeKryons, isRegistered, getUser, checkCooldown, setCooldown } from '../core/sqlite.js'
+// plugins/eco-robar.js
+import { getEconomy, getUser, addKryons, removeKryons, withdrawBanco, addXp, removeXp, checkCooldown, setCooldown, isRegistered } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { resolveTarget } from '../utils/target.js'
-import { formatCooldown } from '../utils/helpers.js'
-import { toBold } from '../utils/helpers.js'
 
-const COOLDOWN = 10 * 60 // 10 minutos
+const exitos = [
+  { texto: '💰', contexto: 'se hizo el dormido y cuando', detalle: 'pasó le sacó', porcentaje: [15, 35], xp: [15, 30] },
+  { texto: '🎭', contexto: 'se disfrazó de turista y apenas', detalle: 'se descuidó le birló', porcentaje: [18, 38], xp: [18, 32] },
+  { texto: '😴', contexto: 'se durmió bajo el cerezo y', detalle: 'le vació los bolsillos. Le robó', porcentaje: [20, 40], xp: [20, 35] },
+  { texto: '🫣', contexto: 'gritó "¡un conejito!" y cuando', detalle: 'volteó le metió mano. Le sacó', porcentaje: [15, 33], xp: [15, 28] },
+  { texto: '🤝', contexto: 'le dio un abrazo y mientras', detalle: 'le revisaba los bolsillos. Le robó', porcentaje: [18, 36], xp: [16, 30] },
+  { texto: '🏃', contexto: 'iba tranquilo y', detalle: 'pasó corriendo y le arrancó', porcentaje: [12, 30], xp: [12, 25] },
+  { texto: '🤡', contexto: 'le dijo que traía algo en la oreja y', detalle: 'se tocaba le sacó', porcentaje: [18, 35], xp: [16, 30] },
+  { texto: '😏', contexto: 'le pidió prestado y desapareció.', detalle: 'nunca le devolvió', porcentaje: [20, 45], xp: [20, 38] },
+  { texto: '🫳', contexto: 'se le cayeron las monedas y', detalle: 'las barrió antes que nadie. Agarró', porcentaje: [14, 32], xp: [14, 28] },
+  { texto: '🕺', contexto: 'se puso a bailar en la plaza y', detalle: 'miraba el show le robó', porcentaje: [16, 34], xp: [15, 30] },
+]
+
+const fracasos = [
+  { texto: '🚔', contexto: 'iba a robarle pero pasó la patrulla.', detalle: 'Salió corriendo y perdió', porcentaje: [8, 20], xpPierde: [8, 18] },
+  { texto: '😤', contexto: 'lo miró feo y le gritó de lejos.', detalle: 'Del susto se le cayeron', porcentaje: [10, 22], xpPierde: [10, 20] },
+  { texto: '🐕', contexto: 'no sabía que cargaba un perro bravo.', detalle: 'Le mordió el tobillo y perdió', porcentaje: [8, 18], xpPierde: [8, 16] },
+  { texto: '😳', contexto: 'era más pobre que él.', detalle: 'De la pena terminó regalándole', porcentaje: [5, 15], xpPierde: [5, 12] },
+  { texto: '🫢', contexto: 'lo cacheó en el acto.', detalle: 'De la vergüenza devolvió todo y perdió', porcentaje: [8, 18], xpPierde: [8, 16] },
+  { texto: '📢', contexto: 'gritó "¡ladrón!" y se asomó todo el barrio.', detalle: 'En la huida se le cayeron', porcentaje: [10, 20], xpPierde: [10, 18] },
+  { texto: '😭', contexto: 'se puso a llorar en plena calle.', detalle: 'Sintió culpa y encima perdió', porcentaje: [5, 15], xpPierde: [5, 14] },
+  { texto: '🪤', contexto: 'quiso ponerle zancadilla y se cayó él.', detalle: 'Quedó embarrado y perdió', porcentaje: [8, 18], xpPierde: [8, 16] },
+  { texto: '🤬', contexto: 'lo agarró del cuello.', detalle: 'No lo soltó hasta que escupió', porcentaje: [12, 25], xpPierde: [12, 22] },
+  { texto: '🧓', contexto: 'era viejito pero puro músculo.', detalle: 'Lo paseó de la oreja y perdió', porcentaje: [8, 20], xpPierde: [8, 18] },
+]
 
 export default {
-  command: ['robar', 'steal', 'asaltar', 'ratero'],
+  command: ['robar', 'rob', 'steal'],
   tag: 'robar',
   categoria: 'economia',
   owner: false,
   group: false,
   nsfw: false,
-  descripcion: 'Intenta robar kryons a otro usuario',
+  descripcion: 'Roba kryons a otro usuario del jardín',
 
   async execute(sock, msg, { from, args, sender, isGroup, groupCfg }) {
     if (isGroup && groupCfg?.economia === 0) {
@@ -29,108 +50,105 @@ export default {
       return sock.sendMessage(from, { text: global.messages.notRegistered }, { quoted: msg })
     }
 
-    const cd = checkCooldown(selfNum, 'robar', COOLDOWN)
-    if (!cd.ok) {
-      return sock.sendMessage(from, {
-        text: `🌿 Las sombras te rechazan por ahora. Espera *${formatCooldown(cd.secsLeft)}* para tu próximo intento.`
-      }, { quoted: msg })
-    }
-
     const target = await resolveTarget(sock, msg, args)
     if (!target?.num) {
       return sock.sendMessage(from, {
-        text: `🌿 ¿A quién planeas despojar, fiera? Menciona a la persona o responde a su mensaje.`
+        text: '🤔 ¿Y a quién piensas robarle? Menciona a alguien o responde a su mensaje.'
       }, { quoted: msg })
     }
 
     const targetNum = target.num
-    const targetJid = `${targetNum}@s.whatsapp.net`
 
     if (selfNum === targetNum) {
-      return sock.sendMessage(from, { text: `🌿 No puedes robarte a ti mismo, eso no tiene sentido.` }, { quoted: msg })
+      return sock.sendMessage(from, {
+        text: '😵‍💫 ¿Robarte a vos mismo? Eso no tiene sentido...'
+      }, { quoted: msg })
     }
 
     if (!isRegistered(targetNum)) {
-      return sock.sendMessage(from, { text: `🌿 Esa persona no existe en nuestros registros.` }, { quoted: msg })
+      return sock.sendMessage(from, {
+        text: '🌱 Esa persona aún no tiene jardín. No hay nada que robarle.'
+      }, { quoted: msg })
     }
 
-    const ecoVictima = getEconomy(targetNum)
-    if (ecoVictima.kryons < 50) {
-      return sock.sendMessage(from, { text: `🌿 ${target.name || 'Esa persona'} no tiene suficientes kryons para que valga la pena el riesgo.` }, { quoted: msg })
+    const cd = checkCooldown(selfNum, 'robar', 600)
+    if (!cd.ok) {
+      const mins = Math.ceil(cd.secsLeft / 60)
+      return sock.sendMessage(from, {
+        text: `🕰️ Todavía andan preguntando por lo del último robo. Espera *${mins}* minuto(s).`
+      }, { quoted: msg })
     }
 
     setCooldown(selfNum, 'robar')
 
-    // Modificado a 65% de probabilidad de éxito
-    const exito = Math.random() < 0.65
-    const perfil = getUser(targetNum)
-    const nombre = perfil.apodo || perfil.nombre
+    const ecoVictima = getEconomy(targetNum)
+    if (ecoVictima.kryons < 100) {
+      return sock.sendMessage(from, {
+        text: '🫗 Esa persona no tiene ni para un café. Busca otra víctima.'
+      }, { quoted: msg })
+    }
 
-    if (exito) {
-      const cantidad = Math.floor(Math.random() * (ecoVictima.kryons * 0.3)) + 20
+    const suerte = Math.random()
+    const perfilLadron = getUser(selfNum)
+    const perfilVictima = getUser(targetNum)
+    const nombreLadron = perfilLadron?.nombre || selfNum
+    const nombreVictima = perfilVictima?.nombre || targetNum
+
+    if (suerte < 0.45) {
+      const exito = exitos[Math.floor(Math.random() * exitos.length)]
+      const porcentaje = Math.floor(Math.random() * (exito.porcentaje[1] - exito.porcentaje[0] + 1)) + exito.porcentaje[0]
+      const xp = Math.floor(Math.random() * (exito.xp[1] - exito.xp[0] + 1)) + exito.xp[0]
+
+      const cantidad = Math.floor(ecoVictima.kryons * (porcentaje / 100))
+
       removeKryons(targetNum, cantidad)
       addKryons(selfNum, cantidad)
+      addXp(selfNum, xp)
 
-      const reacciones = ['🥷', '🐍', '🌑', '💸', '🕶️']
-      const react = reacciones[Math.floor(Math.random() * reacciones.length)]
+      await sock.sendMessage(from, { react: { text: exito.texto, key: msg.key } })
 
-      const frasesExito = [
-        `🥷 Qué manos tan rápidas. Le robaste *${cantidad.toLocaleString()}* kryons a *${nombre}* sin dejar rastro.`,
-        `🐍 Te escabulliste como una sombra y le arrebataste *${cantidad.toLocaleString()}* kryons a *${nombre}*.`,
-        `🌑 En la penumbra, lograste sacar *${cantidad.toLocaleString()}* kryons del bolsillo de *${nombre}*.`,
-        `💸 *${nombre}* ni siquiera se dio cuenta de que le faltaban *${cantidad.toLocaleString()}* kryons.`,
-        `🕶️ Actuaste con total sigilo y te llevaste *${cantidad.toLocaleString()}* kryons de *${nombre}*.`,
-        `🍃 Como una hoja cayendo, tomaste *${cantidad.toLocaleString()}* kryons de *${nombre}* sin hacer ruido.`,
-        `🧪 Usaste un poco de polvo de Midori para despistar a *${nombre}* y robarle *${cantidad.toLocaleString()}* kryons.`,
-        `🎭 Tu disfraz fue perfecto, *${nombre}* entregó *${cantidad.toLocaleString()}* kryons pensando que era una donación.`,
-        `💌 Interceptaste la correspondencia de *${nombre}* y encontraste *${cantidad.toLocaleString()}* kryons.`,
-        `🦇 Apareciste de la nada y te fuiste con *${cantidad.toLocaleString()}* kryons de *${nombre}*.`,
-        `🎒 Mientras *${nombre}* estaba distraído, vaciaste parte de su mochila obteniendo *${cantidad.toLocaleString()}* kryons.`,
-        `💎 Engañaste a *${nombre}* con una piedra falsa y cambiaste su fortuna por *${cantidad.toLocaleString()}* kryons.`,
-        `🗝️ Abriste su cerradura secreta y te hiciste con *${cantidad.toLocaleString()}* kryons de *${nombre}*.`,
-        `🔥 El caos fue tu mejor aliado, aprovechaste el desorden para quitarle *${cantidad.toLocaleString()}* kryons a *${nombre}*.`,
-        `💍 Convenciste a *${nombre}* de empeñar sus joyas, pero te quedaste con *${cantidad.toLocaleString()}* kryons del trato.`,
-        `🧬 Clonaste su tarjeta en un descuido y transferiste *${cantidad.toLocaleString()}* kryons a tu cuenta.`,
-        `🏍️ Le hiciste un placaje en seco y le quitaste *${cantidad.toLocaleString()}* kryons a *${nombre}*.`,
-        `🥀 *${nombre}* suspiraba por un amor perdido y, en su descuido, le robaste *${cantidad.toLocaleString()}* kryons.`,
-        `👑 Te hiciste pasar por un oficial y le cobraste una multa falsa de *${cantidad.toLocaleString()}* kryons a *${nombre}*.`,
-        `🛸 Fuiste tan veloz que *${nombre}* todavía cree que sus *${cantidad.toLocaleString()}* kryons se evaporaron.`
-      ]
+      await sock.sendMessage(from, {
+        text: `${exito.texto} ${nombreLadron} ${exito.contexto} ${nombreVictima} ${exito.detalle} *${cantidad.toLocaleString()} kryons*. ¡Bien jugado!`,
+        mentions: [target?.jid]
+      }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: react, key: msg.key } })
-      await sock.sendMessage(from, { text: `> ${frasesExito[Math.floor(Math.random() * frasesExito.length)]}`, mentions: [targetJid] }, { quoted: msg })
     } else {
-      const multa = Math.floor(Math.random() * 100) + 50
-      removeKryons(selfNum, multa)
+      const fracaso = fracasos[Math.floor(Math.random() * fracasos.length)]
+      const porcentaje = Math.floor(Math.random() * (fracaso.porcentaje[1] - fracaso.porcentaje[0] + 1)) + fracaso.porcentaje[0]
+      const xpPierde = Math.floor(Math.random() * (fracaso.xpPierde[1] - fracaso.xpPierde[0] + 1)) + fracaso.xpPierde[0]
 
-      const reacciones = ['🚔', '🚨', '🥀', '⛓️', '💔']
-      const react = reacciones[Math.floor(Math.random() * reacciones.length)]
+      const ecoLadron = getEconomy(selfNum)
+      const multa = Math.floor(ecoLadron.kryons * (porcentaje / 100))
 
-      const frasesFracaso = [
-        `🚔 Mala suerte, te atraparon robándole a *${nombre}*. Multa: *${multa.toLocaleString()}* kryons.`,
-        `🚨 La sirena sonó y *${nombre}* te descubrió con las manos en la masa. Perdiste *${multa.toLocaleString()}* kryons.`,
-        `🥀 Tu intento de robar a *${nombre}* falló estrepitosamente. Gastaste *${multa.toLocaleString()}* kryons en sobornos.`,
-        `⛓️ Terminaste esposado intentando asaltar a *${nombre}*. La fianza te costó *${multa.toLocaleString()}* kryons.`,
-        `💔 *${nombre}* te pilló y te rompió el corazón (y la billetera). Perdiste *${multa.toLocaleString()}* kryons.`,
-        `🧤 Se te resbaló el botín y terminaste pagando una compensación de *${multa.toLocaleString()}* kryons a *${nombre}*.`,
-        `📉 El plan salió mal, *${nombre}* llamó a seguridad y perdiste *${multa.toLocaleString()}* kryons.`,
-        `🐕 Los perros guardianes de *${nombre}* te acorralaron. Perdiste *${multa.toLocaleString()}* kryons al huir.`,
-        `🌩️ Intentaste robar bajo la lluvia pero te resbalaste y perdiste *${multa.toLocaleString()}* kryons.`,
-        `🛡️ *${nombre}* tenía un guardaespaldas invisible. Te costó *${multa.toLocaleString()}* kryons escapar del susto.`,
-        `🏮 La luz se encendió justo cuando tocabas su bolsillo. Perdiste *${multa.toLocaleString()}* kryons tratando de salir.`,
-        `🧤 Te olvidaste de los guantes y dejaste huellas. *${multa.toLocaleString()}* kryons menos por limpiar el rastro.`,
-        `🎥 Una cámara de seguridad te capturó robando a *${nombre}*. Multa: *${multa.toLocaleString()}* kryons.`,
-        `🩹 En el forcejeo con *${nombre}* te lesionaste y perdiste *${multa.toLocaleString()}* kryons en curación.`,
-        `🕸️ Te quedaste enredado en sus trampas. Perdiste *${multa.toLocaleString()}* kryons tratando de librarte.`,
-        `🔥 El explosivo falló y quemaste tus reservas: *${multa.toLocaleString()}* kryons lost.`,
-        `🚁 Intentaste escapar por aire pero te interceptaron. Perdiste *${multa.toLocaleString()}* kryons por el atraco fallido.`,
-        `🎭 Tu máscara se cayó frente a *${nombre}*. Perdiste *${multa.toLocaleString()}* kryons en silencio.`,
-        `😭 *${nombre}* lloró tanto que te dio lástima y le pagaste *${multa.toLocaleString()}* kryons por el mal trago.`,
-        `🦇 Un murciélago te asustó mientras robabas a *${nombre}*, tiraste tu bolsa con *${multa.toLocaleString()}* kryons.`
-      ]
+      const totalDisponible = ecoLadron.kryons + ecoLadron.banco
+      if (totalDisponible <= 0 || multa <= 0) {
+        removeXp(selfNum, xpPierde)
 
-      await sock.sendMessage(from, { react: { text: react, key: msg.key } })
-      await sock.sendMessage(from, { text: `> ${frasesFracaso[Math.floor(Math.random() * frasesFracaso.length)]}`, mentions: [targetJid] }, { quoted: msg })
+        await sock.sendMessage(from, { react: { text: fracaso.texto, key: msg.key } })
+
+        return await sock.sendMessage(from, {
+          text: `${fracaso.texto} ${nombreLadron} ${fracaso.contexto} ${nombreVictima} ${fracaso.detalle} kryons. ${nombreVictima} se rió en su cara. ¡Qué oso!`,
+          mentions: [target?.jid]
+        }, { quoted: msg })
+      }
+
+      let restanteMulta = multa
+      if (ecoLadron.kryons >= restanteMulta) {
+        removeKryons(selfNum, restanteMulta)
+      } else {
+        restanteMulta -= ecoLadron.kryons
+        removeKryons(selfNum, ecoLadron.kryons)
+        if (restanteMulta > 0) withdrawBanco(selfNum, restanteMulta)
+      }
+
+      removeXp(selfNum, xpPierde)
+
+      await sock.sendMessage(from, { react: { text: fracaso.texto, key: msg.key } })
+
+      await sock.sendMessage(from, {
+        text: `${fracaso.texto} ${nombreLadron} ${fracaso.contexto} ${nombreVictima} ${fracaso.detalle} *${multa.toLocaleString()} kryons*. ¡Papelón!`,
+        mentions: [target?.jid]
+      }, { quoted: msg })
     }
   }
 }

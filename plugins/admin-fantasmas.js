@@ -17,13 +17,14 @@ export default {
   descripcion: 'Detecta y lista los miembros inactivos del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '👻', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
-    try {
-      await sock.sendMessage(from, { react: { text: '👻', key: msg.key } })
 
+    try {
       const meta    = await sock.groupMetadata(from)
       const members = meta.participants
       const total   = members.length
@@ -49,27 +50,22 @@ export default {
 
       if (!fantasmas.length) {
         await sock.sendMessage(from, {
-          text: '🌸 ¡Qué bonito! No hay fantasmas, todos han participado.'
+          text: '_No hay fantasmas, todos han participado._'
         }, { quoted: msg })
         return
       }
 
       const mentions = fantasmas.map(m => `${m.num}@s.whatsapp.net`)
-      const div      = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-      let txt = `╭─〔 ${toBold('👻 FANTASMAS DEL GRUPO')} 〕\n`
-      txt += `│\n`
-      txt += `│ ${toBold('Personitas que no han dicho ni pío:')}\n`
-      txt += `│ ${div}\n`
+      let txt = `𝙵𝙰𝙽𝚃𝙰𝚂𝙼𝙰𝚂 𝙳𝙴𝙻 𝙶𝚁𝚄𝙿𝙾\n`
+      txt += `⊰᯽⊱┈──╌❊╌──┈⊰᯽⊱\n\n`
 
       fantasmas.forEach(m => {
-        txt += `│ 👻 @${m.num}\n`
+        txt += `> ✦ *Usuario* @${m.num}\n\n`
       })
 
-      txt += `│\n`
-      txt += `│ ✨ ${fantasmas.length} de ${total} están muditos\n`
-      txt += `│ 🌿 ${activos.size} de ${total} sí han hablado\n`
-      txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
+      txt += `> ✦ *Inactivos:* ${fantasmas.length} de ${total}\n`
+      txt += `> ✦ *Activos:* ${activos.size} de ${total}`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
     } catch (err) {

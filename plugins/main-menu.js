@@ -5,10 +5,6 @@ import bot                from '../settings/bot.js'
 
 const startTime = Date.now()
 
-const BULLETS = ['🌸','🌺', '🌼']
-let bulletIdx  = 0
-const getBullet = () => BULLETS[bulletIdx++ % BULLETS.length]
-
 function uptime() {
   const ms = Date.now() - startTime
   const h  = Math.floor(ms / 3600000)
@@ -33,10 +29,13 @@ function getTime() {
   })
 }
 
-function buildCategoryBox(catName, cmds, descMap, prefix, bullet) {
-  let txt = `*───〔 ${catName.toUpperCase()} 〕───*\n\n`
+function buildCategoryBox(catName, cmds, descMap, prefix) {
+  const emojis = ['📍', '🌸', '🌼', '🌴', '🌱', '🙊']
+  const emoji = emojis[Math.floor(Math.random() * emojis.length)]
+  
+  let txt = `✥------- ${toMono(catName.toUpperCase())} -------✥\n\n`
   cmds.sort().forEach(cmd => {
-    txt += `> ${bullet} *${prefix}${cmd}*\n`
+    txt += `${emoji} *${prefix}${cmd}*\n`
     const desc = descMap[cmd]
     if (desc) txt += `> ↳ _${desc}_\n`
   })
@@ -44,13 +43,13 @@ function buildCategoryBox(catName, cmds, descMap, prefix, bullet) {
 }
 
 export default {
-  command:     'menu',
-  tag:         'menu',
-  categoria:   'main',
-  descripcion: 'Muestra todos los comandos disponibles',
-  owner:       false,
-  group:       false,
-  nsfw:        false,
+  command: 'menu',
+  tag: 'menu',
+  categoria: 'main',
+  descripcion: 'Muestra todo lo que puedo hacer',
+  owner: false,
+  group: false,
+  nsfw: false,
 
   async execute(sock, msg, { from, prefix }) {
     try {
@@ -58,7 +57,6 @@ export default {
       await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
       const latency = Date.now() - ping
 
-      const bullet  = getBullet()
       const botName = bot.name || 'Midori-Hana'
 
       const seen    = new Set()
@@ -81,12 +79,12 @@ export default {
       let grupos = 0
       try {
         const g = await sock.groupFetchAllParticipating()
-        grupos  = Object.keys(g).length
+        grupos = Object.keys(g).length
       } catch {}
 
       let totalUsuarios = 0
       try {
-        const row    = db.prepare(`SELECT COUNT(*) as count FROM users`).get()
+        const row = db.prepare(`SELECT COUNT(*) as count FROM users`).get()
         totalUsuarios = row?.count || 0
       } catch (e) {
         console.error('Error al obtener el conteo de usuarios:', e)
@@ -106,9 +104,14 @@ export default {
       menuTxt += `> ✦ *Activo:* ${uptime()}\n`
       menuTxt += `> ✦ *Grupos:* ${grupos}\n`
       menuTxt += `> ✦ *Latencia:* ${latency}ms\n`
-      menuTxt += `> ✦ *Total Usuarios:* ${totalUsuarios}\n`
-      menuTxt += `> ✦ *Comandos:* ${total}\n\n`
-      menuTxt += `_Hazme trabajar duro hoy, que para eso estoy aquí..._ 🤭\n\n`
+      menuTxt += `> ✦ *Usuarios:* ${totalUsuarios}\n`
+      menuTxt += `> ✦ *Comandos:* ${total}\n`
+
+      if (bot.grupoOficial) {
+        menuTxt += `> ✦ *Grupo Oficial:* ${bot.grupoOficial}\n`
+      }
+
+      menuTxt += `\n_Hazme trabajar duro hoy, que para eso estoy aquí..._ 🤭\n\n`
 
       const orden = ['main', 'admin', 'economia', 'diversion', 'juego', 'busqueda', 'descargas', 'utilidad', 'nsfw', 'owner']
       const categoryMap = {
@@ -128,7 +131,7 @@ export default {
         const cmds = mapa[cat]
         if (!cmds?.length) continue
         const nombre = categoryMap[cat] || cat.toUpperCase()
-        menuTxt += buildCategoryBox(nombre, cmds, descMap, prefix, bullet)
+        menuTxt += buildCategoryBox(nombre, cmds, descMap, prefix)
         menuTxt += '\n'
       }
 

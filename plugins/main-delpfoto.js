@@ -1,17 +1,16 @@
 // plugins/delpfoto.js
-
 import { setUserField, getUser, isRegistered } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 const sesiones = new Map()
 
 export default {
-  command:     'delpfoto',
-  tag:         'delpfoto',
-  categoria:   'main',
-  owner:       false,
-  group:       false,
-  nsfw:        false,
+  command: 'delpfoto',
+  tag: 'delpfoto',
+  categoria: 'main',
+  owner: false,
+  group: false,
+  nsfw: false,
   descripcion: 'Elimina tu foto de perfil',
 
   async onMessage(sock, msg, { from, text, userNum }) {
@@ -23,24 +22,16 @@ export default {
     const respuesta = text?.trim()?.toLowerCase()
     if (!respuesta) return
 
-    if (respuesta !== 'si' && respuesta !== 'no') {
-      return
-    }
+    if (respuesta !== 'si' && respuesta !== 'no') return
+
+    sesiones.delete(userNum)
 
     if (respuesta === 'no') {
-      sesiones.delete(userNum)
-      await sock.sendMessage(from, { text: '🌸 Bien, tu foto de perfil seguirá donde está.' }, { quoted: msg })
-      return
+      return sock.sendMessage(from, { text: '> 🩷 Bueno, tu foto se queda donde está.' }, { quoted: msg })
     }
 
-    if (respuesta === 'si') {
-      setUserField(userNum, 'foto', '')
-      sesiones.delete(userNum)
-      await sock.sendMessage(from, {
-        text: '🌸 Tu foto de perfil ha sido eliminada. Si quieres poner una nueva, usa *.pfoto*.'
-      }, { quoted: msg })
-      return
-    }
+    setUserField(userNum, 'foto', '')
+    return sock.sendMessage(from, { text: '> 🩷 Foto eliminada. Usa *.pfoto* si quieres poner una nueva.' }, { quoted: msg })
   },
 
   async execute(sock, msg, { from, sender }) {
@@ -54,15 +45,13 @@ export default {
     const perfil = getUser(selfNum)
 
     if (!perfil.foto) {
-      return sock.sendMessage(from, {
-        text: '🌸 No tienes una foto de perfil puesta.'
-      }, { quoted: msg })
+      return sock.sendMessage(from, { text: '> 🩷 No tienes ninguna foto de perfil puesta.' }, { quoted: msg })
     }
 
     sesiones.set(selfNum, { paso: 'confirmar' })
 
     await sock.sendMessage(from, {
-      text: '🌸 ¿Estás segura de que quieres eliminar tu foto de perfil?\n\nResponde *si* o *no*.'
+      text: '> 🩷 ¿Seguro que quieres eliminar tu foto de perfil? Responde *si* o *no*.'
     }, { quoted: msg })
   }
 }

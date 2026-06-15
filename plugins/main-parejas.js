@@ -75,7 +75,7 @@ export default {
         }, { quoted: msg })
       }
 
-      let txt = `╭─〔 💑 *PAREJAS DEL GRUPO* 〕─╮\n\n`
+      let txt = `╭〔 💑 *PAREJAS DEL GRUPO* 〕╮\n\n`
 
       parejas.forEach((p, i) => {
         const esCasado = p.estado === 'casado'

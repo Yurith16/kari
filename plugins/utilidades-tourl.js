@@ -17,7 +17,7 @@ export default {
     owner: false,
     group: false,
     nsfw: false,
-    descripcion: '🌸 Convierte imagen/video/sticker en URL permanente',
+    descripcion: 'Convierte imagen/video/sticker en URL permanente',
 
     async execute(sock, msg, { from }) {
         const userId = msg.key.participant || from

@@ -1,43 +1,33 @@
 // plugins/unreg.js
-
-import { getUser } from '../core/sqlite.js'
-import Database from 'better-sqlite3'
+import { getUser, isRegistered } from '../core/sqlite.js'
+import db from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
-const db = new Database('./midori.db')
-
 export default {
-  command:     'unreg',
-  tag:         'unreg',
-  categoria:   'main',
-  owner:       false,
-  group:       false,
-  nsfw:        false,
-  descripcion: 'Elimina tu perfil del bot',
+  command: 'unreg',
+  tag: 'unreg',
+  categoria: 'main',
+  owner: false,
+  group: false,
+  nsfw: false,
+  descripcion: 'Elimina tu perfil del jardín',
 
   async execute(sock, msg, { from, sender }) {
-    const realJid = await getRealJid(sock, sender, msg).catch(() => sender)
-    const user    = cleanNumber(realJid)
+    const selfJid = await getRealJid(sock, sender, msg).catch(() => sender)
+    const selfNum = cleanNumber(selfJid)
 
-    if (!user) {
-      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
-      return
+    if (!isRegistered(selfNum)) {
+      return sock.sendMessage(from, { text: '🌸 No tienes un perfil creado. Usa *.reg* para crear uno.' }, { quoted: msg })
     }
 
-    const perfil = getUser(user)
-    if (!perfil) {
-      await sock.sendMessage(from, {
-        text: '🌸 No tienes un perfil creado. Usa *.registro* para crear uno.'
-      }, { quoted: msg })
-      return
-    }
+    const perfil = getUser(selfNum)
 
     db.pragma('foreign_keys = OFF')
-    db.prepare(`DELETE FROM users WHERE user_num = ?`).run(user)
+    db.prepare(`DELETE FROM users WHERE user_num = ?`).run(selfNum)
     db.pragma('foreign_keys = ON')
 
     await sock.sendMessage(from, {
-      text: `🌸 Tu perfil fue eliminado, *${perfil.nombre}*. Si algún día quieres volver, aquí estaré.`
+      text: `🌸 Adiós, *${perfil.nombre}*. Tu perfil fue eliminado, pero el jardín siempre tendrá un lugar para ti.`
     }, { quoted: msg })
   }
 }

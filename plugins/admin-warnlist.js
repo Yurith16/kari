@@ -13,6 +13,8 @@ export default {
   nsfw:      false,
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: '📋', key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
@@ -22,21 +24,22 @@ export default {
 
     if (!lista.length) {
       await sock.sendMessage(from, {
-        text: '🌸 Todo en paz, nadie tiene avisos pendientes.'
+        text: '_Nadie tiene avisos pendientes._'
       }, { quoted: msg })
       return
     }
 
     const mentions = lista.map(r => `${r.user}@s.whatsapp.net`)
-    const div      = '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄'
 
-    let txt = `╭─〔 ${toBold('⚠️ AVISOS ACTIVOS')} 〕\n│\n│ ${div}\n`
-    lista.forEach((r, i) => {
-      const circulos = '🔴'.repeat(r.count) + '⚪'.repeat(3 - r.count)
-      txt += `│  ${i + 1}. @${r.user}  ${circulos} ${r.count}/3\n`
-    })
-    txt += `│\n│ 🌿 ${lista.length} persona(s) con llamadas de atención\n`
-    txt += `╰─── ${toBold(global.bot?.name || 'Bot')} ✦`
+    let txt = `𝙰𝚅𝙸𝚂𝙾𝚂 𝙰𝙲𝚃𝙸𝚅𝙾𝚂\n`
+    txt += `⊰᯽⊱┈──╌❊╌──┈⊰᯽⊱\n\n`
+
+   lista.forEach((r, i) => {
+  const circulos = '●'.repeat(r.count) + '○'.repeat(3 - r.count)
+  txt += `✦ ${i + 1}. @${r.user}  ${circulos} ${r.count}/3\n\n`
+})
+
+    txt += `✦ *Total:* ${lista.length} usuario(s)`
 
     await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
   }
