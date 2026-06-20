@@ -66,6 +66,8 @@ function resolveNum(pid, lidCache) {
   return cleanNumber(pid)
 }
 
+const WELCOME_AUDIO_DEFAULT = 'https://www.image2url.com/r2/default/files/1781992178205-d92321c5-ab62-48a1-9e6b-e06e96f78c83.ogg'
+
 // ─── Bot principal ────────────────────────────────────────────────────────────
 
 export async function startBot() {
@@ -243,6 +245,26 @@ export async function startBot() {
           } else {
             await sock.sendMessage(id, { text: texto, mentions: [jidFinal] })
           }
+
+          // ── Audio de bienvenida como nota de voz — solo en "add" ─────────
+          if (isAdd) {
+            const audioUrl = cfg.welcomeAudio || WELCOME_AUDIO_DEFAULT
+            try {
+              let audioBuffer
+              if (audioUrl.startsWith('file://')) {
+                audioBuffer = fs.readFileSync(audioUrl.replace('file://', ''))
+              } else {
+                const response    = await fetch(audioUrl)
+                const arrayBuffer = await response.arrayBuffer()
+                audioBuffer       = Buffer.from(arrayBuffer)
+              }
+              await sock.sendMessage(id, {
+                audio:    audioBuffer,
+                mimetype: 'audio/ogg; codecs=opus',
+                ptt:      true
+              })
+            } catch {}
+          }
         }
       } catch {}
     }
@@ -303,8 +325,8 @@ export async function startBot() {
     }
 
     if (connection === 'open') {
-  global.connectionStartTime = Date.now()
-  logger.info('Conexión', `${global.messages?.online} — ${sock.user.id.split(':')[0]}`)
+      global.connectionStartTime = Date.now()
+      logger.info('Conexión', `${global.messages?.online} — ${sock.user.id.split(':')[0]}`)
       logger.info('Config', `Prefix: ${global.bot?.prefix?.join(' ')} | Grupos: activos`)
       startAutoBio(sock)
       startReminderChecker(sock)

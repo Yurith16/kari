@@ -7,13 +7,13 @@ const AUDIOS_DIR = path.join(process.cwd(), 'base', 'welcome-audios')
 if (!fs.existsSync(AUDIOS_DIR)) fs.mkdirSync(AUDIOS_DIR, { recursive: true })
 
 export default {
-  command:     ['setwelcomeaudio', 'setaudiobienvenida'],
-  tag:         'setwelcomeaudio',
-  categoria:   'main',
+  command:     ['welcomeaudio'],
+  tag:         'welcomeaudio',
+  categoria:   'admin',
   owner:       false,
   group:       true,
   nsfw:        false,
-  descripcion: 'Configura el audio de bienvenida del grupo (responde a un audio o video)',
+  descripcion: 'Configura el audio de bienvenida del grupo, responde a un audio',
 
   async execute(sock, msg, { from, isAdmin, isOwner }) {
     if (!isAdmin && !isOwner) {
