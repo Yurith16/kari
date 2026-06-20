@@ -1,9 +1,8 @@
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
-const startTime = Date.now()
-
 function formatUptime() {
-  const ms = Date.now() - startTime
+  const start = global.connectionStartTime || Date.now()
+  const ms = Date.now() - start
   const d  = Math.floor(ms / 86400000)
   const h  = Math.floor((ms % 86400000) / 3600000)
   const m  = Math.floor((ms % 3600000) / 60000)

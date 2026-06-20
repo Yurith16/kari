@@ -1,6 +1,6 @@
-// core/sqlite.js
 import Database from 'better-sqlite3'
 import { logger } from '../utils/helpers.js'
+import { xpParaNivel } from '../settings/rangos.js'
 
 const db = new Database('./midori.db')
 db.pragma('journal_mode = WAL')
@@ -116,6 +116,9 @@ try { db.exec(`ALTER TABLE groups ADD COLUMN goodbyeImg TEXT DEFAULT ''`) }    c
 try { db.exec(`ALTER TABLE groups ADD COLUMN economia INTEGER DEFAULT 1`) }    catch {}
 try { db.exec(`ALTER TABLE groups ADD COLUMN detect INTEGER DEFAULT 0`) }      catch {}
 
+// ------- AUDIO DE BIENVENIDA POR GRUPOS ----
+try { db.exec(`ALTER TABLE groups ADD COLUMN welcomeAudio TEXT DEFAULT ''`) } catch {}
+
 for (const col of ['frase', 'color', 'animal', 'foto', 'pareja']) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT DEFAULT ''`) } catch {}
 }
@@ -131,13 +134,21 @@ for (const col of [
   try { db.exec(`ALTER TABLE economy ADD COLUMN ${col} INTEGER DEFAULT 0`) } catch {}
 }
 
-try { db.exec(`DROP TABLE IF EXISTS tienda`) }    catch {}
-try { db.exec(`DROP TABLE IF EXISTS inventory`) } catch {}
+try { db.exec(`DROP TABLE IF EXISTS tienda`) }        catch {}
+try { db.exec(`DROP TABLE IF EXISTS inventory`) }     catch {}
 try { db.exec(`DROP TABLE IF EXISTS subbots`) }       catch {}
 try { db.exec(`DROP TABLE IF EXISTS subbot_grupos`) } catch {}
 
-// Corregir niveles con decimales y ajustar fórmula
-db.exec(`UPDATE economy SET nivel = FLOOR(xp / 200) + 1`)
+// Recalcular niveles de todos los usuarios con la nueva fórmula exponencial
+try {
+  const todos = db.prepare(`SELECT user_num, xp FROM economy`).all()
+  const upd   = db.prepare(`UPDATE economy SET nivel = ? WHERE user_num = ?`)
+  for (const row of todos) {
+    let nivel = 1
+    while (row.xp >= xpParaNivel(nivel + 1)) nivel++
+    upd.run(nivel, row.user_num)
+  }
+} catch {}
 
 logger.info('SQLite', 'Base de datos lista ✦')
 
@@ -293,8 +304,8 @@ const _addKryons    = db.prepare(`UPDATE economy SET kryons = kryons + ? WHERE u
 const _removeKryons = db.prepare(`UPDATE economy SET kryons = MAX(0, kryons - ?) WHERE user_num = ?`)
 const _addBanco     = db.prepare(`UPDATE economy SET banco = banco + ? WHERE user_num = ?`)
 const _removeBanco  = db.prepare(`UPDATE economy SET banco = MAX(0, banco - ?) WHERE user_num = ?`)
-const _addXp        = db.prepare(`UPDATE economy SET xp = xp + ?, nivel = MAX(nivel, FLOOR((xp + ?) / 200) + 1) WHERE user_num = ?`)
-const _removeXp     = db.prepare(`UPDATE economy SET xp = MAX(0, xp - ?), nivel = MAX(1, FLOOR(MAX(0, xp - ?) / 200) + 1) WHERE user_num = ?`)
+const _addXp        = db.prepare(`UPDATE economy SET xp = xp + ? WHERE user_num = ?`)
+const _removeXp     = db.prepare(`UPDATE economy SET xp = MAX(0, xp - ?) WHERE user_num = ?`)
 const _getTopEco    = db.prepare(`SELECT user_num, kryons + banco as total FROM economy ORDER BY total DESC LIMIT ?`)
 const _setUltimo    = (col) => db.prepare(`UPDATE economy SET ${col} = ? WHERE user_num = ?`)
 const _getUltimo    = (col) => db.prepare(`SELECT ${col} FROM economy WHERE user_num = ?`)
@@ -304,19 +315,23 @@ export function addKryons(userNum, amt)     { _initEconomy.run(userNum); _addKry
 export function removeKryons(userNum, amt)  { _removeKryons.run(amt, userNum) }
 export function depositBanco(userNum, amt)  { _removeKryons.run(amt, userNum); _addBanco.run(amt, userNum) }
 export function withdrawBanco(userNum, amt) { _removeBanco.run(amt, userNum); _addKryons.run(amt, userNum) }
-export function addXp(userNum, amt)         { _initEconomy.run(userNum); _addXp.run(amt, amt, userNum) }
-export function removeXp(userNum, amt)      { _removeXp.run(amt, amt, userNum) }
+export function addXp(userNum, amt)         { _initEconomy.run(userNum); _addXp.run(amt, userNum) }
+export function removeXp(userNum, amt)      { _removeXp.run(amt, userNum) }
 export function getTopEconomy(limit = 10)   { return _getTopEco.all(limit) }
 
 export function setUltimo(userNum, col, ts) { _setUltimo(col).run(ts, userNum) }
 export function getUltimo(userNum, col)     { return _getUltimo(col).get(userNum)?.[col] || 0 }
 
+// Verifica si subió de nivel — retorna { nivel, rango } si subió, null si no
 export function checkLevelUp(userNum) {
   const eco = _getEconomy.get(userNum)
   if (!eco) return null
-  const nivelNuevo = Math.floor(eco.xp / 200) + 1
+
+  let nivelNuevo = 1
+  while (eco.xp >= xpParaNivel(nivelNuevo + 1)) nivelNuevo++
+
   if (nivelNuevo > eco.nivel) {
-    db.prepare(`UPDATE economy SET nivel = ? WHERE user_num = ?`).run(nivelNuevo, userNum)
+    db.prepare(`UPDATE economy SET nivel = ? WHERE user_num = ?`).run(nivelNuevo, eco.user_num || userNum)
     return nivelNuevo
   }
   return null
@@ -332,6 +347,13 @@ export function resetTodosLosPerfiles() {
   _resetAllProfiles.run()
   _resetAllNivelXp.run()
   db.pragma('foreign_keys = ON')
+}
+
+// Reset solo XP y nivel — sin tocar perfiles ni kryons
+const _resetExpNivel = db.prepare(`UPDATE economy SET xp = 0, nivel = 1`)
+
+export function resetTodaLaExp() {
+  _resetExpNivel.run()
 }
 
 // ─── Cooldowns ────────────────────────────────────────────────────────────────

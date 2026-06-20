@@ -303,7 +303,8 @@ export async function startBot() {
     }
 
     if (connection === 'open') {
-      logger.info('Conexión', `${global.messages?.online} — ${sock.user.id.split(':')[0]}`)
+  global.connectionStartTime = Date.now()
+  logger.info('Conexión', `${global.messages?.online} — ${sock.user.id.split(':')[0]}`)
       logger.info('Config', `Prefix: ${global.bot?.prefix?.join(' ')} | Grupos: activos`)
       startAutoBio(sock)
       startReminderChecker(sock)
