@@ -1,61 +1,54 @@
-// test.js YJ-EspinoX -- Hernandez..
-// Descargas de videos y musicas de YouTube...
-// Es un poco lento, pero seguro...
-// Compatible con videos y audios de mas de una hora de duración... 
 
-import fs from 'fs'
-import path from 'path'
+// Descargador de audio y videos de YouTube
+//Creditos: YJ-EspinoX
+// ..........................................
+// ------------- USO EN CONSOLA ------------
+//...........................................
+/*
+node test.js https://youtu.be/1a3REFH83WA mp3
+node test.js https://youtu.be/1a3REFH83WA mp4
+*/
 
-const videoUrl = 'https://youtu.be/TGtWWb9emYI?si=cCG_hjvCHhoNzun2'
-const format = process.argv[2] || 'mp3' // node test.js mp3 | node test.js 360
-const outputDir = path.join(process.cwd(), 'pruebas')
-if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true })
 
-async function download() {
+const videoUrl = process.argv[2] || 'https://youtu.be/1a3REFH83WA'
+const format = process.argv[3] || 'mp3'
+
+async function cnvcx(url, format) {
   const headers = {
-    'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:149.0) Gecko/20100101 Firefox/149.0',
+    'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0',
     'Accept': '*/*',
-    'Accept-Language': 'es-ES,es;q=0.9',
-    'Referer': 'https://en.loader.to/',
-    'Origin': 'https://en.loader.to'
+    'Accept-Language': 'es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Origin': 'https://mp3yt.is',
+    'Referer': 'https://mp3yt.is/'
   }
 
-  // Iniciar
-  const apiUrl = `https://p.savenow.to/api/v2/download?format=${format}&url=${encodeURIComponent(videoUrl)}&apikey=dfcb6d76f2f6a9894gjkege8a4ab232222`
-  const initRes = await fetch(apiUrl, { headers })
-  const init = await initRes.json()
+  const keyRes = await fetch('https://cnv.cx/v2/sanity/key', { headers })
+  const keyData = await keyRes.json()
 
-  if (!init.success) return console.log('✦ Error:', init)
+  const infoRes = await fetch('https://cnv.cx/v2/getVideoInfo', {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `link=${encodeURIComponent(url)}`
+  })
+  const info = await infoRes.json()
+  console.log('✦ Título:', info.title)
+  console.log('✦ Canal:', info.channelTitle)
+  console.log('✦ Duración:', info.videoTime)
+  console.log('✦ Portada:', info.thumbnail)
 
-  console.log('✦ Título:', init.title)
-  console.log('✦ Formato:', init.format || format)
+  const convertRes = await fetch('https://cnv.cx/v2/converter', {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded', 'key': keyData.key },
+    body: `link=${encodeURIComponent(url)}&format=${format}&audioBitrate=320&videoQuality=1080&vCodec=h264`
+  })
+  const convert = await convertRes.json()
 
-  // Esperar progreso de descarga pr parte del servidorr
-  let downloadUrl = ''
-  for (let i = 0; i < 20; i++) {
-    await new Promise(r => setTimeout(r, 2000))
-    const progressRes = await fetch(`${init.progress_url}&_=${Date.now()}`, { headers })
-    const progress = await progressRes.json()
-
-    if (progress.download_url) {
-      downloadUrl = progress.download_url
-      break
-    }
+  if (convert.status === 'tunnel' && convert.url) {
+    console.log('✦ Descarga:', convert.url)
+    console.log('✦ Archivo:', convert.filename)
+  } else {
+    console.log('✦ Error:', convert)
   }
-
-  if (!downloadUrl) return console.log('✦ Tardó mucho')
-
-  // Descargar el archivo. -- (url directa de la api)
-  console.log('✦ Descargando...')
-  const fileRes = await fetch(downloadUrl)
-  const buffer = Buffer.from(await fileRes.arrayBuffer())
-
-  const ext = format === 'mp3' ? 'mp3' : 'mp4'
-  const fileName = `${init.title.replace(/[^a-zA-Z0-9 ]/g, '')}.${ext}`
-  const filePath = path.join(outputDir, fileName)
-  fs.writeFileSync(filePath, buffer)
-
-  console.log(`✦ Guardado: ${filePath}`)
 }
 
-download()
+cnvcx(videoUrl, format)

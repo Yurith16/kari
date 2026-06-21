@@ -17,76 +17,38 @@ if (!fs.existsSync(MEDIA_DIR)) {
   fs.mkdirSync(MEDIA_DIR, { recursive: true })
 }
 
-let cachedToken = null
-
 // ═══════════════════════════════════════════════════════════════════════════
-//  FUENTE 1: y2mate.nu (etacloud) - LA MÁS RÁPIDA
+//  FUENTE 1: mp3yt.is (cnv.cx)
 // ═══════════════════════════════════════════════════════════════════════════
 
-async function getY2mateToken() {
-  if (cachedToken) return cachedToken
-  const { data } = await axios.get('https://eta.etacloud.org/api/v1/auth?_=' + Date.now(), {
-    headers: { 'User-Agent': UA, 'Origin': 'https://v3.y2mate.nu', 'Referer': 'https://v3.y2mate.nu/' }
-  })
-  cachedToken = data.key
-  return cachedToken
-}
-
-async function sourceY2mateNu(videoUrl) {
-  const videoId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[&?]|$)/)?.[1]
-  if (!videoId) throw new Error('No se pudo extraer video ID')
-
-  const token = await getY2mateToken()
-
-  const initRes = await axios.get('https://eta.etacloud.org/api/v1/init?_=' + Date.now(), {
-    headers: {
-      'User-Agent': UA,
-      'Authorization': `Bearer ${token}`,
-      'Origin': 'https://v3.y2mate.nu',
-      'Referer': 'https://v3.y2mate.nu/'
-    }
-  })
-
-  let convertUrl = initRes.data.convertURL
-  let result = null
-
-  for (let i = 0; i < 15 && !result; i++) {
-    await new Promise(r => setTimeout(r, 2000))
-
-    const url = i === 0 ? `${convertUrl}&v=${videoId}&f=mp3` : convertUrl
-    const convertRes = await axios.get(url, {
-      headers: {
-        'User-Agent': UA,
-        'Origin': 'https://v3.y2mate.nu',
-        'Referer': 'https://v3.y2mate.nu/'
-      }
-    })
-
-    const data = convertRes.data
-    if (data.downloadURL) { result = data; break }
-    if (data.redirect === 1 && data.redirectURL) { convertUrl = data.redirectURL; continue }
-    if (data.progressURL) {
-      for (let j = 0; j < 15; j++) {
-        await new Promise(r => setTimeout(r, 2000))
-        const progRes = await axios.get(`${data.progressURL}&t=${Date.now()}`, {
-          headers: {
-            'User-Agent': UA,
-            'Origin': 'https://v3.y2mate.nu',
-            'Referer': 'https://v3.y2mate.nu/'
-          }
-        })
-        if (progRes.data?.downloadURL) { result = progRes.data; break }
-      }
-      break
-    }
+async function sourceMp3yt(videoUrl) {
+  const headers = {
+    'User-Agent': UA,
+    'Accept': '*/*',
+    'Origin': 'https://mp3yt.is',
+    'Referer': 'https://mp3yt.is/'
   }
 
-  if (!result?.downloadURL) throw new Error('y2mate.nu sin downloadURL')
-  return { url: result.downloadURL, title: result.title || '' }
+  const keyRes = await axios.get('https://cnv.cx/v2/sanity/key', { headers })
+  const apiKey = keyRes.data.key
+
+  const params = new URLSearchParams({
+    link: videoUrl, format: 'mp3', audioBitrate: '320', videoQuality: '1080', vCodec: 'h264'
+  })
+
+  const convertRes = await axios.post('https://cnv.cx/v2/converter', params.toString(), {
+    headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded', 'key': apiKey },
+    timeout: 30000
+  })
+
+  if (convertRes.data?.status === 'tunnel' && convertRes.data?.url) {
+    return { url: convertRes.data.url, title: convertRes.data.filename || '' }
+  }
+  throw new Error('mp3yt falló')
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  APIs Apinexus (2-5)
+//  APIs Apinexus
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceApinexus(videoUrl, version) {
@@ -109,7 +71,7 @@ async function sourceApinexusV3(videoUrl) { return sourceApinexus(videoUrl, 'v3'
 async function sourceApinexusV4(videoUrl) { return sourceApinexus(videoUrl, 'v4') }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  APIs PrinceTech (6-11)
+//  APIs PrinceTech
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function princeGet(endpoint, videoUrl) {
@@ -129,7 +91,7 @@ async function sourcePrinceDlmp3(videoUrl)  { return princeGet('dlmp3', videoUrl
 async function sourcePrinceYtmusic(videoUrl){ return princeGet('ytmusic', videoUrl) }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  APIs EliteProTech (12-13)
+//  APIs EliteProTech
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceEliteYtdown(videoUrl) {
@@ -149,7 +111,7 @@ async function sourceEliteYtmp3(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  APIs Delirius (14-15)
+//  APIs Delirius
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceDeliriusV1(videoUrl) {
@@ -169,7 +131,7 @@ async function sourceDeliriusV2(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  API FG-Senna (16)
+//  API FG-Senna
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceFgSenna(videoUrl) {
@@ -179,33 +141,8 @@ async function sourceFgSenna(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  SCRAPERS (17-19)
+//  cnvmp3
 // ═══════════════════════════════════════════════════════════════════════════
-
-async function sourceY2mate(videoUrl) {
-  const keyRes = await axios.get('https://cnv.cx/v2/sanity/key', {
-    headers: { 'User-Agent': UA, 'Accept': '*/*', 'Referer': 'https://iframe.y2meta-uk.com/', 'Origin': 'https://iframe.y2meta-uk.com' }
-  })
-  const apiKey = keyRes.data.key
-
-  const params = new URLSearchParams({
-    link: videoUrl, format: 'mp3', audioBitrate: '320',
-    videoQuality: '720', filenameStyle: 'pretty', vCodec: 'h264'
-  })
-
-  const convertRes = await axios.post('https://cnv.cx/v2/converter', params.toString(), {
-    headers: {
-      'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded', 'key': apiKey,
-      'Origin': 'https://iframe.y2meta-uk.com', 'Referer': 'https://iframe.y2meta-uk.com/'
-    },
-    timeout: 30000
-  })
-
-  if (convertRes.data?.status === 'tunnel' && convertRes.data?.url) {
-    return { url: convertRes.data.url, title: convertRes.data.filename || '' }
-  }
-  throw new Error('y2mate falló')
-}
 
 async function sourceCnvmp3(videoUrl) {
   const videoId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[&?]|$)/)?.[1]
@@ -219,7 +156,7 @@ async function sourceCnvmp3(videoUrl) {
 
   if (checkRes.data?.success && checkRes.data?.data?.server_path) {
     return {
-      url: checkRes.data.data.server_path.replace(/&/g, '%26').replace(/#/g, '%23').replace(/\+/g, '%2B'),
+      url: checkRes.data.data.server_path,
       title: checkRes.data.data.title
     }
   }
@@ -241,13 +178,14 @@ async function sourceCnvmp3(videoUrl) {
   })
 
   if (downloadRes.data?.download_link) {
-    return {
-      url: downloadRes.data.download_link.replace(/&/g, '%26').replace(/#/g, '%23').replace(/\+/g, '%2B'),
-      title
-    }
+    return { url: downloadRes.data.download_link, title }
   }
   throw new Error('cnvmp3 falló')
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  ytdlp.online
+// ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceYtdlp(videoUrl) {
   const initRes = await axios.get('https://ytdlp.online/', { headers: { 'User-Agent': UA } })
@@ -288,11 +226,11 @@ async function sourceYtdlp(videoUrl) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  FUENTES ORDENADAS: y2mate.nu primero
+//  FUENTES: mp3yt.is primero, luego el resto
 // ═══════════════════════════════════════════════════════════════════════════
 
 const sources = [
-  { name: 'y2mate.nu',        fn: sourceY2mateNu },
+  { name: 'mp3yt.is',         fn: sourceMp3yt },
   { name: 'Apinexus v2',      fn: sourceApinexusV2 },
   { name: 'Apinexus v1',      fn: sourceApinexusV1 },
   { name: 'Apinexus v3',      fn: sourceApinexusV3 },
@@ -308,7 +246,6 @@ const sources = [
   { name: 'Delirius v1',      fn: sourceDeliriusV1 },
   { name: 'Delirius v2',      fn: sourceDeliriusV2 },
   { name: 'FG-Senna',         fn: sourceFgSenna },
-  { name: 'y2mate',           fn: sourceY2mate },
   { name: 'cnvmp3',           fn: sourceCnvmp3 },
   { name: 'ytdlp.online',     fn: sourceYtdlp },
 ]

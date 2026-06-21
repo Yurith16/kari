@@ -17,8 +17,8 @@ const bot = {
   "spamTime": 60000,
   "minDelay": 0,
   "maxDelay": 0,
-  "welcomeText": "🌿 Bienvenido al grupo @user espero que disfrutes tu estancia.",
-  "goodbyeText": "🍃 @user ha salido del grupo."
+  "welcomeText": " _Bienvenido al grupo @user espero que disfrutes tu estancia._",
+  "goodbyeText": " _Ups!! @user ha salido del grupo._"
 }
 
 global.bot = bot
