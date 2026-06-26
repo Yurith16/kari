@@ -10,11 +10,12 @@ import pino     from 'pino'
 import readline from 'readline'
 import { parsePhoneNumber } from 'awesome-phonenumber'
 import fs from 'fs'
-import { getRealJid, cleanNumber } from '../utils/jid.js'
-import { logger, startAutoBio }    from '../utils/helpers.js'
-import { handleMessage }           from './pipeline.js'
-import { getGroup }                from './sqlite.js'
-import { startReminderChecker }    from '../plugins/main-recordatorio.js'
+import { getRealJid, cleanNumber }  from '../utils/jid.js'
+import { logger, startAutoBio }     from '../utils/helpers.js'
+import { handleMessage }            from './pipeline.js'
+import { getGroup, getGroupsWithSaludos, setSaludoTimestamp } from './sqlite.js'
+import { startReminderChecker }     from '../plugins/main-recordatorio.js'
+import { FRASES_MANANA, FRASES_TARDE, FRASES_NOCHE } from '../settings/frases.js'
 
 // ─── Store liviano ────────────────────────────────────────────────────────────
 
@@ -68,6 +69,75 @@ function resolveNum(pid, lidCache) {
 
 const WELCOME_AUDIO_DEFAULT = 'https://www.image2url.com/r2/default/files/1781992178205-d92321c5-ab62-48a1-9e6b-e06e96f78c83.ogg'
 
+// ─── Sistema de saludos por horario ──────────────────────────────────────────
+
+// Zona horaria Honduras UTC-6
+function getHoraHonduras() {
+  const ahora = new Date()
+  // Convertir a UTC-6
+  const utcMs    = ahora.getTime() + ahora.getTimezoneOffset() * 60000
+  const hn       = new Date(utcMs - 6 * 3600000)
+  return { hora: hn.getHours(), fecha: hn.toISOString().slice(0, 10), ts: Math.floor(hn.getTime() / 1000) }
+}
+
+function getFrasesYTipo() {
+  const { hora } = getHoraHonduras()
+  if (hora >= 6  && hora < 12) return { frases: FRASES_MANANA, tipo: 'manana' }
+  if (hora >= 12 && hora < 19) return { frases: FRASES_TARDE,  tipo: 'tarde'  }
+  return                              { frases: FRASES_NOCHE,   tipo: 'noche'  }
+}
+
+function yaSeMandoboy(grupo, tipo) {
+  const col    = `ultimo_saludo_${tipo}`
+  const ultimo = grupo[col] || 0
+  if (!ultimo) return false
+
+  // Comparar fecha del último envío con fecha actual en UTC-6
+  const { fecha } = getHoraHonduras()
+  const fechaUltimo = new Date((ultimo - 6 * 3600) * 1000).toISOString().slice(0, 10)
+  return fechaUltimo === fecha
+}
+
+// Último índice usado por tipo para no repetir la misma frase dos veces seguidas
+const ultimoIndice = { manana: -1, tarde: -1, noche: -1 }
+
+function elegirFrase(frases, tipo) {
+  let idx
+  do {
+    idx = Math.floor(Math.random() * frases.length)
+  } while (idx === ultimoIndice[tipo] && frases.length > 1)
+  ultimoIndice[tipo] = idx
+  return frases[idx]
+}
+
+function startSaludosChecker(sock) {
+  // Corre cada minuto
+  setInterval(async () => {
+    try {
+      const { frases, tipo } = getFrasesYTipo()
+      const grupos           = getGroupsWithSaludos()
+      if (!grupos.length) return
+
+      for (const grupo of grupos) {
+        if (yaSeMandoboy(grupo, tipo)) continue
+
+        const frase = elegirFrase(frases, tipo)
+
+        try {
+          await sock.sendMessage(grupo.group_id, { text: frase })
+          setSaludoTimestamp(grupo.group_id, tipo)
+          // Pequeño delay entre grupos para no saturar
+          await new Promise(r => setTimeout(r, 1500))
+        } catch {}
+      }
+    } catch (err) {
+      logger.error('Saludos', err.message)
+    }
+  }, 60 * 1000)
+
+  logger.info('Saludos', 'Checker de saludos iniciado ✦')
+}
+
 // ─── Bot principal ────────────────────────────────────────────────────────────
 
 export async function startBot() {
@@ -97,7 +167,7 @@ export async function startBot() {
 
   store.bind(sock.ev)
 
-  // ─── Pairing code si no hay sesión ────────────────────────────────────────
+  // ─── Pairing code si no hay sesión ───────────────────────────────────────
   if (!hasSession) {
     await new Promise(r => setTimeout(r, 1500))
 
@@ -134,7 +204,7 @@ export async function startBot() {
     }
   }
 
-  // ─── Caché de JIDs ────────────────────────────────────────────────────────
+  // ─── Caché de JIDs ───────────────────────────────────────────────────────
   const lidCache = new Map()
 
   async function resolveParticipant(pid, groupId) {
@@ -154,7 +224,7 @@ export async function startBot() {
     return raw.length >= 8 ? `${raw}@s.whatsapp.net` : pid
   }
 
-  // ─── Caché grupos.update ──────────────────────────────────────────────────
+  // ─── groups.update ───────────────────────────────────────────────────────
   sock.ev.on('groups.update', async (updates) => {
     for (const update of updates) {
       try {
@@ -181,7 +251,7 @@ export async function startBot() {
 
           if (update.pictureUrl !== undefined || update.imgUrl !== undefined) {
             await sock.sendMessage(update.id, {
-              text: `🖼️ *La foto del grupo fue actualizada.*`
+              text: `🖼️ La foto del grupo fue actualizada.`
             }).catch(() => {})
           }
 
@@ -207,14 +277,13 @@ export async function startBot() {
     }
   })
 
-  // ─── Detect: cambios de admin ─────────────────────────────────────────────
+  // ─── group-participants.update ───────────────────────────────────────────
   sock.ev.on('group-participants.update', async ({ id, participants, action, author }) => {
     if (['add', 'remove'].includes(action)) {
       try {
         const cfg   = getGroup(id)
         const isAdd = action === 'add'
 
-        // El grupo es la única fuente de verdad — sin fallback a global.features
         if (isAdd  && cfg.welcomeMsg !== 1) return
         if (!isAdd && cfg.goodbyeMsg !== 1) return
 
@@ -246,7 +315,7 @@ export async function startBot() {
             await sock.sendMessage(id, { text: texto, mentions: [jidFinal] })
           }
 
-          // ── Audio de bienvenida como nota de voz — solo en "add" ─────────
+          // Audio de bienvenida — solo en add
           if (isAdd) {
             const audioUrl = cfg.welcomeAudio || WELCOME_AUDIO_DEFAULT
             try {
@@ -255,6 +324,25 @@ export async function startBot() {
                 audioBuffer = fs.readFileSync(audioUrl.replace('file://', ''))
               } else {
                 const response    = await fetch(audioUrl)
+                const arrayBuffer = await response.arrayBuffer()
+                audioBuffer       = Buffer.from(arrayBuffer)
+              }
+              await sock.sendMessage(id, {
+                audio:    audioBuffer,
+                mimetype: 'audio/ogg; codecs=opus',
+                ptt:      true
+              })
+            } catch {}
+          }
+
+          // Audio de despedida — solo en remove
+          if (!isAdd && cfg.goodbyeAudio) {
+            try {
+              let audioBuffer
+              if (cfg.goodbyeAudio.startsWith('file://')) {
+                audioBuffer = fs.readFileSync(cfg.goodbyeAudio.replace('file://', ''))
+              } else {
+                const response    = await fetch(cfg.goodbyeAudio)
                 const arrayBuffer = await response.arrayBuffer()
                 audioBuffer       = Buffer.from(arrayBuffer)
               }
@@ -299,7 +387,7 @@ export async function startBot() {
     }
   })
 
-  // ─── Anti-call ────────────────────────────────────────────────────────────
+  // ─── Anti-call ───────────────────────────────────────────────────────────
   if (global.features?.antiCall) {
     sock.ev.on('call', async (calls) => {
       for (const call of calls) {
@@ -312,7 +400,7 @@ export async function startBot() {
     })
   }
 
-  // ─── Conexión ─────────────────────────────────────────────────────────────
+  // ─── Conexión ────────────────────────────────────────────────────────────
   sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode
@@ -328,8 +416,10 @@ export async function startBot() {
       global.connectionStartTime = Date.now()
       logger.info('Conexión', `${global.messages?.online} — ${sock.user.id.split(':')[0]}`)
       logger.info('Config', `Prefix: ${global.bot?.prefix?.join(' ')} | Grupos: activos`)
+
       startAutoBio(sock)
       startReminderChecker(sock)
+      startSaludosChecker(sock)
 
       setTimeout(async () => {
         try {
@@ -346,7 +436,7 @@ export async function startBot() {
               }
             }
           }
-          logger.info('Caché', 'JIDs pre-cacheados')
+          logger.info('Caché', 'JIDs pre-cacheados ✦')
         } catch {}
       }, 3000)
     }
@@ -354,7 +444,7 @@ export async function startBot() {
 
   sock.ev.on('creds.update', saveCreds)
 
-  // ─── Mensajes ─────────────────────────────────────────────────────────────
+  // ─── Mensajes ────────────────────────────────────────────────────────────
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return
     for (const msg of messages) {

@@ -1,54 +1,58 @@
+// test.js
 
-// Descargador de audio y videos de YouTube
-//Creditos: YJ-EspinoX
-// ..........................................
-// ------------- USO EN CONSOLA ------------
-//...........................................
-/*
-node test.js https://youtu.be/1a3REFH83WA mp3
-node test.js https://youtu.be/1a3REFH83WA mp4
-*/
+import { Impit } from 'impit'
+import crypto from 'crypto'
 
+const API = 'https://api.deepai.org/api/text2img'
+const ORIGIN = 'https://deepai.org'
+const REFERER = 'https://deepai.org/machine-learning-model/text2img'
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36'
+const SALT = 'hackers_become_a_little_stinkier_every_time_they_hack'
 
-const videoUrl = process.argv[2] || 'https://youtu.be/1a3REFH83WA'
-const format = process.argv[3] || 'mp3'
+function md5rev(input) {
+  return crypto.createHash('md5').update(input, 'utf8').digest('hex').split('').reverse().join('')
+}
 
-async function cnvcx(url, format) {
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:152.0) Gecko/20100101 Firefox/152.0',
-    'Accept': '*/*',
-    'Accept-Language': 'es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Origin': 'https://mp3yt.is',
-    'Referer': 'https://mp3yt.is/'
-  }
+function generateIslandKey(userAgent = UA) {
+  const rand = Math.round(Math.random() * 100000000000) + ''
+  const inner = md5rev(userAgent + rand + SALT)
+  const mid = md5rev(userAgent + inner)
+  const outer = md5rev(userAgent + mid)
+  return 'tryit-' + rand + '-' + outer
+}
 
-  const keyRes = await fetch('https://cnv.cx/v2/sanity/key', { headers })
-  const keyData = await keyRes.json()
-
-  const infoRes = await fetch('https://cnv.cx/v2/getVideoInfo', {
-    method: 'POST',
-    headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `link=${encodeURIComponent(url)}`
-  })
-  const info = await infoRes.json()
-  console.log('✦ Título:', info.title)
-  console.log('✦ Canal:', info.channelTitle)
-  console.log('✦ Duración:', info.videoTime)
-  console.log('✦ Portada:', info.thumbnail)
-
-  const convertRes = await fetch('https://cnv.cx/v2/converter', {
-    method: 'POST',
-    headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded', 'key': keyData.key },
-    body: `link=${encodeURIComponent(url)}&format=${format}&audioBitrate=320&videoQuality=1080&vCodec=h264`
-  })
-  const convert = await convertRes.json()
-
-  if (convert.status === 'tunnel' && convert.url) {
-    console.log('✦ Descarga:', convert.url)
-    console.log('✦ Archivo:', convert.filename)
-  } else {
-    console.log('✦ Error:', convert)
+function getHeaders(key) {
+  return {
+    'api-key': key,
+    'user-agent': UA,
+    origin: ORIGIN,
+    referer: REFERER,
   }
 }
 
-cnvcx(videoUrl, format)
+const client = new Impit({ browser: 'chrome' })
+
+async function text2img(prompt) {
+  const key = generateIslandKey()
+  const fd = new FormData()
+  fd.append('text', prompt)
+  fd.append('width', '640')
+  fd.append('height', '640')
+  fd.append('image_generator_version', 'hd')
+  fd.append('use_new_model', 'false')
+  fd.append('use_old_model', 'false')
+  fd.append('quality', 'true')
+  fd.append('generation_source', 'img')
+
+  const res = await client.fetch(API, {
+    method: 'POST',
+    headers: getHeaders(key),
+    body: fd,
+  })
+  return res.json()
+}
+
+const prompt = process.argv[2] || 'a cute cat wearing a sombrero, digital art'
+console.log('🎨 Creando:', prompt)
+const out = await text2img(prompt)
+console.log(JSON.stringify(out, null, 2))

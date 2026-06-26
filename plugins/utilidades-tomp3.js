@@ -1,100 +1,80 @@
-// plugins/toimg.js
+// plugins/extraer-audio.js
 
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
-import { exec } from 'child_process'
-import { writeFile, readFile, unlink, mkdir } from 'fs/promises'
-import { existsSync } from 'fs'
+import { execFile } from 'child_process'
+import { writeFile, unlink } from 'fs/promises'
 import { join } from 'path'
-import sharp from 'sharp'
+import { existsSync } from 'fs'
+import ffmpegPath from 'ffmpeg-static'
 
-const TEMP_DIR = join(process.cwd(), 'temp')
-if (!existsSync(TEMP_DIR)) {
-  await mkdir(TEMP_DIR, { recursive: true }).catch(() => {})
-}
+const tempDir = join(process.cwd(), 'temp')
+if (!existsSync(tempDir)) import('fs').then(fs => fs.mkdirSync(tempDir, { recursive: true }))
 
-function execPromise(cmd) {
-  return new Promise((resolve, reject) => {
-    exec(cmd, (err) => (err ? reject(err) : resolve()))
-  })
-}
-
-const processing = new Set()
+const AUDIO_TYPES = ['audioMessage', 'videoMessage', 'documentMessage']
 
 export default {
-  command:   ['toimg', 'photo'],
-  tag:       'toimg',
-  categoria: 'utilidad',
-  owner:     false,
-  group:     false,
-  nsfw:      false,
-  descripcion: 'Convierte un sticker a imagen',
+  command: ['toaudio', 'tomp3'],
+  tag: 'tomp3',
+  categoria: 'utilidades',
+  owner: false,
+  group: false,
+  nsfw: false,
+  descripcion: 'Extrae el audio de un video, audio o documento',
 
   async execute(sock, msg, { from }) {
-    const userId = msg.key.participant || from
-
-    if (processing.has(userId)) {
-      return sock.sendMessage(from, {
-        text: '🌸 Espera un momento, aún estoy convirtiendo el sticker anterior.'
-      }, { quoted: msg })
-    }
-
     const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
+    const messageToDownload = quoted || msg.message
+    const mediaType = Object.keys(messageToDownload || {}).find(k => AUDIO_TYPES.includes(k))
 
-    if (!quoted?.stickerMessage) {
+    if (!mediaType) {
       return sock.sendMessage(from, {
-        text: '🌸 Responde a un sticker para convertirlo en imagen.'
+        text: 'Responde a un video, audio o documento con *.toaudio* para extraer el audio.'
       }, { quoted: msg })
     }
-
-    processing.add(userId)
-
-    const tmpPath = join(TEMP_DIR, `${Date.now()}_sticker.webp`)
-    const outPath = join(TEMP_DIR, `${Date.now()}_image.png`)
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
 
       const buffer = await downloadMediaMessage(
-        { message: quoted },
+        { message: messageToDownload },
         'buffer',
         {},
-        { logger: console }
+        { logger: console, reuploadRequest: sock.updateMediaMessage }
       )
 
-      await writeFile(tmpPath, buffer)
+      if (!buffer) throw new Error('Buffer vacío')
 
-      const isAnimated = buffer.toString('ascii', 0, 200).includes('ANIM') ||
-                        buffer.toString('ascii', 0, 200).includes('ANMF')
+      const inputPath = join(tempDir, `${Date.now()}_in.tmp`)
+      const outputPath = join(tempDir, `${Date.now()}.mp3`)
+      await writeFile(inputPath, buffer)
 
-      if (isAnimated) {
-        try {
-          await execPromise(`ffmpeg -y -i "${tmpPath}" -vframes 1 -f image2 "${outPath}"`)
-        } catch {
-          const img = await sharp(buffer, { animated: true }).png().toBuffer()
-          await writeFile(outPath, img)
-        }
-      } else {
-        try {
-          const pngBuffer = await sharp(buffer).png().toBuffer()
-          await writeFile(outPath, pngBuffer)
-        } catch {
-          await execPromise(`ffmpeg -y -i "${tmpPath}" "${outPath}"`)
-        }
-      }
+      await new Promise((resolve, reject) => {
+        execFile(ffmpegPath, [
+          '-i', inputPath,
+          '-codec:a', 'libmp3lame',
+          '-b:a', '128k',
+          '-q:a', '2',
+          '-y', outputPath
+        ], (err) => {
+          if (err) return reject(err)
+          resolve()
+        })
+      })
 
       await sock.sendMessage(from, {
-        image: await readFile(outPath),
-        caption: '🌸 Aquí tienes tu sticker en imagen.'
+        audio: { url: outputPath },
+        mimetype: 'audio/mpeg'
       }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🟢', key: msg.key } })
 
-    } catch {
-      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
-    } finally {
-      if (existsSync(tmpPath)) await unlink(tmpPath).catch(() => {})
-      if (existsSync(outPath)) await unlink(outPath).catch(() => {})
-      processing.delete(userId)
+      await unlink(inputPath)
+      await unlink(outputPath)
+
+    } catch (err) {
+      console.error('[toaudio]', err.message)
+      await sock.sendMessage(from, { react: { text: '🔴', key: msg.key } })
+      await sock.sendMessage(from, { text: 'No pude extraer el audio.' }, { quoted: msg })
     }
   }
 }

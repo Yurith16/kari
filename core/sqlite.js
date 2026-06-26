@@ -115,9 +115,12 @@ try { db.exec(`ALTER TABLE groups ADD COLUMN welcomeImg TEXT DEFAULT ''`) }    c
 try { db.exec(`ALTER TABLE groups ADD COLUMN goodbyeImg TEXT DEFAULT ''`) }    catch {}
 try { db.exec(`ALTER TABLE groups ADD COLUMN economia INTEGER DEFAULT 1`) }    catch {}
 try { db.exec(`ALTER TABLE groups ADD COLUMN detect INTEGER DEFAULT 0`) }      catch {}
-
-// ------- AUDIO DE BIENVENIDA POR GRUPOS ----
-try { db.exec(`ALTER TABLE groups ADD COLUMN welcomeAudio TEXT DEFAULT ''`) } catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN welcomeAudio TEXT DEFAULT ''`) }  catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN goodbyeAudio TEXT DEFAULT ''`) }  catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN saludos INTEGER DEFAULT 0`) }     catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN ultimo_saludo_manana INTEGER DEFAULT 0`) } catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN ultimo_saludo_tarde INTEGER DEFAULT 0`) }  catch {}
+try { db.exec(`ALTER TABLE groups ADD COLUMN ultimo_saludo_noche INTEGER DEFAULT 0`) }  catch {}
 
 for (const col of ['frase', 'color', 'animal', 'foto', 'pareja']) {
   try { db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT DEFAULT ''`) } catch {}
@@ -139,7 +142,7 @@ try { db.exec(`DROP TABLE IF EXISTS inventory`) }     catch {}
 try { db.exec(`DROP TABLE IF EXISTS subbots`) }       catch {}
 try { db.exec(`DROP TABLE IF EXISTS subbot_grupos`) } catch {}
 
-// Recalcular niveles de todos los usuarios con la nueva fórmula exponencial
+// Recalcular niveles con la fórmula exponencial
 try {
   const todos = db.prepare(`SELECT user_num, xp FROM economy`).all()
   const upd   = db.prepare(`UPDATE economy SET nivel = ? WHERE user_num = ?`)
@@ -168,6 +171,17 @@ export function setGroupField(groupId, field, value) {
 }
 export function updateGroupName(groupId, name) {
   setGroupField(groupId, 'name', name)
+}
+
+const _getGroupsWithSaludos  = db.prepare(`SELECT * FROM groups WHERE saludos = 1`)
+const _setSaludoTs           = (col) => db.prepare(`UPDATE groups SET ${col} = ? WHERE group_id = ?`)
+
+export function getGroupsWithSaludos() {
+  return _getGroupsWithSaludos.all()
+}
+export function setSaludoTimestamp(groupId, tipo) {
+  const col = `ultimo_saludo_${tipo}`
+  _setSaludoTs(col).run(Math.floor(Date.now() / 1000), groupId)
 }
 
 // ─── Warns ────────────────────────────────────────────────────────────────────
@@ -237,9 +251,11 @@ const _getUser      = db.prepare(`SELECT * FROM users WHERE user_num = ?`)
 const _createUser   = db.prepare(`INSERT OR IGNORE INTO users (user_num, nombre, apodo, edad, genero, pais) VALUES (?,?,?,?,?,?)`)
 const _updateUser   = db.prepare(`UPDATE users SET nombre=?, apodo=?, edad=?, genero=?, pais=? WHERE user_num=?`)
 const _isRegistered = db.prepare(`SELECT 1 FROM users WHERE user_num = ? AND nombre != ''`)
+const _countUsers   = db.prepare(`SELECT COUNT(*) as n FROM users`)
 
 export function getUser(userNum)      { return _getUser.get(userNum) }
 export function isRegistered(userNum) { return !!_isRegistered.get(userNum) }
+export function countUsers()          { return _countUsers.get()?.n || 0 }
 
 export function registerUser(userNum, { nombre, apodo, edad, genero, pais }) {
   _createUser.run(userNum, nombre, apodo || '', edad || 0, genero || '', pais || '')
@@ -322,7 +338,6 @@ export function getTopEconomy(limit = 10)   { return _getTopEco.all(limit) }
 export function setUltimo(userNum, col, ts) { _setUltimo(col).run(ts, userNum) }
 export function getUltimo(userNum, col)     { return _getUltimo(col).get(userNum)?.[col] || 0 }
 
-// Verifica si subió de nivel — retorna { nivel, rango } si subió, null si no
 export function checkLevelUp(userNum) {
   const eco = _getEconomy.get(userNum)
   if (!eco) return null
@@ -331,7 +346,7 @@ export function checkLevelUp(userNum) {
   while (eco.xp >= xpParaNivel(nivelNuevo + 1)) nivelNuevo++
 
   if (nivelNuevo > eco.nivel) {
-    db.prepare(`UPDATE economy SET nivel = ? WHERE user_num = ?`).run(nivelNuevo, eco.user_num || userNum)
+    db.prepare(`UPDATE economy SET nivel = ? WHERE user_num = ?`).run(nivelNuevo, userNum)
     return nivelNuevo
   }
   return null
@@ -349,7 +364,6 @@ export function resetTodosLosPerfiles() {
   db.pragma('foreign_keys = ON')
 }
 
-// Reset solo XP y nivel — sin tocar perfiles ni kryons
 const _resetExpNivel = db.prepare(`UPDATE economy SET xp = 0, nivel = 1`)
 
 export function resetTodaLaExp() {

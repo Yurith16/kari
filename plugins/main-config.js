@@ -18,10 +18,10 @@ const GROUP_FEATURES = {
   welcome:   { key: 'welcomeMsg', label: 'Bienvenidas y despedidas', extra: 'goodbyeMsg' },
   antilink:  { key: 'antiLink',   label: 'Anti enlaces' },
   antitoxic: { key: 'antiToxic',  label: 'Anti insultos' },
-  nsfw:      { key: 'nsfw',       label: 'Contenido +18' },
   modoadmin: { key: 'adminMode',  label: 'Solo admins' },
   economia:  { key: 'economia',   label: 'Economía' },
   detect:    { key: 'detect',     label: 'Detectar cambios del grupo' },
+  saludos:   { key: 'saludos',    label: 'Saludos automáticos por horario' },
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -41,12 +41,11 @@ function on(val) {
 async function toggleFeature(activar, sock, msg, { from, args, isOwner, isAdmin, isGroup }) {
   const feature = args[0]?.toLowerCase()
 
-  // ── SIN ARGUMENTOS: mostrar lista con diseño estilo config ─────────────────
   if (!feature) {
     const f   = global.features || {}
     const cfg = isGroup ? getGroup(from) : null
 
-    let txt = `> ╭─〔 🌿 *${activar ? 'ENABLE' : 'DISABLE'}* 〕\n`
+    let txt = `> ╭─〔 🌸 *${activar ? 'ENABLE' : 'DISABLE'}* 〕\n`
     txt += `> │\n`
 
     if (isOwner) {
@@ -65,10 +64,10 @@ async function toggleFeature(activar, sock, msg, { from, args, isOwner, isAdmin,
       txt += `> │ ✦ welcome    ${on(cfg.welcomeMsg === 1)}\n`
       txt += `> │ ✦ antilink   ${on(cfg.antiLink === 1)}\n`
       txt += `> │ ✦ antitoxic  ${on(cfg.antiToxic !== 0)}\n`
-      txt += `> │ ✦ nsfw       ${on(cfg.nsfw === 1)}\n`
       txt += `> │ ✦ modoadmin  ${on(cfg.adminMode === 1)}\n`
       txt += `> │ ✦ economia   ${on(cfg.economia !== 0)}\n`
       txt += `> │ ✦ detect     ${on(cfg.detect === 1)}\n`
+      txt += `> │ ✦ saludos    ${on(cfg.saludos === 1)}\n`
       txt += `> │\n`
     }
 
@@ -176,7 +175,7 @@ const config = {
     const f   = global.features || {}
     const cfg = isGroup ? getGroup(from) : null
 
-    let txt = `> ╭─〔 🌿 *CONFIGURACIÓN* 〕\n`
+    let txt = `> ╭─〔 🌸 *CONFIGURACIÓN* 〕\n`
     txt += `> │\n`
 
     if (isOwner) {
@@ -195,10 +194,10 @@ const config = {
       txt += `> │ ✦ welcome    ${on(cfg.welcomeMsg === 1)}\n`
       txt += `> │ ✦ antilink   ${on(cfg.antiLink === 1)}\n`
       txt += `> │ ✦ antitoxic  ${on(cfg.antiToxic !== 0)}\n`
-      txt += `> │ ✦ nsfw       ${on(cfg.nsfw === 1)}\n`
       txt += `> │ ✦ modoadmin  ${on(cfg.adminMode === 1)}\n`
       txt += `> │ ✦ economia   ${on(cfg.economia !== 0)}\n`
       txt += `> │ ✦ detect     ${on(cfg.detect === 1)}\n`
+      txt += `> │ ✦ saludos    ${on(cfg.saludos === 1)}\n`
       txt += `> │\n`
     }
 

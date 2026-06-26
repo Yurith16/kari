@@ -2,12 +2,75 @@ import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { logger, delay }           from '../utils/helpers.js'
 import { checkSpam }               from '../utils/spam.js'
 import { commands }                from './plugins.js'
-import { getGroup, isMuted, isBanned, muteUser, unmuteUser, trackActivity, updateGroupName, saveMsg, isIgnored } from './sqlite.js'
+import {
+  getGroup, isMuted, isBanned, muteUser, unmuteUser,
+  trackActivity, updateGroupName, saveMsg, isIgnored,
+  isRegistered, registerUser, countUsers
+} from './sqlite.js'
 import { isToxic, getToxicResponse, addWarning, clearWarnings } from '../utils/toxic.js'
 
 const LINK_RE = /(?:https?:\/\/)?(?:www\.)?(?:chat\.whatsapp\.com|wa\.me|t\.me|telegram\.(?:me|dog|org))\/\S+/i
 
 if (!global.lidCache) global.lidCache = new Map()
+
+// ─── Cola de bienvenidas ──────────────────────────────────────────────────────
+
+const colaWelcome = []
+let   colaActiva  = false
+let   sockGlobal  = null
+
+async function procesarColaWelcome() {
+  if (colaActiva || colaWelcome.length === 0) return
+  colaActiva = true
+
+  while (colaWelcome.length > 0) {
+    const { jid, texto } = colaWelcome.shift()
+    let intentos = 0
+
+    while (intentos < 2) {
+      try {
+        await sockGlobal.sendMessage(jid, { text: texto })
+        break
+      } catch {
+        intentos++
+        if (intentos < 2) await new Promise(r => setTimeout(r, 2000))
+      }
+    }
+
+    if (colaWelcome.length > 0) await new Promise(r => setTimeout(r, 1500))
+  }
+
+  colaActiva = false
+}
+
+function encolarBienvenida(userNum, nombre, tienePushName) {
+  const jid   = `${userNum}@s.whatsapp.net`
+  const texto = tienePushName
+    ? (global.messages?.autoRegistered       || '').replace('{nombre}', nombre)
+    : (global.messages?.autoRegisteredRandom || '').replace('{nombre}', nombre)
+
+  colaWelcome.push({ jid, texto })
+  procesarColaWelcome().catch(() => {})
+}
+
+// ─── Registro automático ──────────────────────────────────────────────────────
+
+function autoRegistrar(msg, userNum) {
+  try {
+    const pushName      = msg.pushName?.trim() || ''
+    const tienePushName = pushName.length > 0
+    const nombre        = tienePushName
+      ? pushName.slice(0, 30)
+      : `Alma Errante-${countUsers() + 1}`
+
+    registerUser(userNum, { nombre, apodo: '', edad: 0, genero: '', pais: '' })
+    encolarBienvenida(userNum, nombre, tienePushName)
+
+    logger.info('AutoRegistro', `${userNum} → ${nombre}`)
+  } catch (err) {
+    logger.error('AutoRegistro', err.message)
+  }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,6 +111,7 @@ async function resolveContext(sock, msg) {
   let realJid = sender
   try { realJid = await getRealJid(sock, sender, msg) } catch {}
   const userNum = cleanNumber(realJid)
+
   if (sender.endsWith('@lid') && userNum && userNum.length >= 8) {
     global.lidCache.set(sender, `${userNum}@s.whatsapp.net`)
   }
@@ -78,10 +142,9 @@ async function resolveContext(sock, msg) {
 // ─── Pipeline steps ───────────────────────────────────────────────────────────
 
 async function stepAntiLink(ctx, sock, msg) {
-  if (!global.features?.antiLink)                 return false
-  if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin) return false
-  if (!ctx.groupCfg?.antiLink || ctx.groupCfg?.antiLink !== 1) return false
-  if (!LINK_RE.test(extractText(msg)))            return false
+  if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin)               return false
+  if (!ctx.groupCfg?.antiLink || ctx.groupCfg.antiLink !== 1)   return false
+  if (!LINK_RE.test(extractText(msg)))                           return false
   try {
     await sock.sendMessage(ctx.from, { delete: msg.key })
     await sock.sendMessage(ctx.from, { text: global.messages?.antiLink }, { quoted: msg })
@@ -107,8 +170,8 @@ async function stepMute(ctx, sock, msg) {
 }
 
 async function stepAntiToxic(ctx, sock, msg) {
-  if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin) return false
-  if (!ctx.groupCfg?.antiToxic || ctx.groupCfg?.antiToxic !== 1) return false
+  if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin)                     return false
+  if (!ctx.groupCfg?.antiToxic || ctx.groupCfg.antiToxic !== 1)       return false
 
   const text = extractText(msg)
   if (!text) return false
@@ -142,7 +205,7 @@ async function stepAntiToxic(ctx, sock, msg) {
 async function stepGuards(ctx, sock, msg) {
   const feat = global.features || {}
   const msgs = global.messages || {}
-  const bot  = global.bot     || {}
+  const bot  = global.bot      || {}
 
   if (!ctx.isOwner && isBanned(ctx.userNum)) {
     await sock.sendMessage(ctx.from, { text: msgs.bannedWarn }, { quoted: msg })
@@ -170,7 +233,7 @@ async function stepGuards(ctx, sock, msg) {
     const { blocked, secsLeft } = checkSpam(ctx.sender)
     if (blocked) {
       await sock.sendMessage(ctx.from, {
-        text: (msgs.spamWarn || '⏳ Espera {secs}s').replace('{secs}', secsLeft)
+        text: (msgs.spamWarn || 'Espera {secs}s').replace('{secs}', secsLeft)
       }, { quoted: msg })
       return true
     }
@@ -205,10 +268,6 @@ async function dispatch(ctx, sock, msg, match) {
   const cmd = commands.get(cmdName.toLowerCase())
   if (!cmd) return
 
-  if (cmd.nsfw && ctx.isGroup && ctx.groupCfg?.nsfw !== 1 && !ctx.isOwner) {
-    await sock.sendMessage(ctx.from, { text: global.messages?.nsfwDisabled }, { quoted: msg })
-    return
-  }
   if (cmd.owner && !ctx.isOwner) {
     await sock.sendMessage(ctx.from, { text: global.messages?.ownerOnly }, { quoted: msg })
     return
@@ -217,19 +276,11 @@ async function dispatch(ctx, sock, msg, match) {
     await sock.sendMessage(ctx.from, { text: global.messages?.groupOnly }, { quoted: msg })
     return
   }
-
-  // ─── Verificaciones específicas por categoría ─────────────────────────────
-  if (cmd.categoria === 'economia') {
-    if (ctx.isGroup && ctx.groupCfg?.economia === 0) {
-      await sock.sendMessage(ctx.from, { text: global.messages?.ecoDisabled }, { quoted: msg })
-      return
-    }
+  if (cmd.categoria === 'economia' && ctx.isGroup && ctx.groupCfg?.economia === 0) {
+    await sock.sendMessage(ctx.from, { text: global.messages?.ecoDisabled }, { quoted: msg })
+    return
   }
-
-  // ─── Ignorar usuario en este grupo ────────────────────────────────────────
-  if (ctx.isGroup && !ctx.isOwner && !ctx.isAdmin) {
-    if (isIgnored(ctx.from, ctx.userNum)) return
-  }
+  if (ctx.isGroup && !ctx.isOwner && !ctx.isAdmin && isIgnored(ctx.from, ctx.userNum)) return
 
   logger.cmd(cmdName, ctx.userNum, ctx.isGroup ? ctx.groupCfg?.name : null)
 
@@ -244,6 +295,8 @@ async function dispatch(ctx, sock, msg, match) {
 
 export async function handleMessage(sock, msg) {
   try {
+    if (!sockGlobal) sockGlobal = sock
+
     const ctx = await resolveContext(sock, msg)
 
     if (ctx.isGroup && !ctx.fromMe) {
@@ -257,6 +310,13 @@ export async function handleMessage(sock, msg) {
 
     const textStr = extractText(msg) || ''
     const match   = matchPrefix(textStr, ctx.groupCfg)
+
+    // ─── Registro automático — solo cuando usa un comando ────────────────────
+    if (match && !ctx.fromMe && ctx.userNum && ctx.userNum.length >= 8) {
+      if (!isRegistered(ctx.userNum)) {
+        autoRegistrar(msg, ctx.userNum)
+      }
+    }
 
     if (match && await stepGuards(ctx, sock, msg)) return
 
