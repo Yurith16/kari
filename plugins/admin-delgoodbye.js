@@ -1,24 +1,22 @@
-// plugins/delgoodbye.js
 import { setGroupField } from '../core/sqlite.js'
 
 export default {
-  command: ['delgoodbye', 'delbye', 'deldespedida'],
-  tag: 'delgoodbye',
-  categoria: 'admin',
-  owner: false,
-  group: true,
-  nsfw: false,
+  command:     ['delbye'],
+  tag:         'delbye',
+  categoria:   'admin',
+  owner:       false,
+  group:       true,
   descripcion: 'Elimina el mensaje personalizado de despedida',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('admin'), key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages?.notAdmin }, { quoted: msg })
       return
     }
 
     setGroupField(from, 'goodbyeText', '')
-    await sock.sendMessage(from, {
-      text: `🌸 Despedida eliminada. Ahora usará la que traigo por defecto. 🌿`
-    }, { quoted: msg })
+    await sock.sendMessage(from, { text: global.messages?.goodbyeDel }, { quoted: msg })
   }
 }

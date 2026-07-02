@@ -1,14 +1,13 @@
 export default {
-  command:   ['desc', 'description', 'descripcion', 'setdesc'],
-  tag:       'setdesc',
-  categoria: 'admin',
-  owner:     false,
-  group:     true,
-  nsfw:      false,
+  command:     ['desc', 'description', 'descripcion', 'setdesc'],
+  tag:         'setdesc',
+  categoria:   'admin',
+  owner:       false,
+  group:       true,
   descripcion: 'Cambia la descripción del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
-    await sock.sendMessage(from, { react: { text: '📝', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('admin'), key: msg.key } })
 
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
@@ -17,9 +16,7 @@ export default {
 
     const desc = args.join(' ')
     if (!desc) {
-      await sock.sendMessage(from, {
-        text: '_Dime qué descripción quieres poner._'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.descNeeded }, { quoted: msg })
       return
     }
 

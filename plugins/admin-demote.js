@@ -1,16 +1,15 @@
 import { resolveTarget } from '../utils/target.js'
 
 export default {
-  command:   ['demote', 'quitaradmin', 'sacaradmin', 'degradar'],
-  tag:       'demote',
-  categoria: 'admin',
-  owner:     false,
-  group:     true,
-  nsfw:      false,
+  command:     ['demote', 'quitaradmin', 'sacaradmin', 'degradar'],
+  tag:         'demote',
+  categoria:   'admin',
+  owner:       false,
+  group:       true,
   descripcion: 'Quita el rango de admin a un miembro',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
-    await sock.sendMessage(from, { react: { text: '📉', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('admin'), key: msg.key } })
 
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
@@ -25,8 +24,10 @@ export default {
 
     try {
       await sock.groupParticipantsUpdate(from, [target.jid], 'demote')
+      
+      const txt = global.messages.demoteSuccess.replace('{num}', target.num)
       await sock.sendMessage(from, {
-        text: `_@${target.num} ya no es admin._`,
+        text: txt,
         mentions: [target.jid]
       }, { quoted: msg })
     } catch {

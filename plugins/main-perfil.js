@@ -1,9 +1,10 @@
 import fs from 'fs'
 import axios from 'axios'
-import { getUser } from '../core/sqlite.js'
+import { getUser, getEconomy } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 import { resolveTarget } from '../utils/target.js'
 import { toMono } from '../utils/helpers.js'
+import { getRango } from '../settings/rangos.js'
 
 const PERFIL_DEFAULT_IMG = 'https://www.image2url.com/r2/default/images/1780714746057-12c23aaf-4846-4012-b243-4d4f3bb09b4e.png'
 
@@ -21,13 +22,13 @@ function formatDate(timestamp) {
 function tiempoTranscurrido(timestamp) {
   if (!timestamp || timestamp === 0) return null
   const ahora = Math.floor(Date.now() / 1000)
-  const diff = ahora - timestamp
-  const dias = Math.floor(diff / 86400)
+  const diff  = ahora - timestamp
+  const dias  = Math.floor(diff / 86400)
   const meses = Math.floor(dias / 30)
-  const años = Math.floor(dias / 365)
-  if (años > 0) return `${años} año${años > 1 ? 's' : ''}`
+  const años  = Math.floor(dias / 365)
+  if (años  > 0) return `${años} año${años > 1 ? 's' : ''}`
   if (meses > 0) return `${meses} mes${meses > 1 ? 'es' : ''}`
-  if (dias > 0) return `${dias} día${dias > 1 ? 's' : ''}`
+  if (dias  > 0) return `${dias} día${dias > 1 ? 's' : ''}`
   return 'Hoy'
 }
 
@@ -39,12 +40,12 @@ function esFotoValida(str) {
 }
 
 export default {
-  command: ['perfil', 'profile', 'me'],
-  tag: 'perfil',
-  categoria: 'main',
-  owner: false,
-  group: false,
-  nsfw: false,
+  command:     ['perfil', 'profile', 'me'],
+  tag:         'perfil',
+  categoria:   'main',
+  owner:       false,
+  group:       false,
+  nsfw:        false,
   descripcion: 'Muestra tu perfil o el de alguien más',
 
   async execute(sock, msg, { from, args, sender }) {
@@ -64,27 +65,34 @@ export default {
 
     const perfil = getUser(user)
     if (!perfil) {
-      const esSelf = !target?.num
       return sock.sendMessage(from, {
-        text: esSelf ? global.messages.notRegistered : 'Ese usuario aún no tiene un perfil creado.'
+        text: target?.num
+          ? 'Ese usuario aún no tiene perfil.'
+          : global.messages.error
       }, { quoted: msg })
     }
 
+    const eco    = getEconomy(user)
+    const rango  = getRango(eco?.nivel || 1)
     const bullet = BULLETS[Math.floor(Math.random() * BULLETS.length)]
 
     let txt = `> ╭─〔 🌸 *Esencia* 🌸 〕\n`
 
     txt += `> │ ${bullet} *Nombre* · ${perfil.nombre}\n`
-    if (perfil.apodo) txt += `> │ ${bullet} *Apodo* · ${perfil.apodo}\n`
-    txt += `> │ ${bullet} *Edad* · ${perfil.edad} años\n`
+    if (perfil.apodo)  txt += `> │ ${bullet} *Apodo* · ${perfil.apodo}\n`
+    if (perfil.edad)   txt += `> │ ${bullet} *Edad* · ${perfil.edad} años\n`
     if (perfil.genero) txt += `> │ ${bullet} *Género* · ${perfil.genero}\n`
-    if (perfil.pais) txt += `> │ ${bullet} *País* · ${perfil.pais}\n`
+    if (perfil.pais)   txt += `> │ ${bullet} *País* · ${perfil.pais}\n`
     if (perfil.registered_at) txt += `> │ ${bullet} *Registrado* · ${formatDate(perfil.registered_at)}\n`
 
+    txt += `> │ ${bullet} *Rango* · ${rango.emoji} ${rango.nombre}\n`
+
     if (perfil.frase || perfil.color || perfil.animal) {
-      if (perfil.frase) txt += `> │ ${bullet} *Frase* · _${perfil.frase}_\n`
-      if (perfil.color) txt += `> │ ${bullet} *Color* · ${perfil.color}\n`
+      if (perfil.frase)  txt += `> │ ${bullet} *Frase* · _${perfil.frase || 'Usuario de Midori-Hana'}_\n`
+      if (perfil.color)  txt += `> │ ${bullet} *Color* · ${perfil.color}\n`
       if (perfil.animal) txt += `> │ ${bullet} *Animal* · ${perfil.animal}\n`
+    } else {
+      txt += `> │ ${bullet} *Frase* · _Usuario de Midori-Hana_\n`
     }
 
     if (perfil.estado === 'en_relacion') {
@@ -108,9 +116,9 @@ export default {
 
     txt += `> ╰─── ${toMono(global.bot?.name || 'Midori-Hana')}`
 
-    const mentions = target?.num ? [`${target.num}@s.whatsapp.net`] : []
+    const mentions  = target?.num ? [`${target.num}@s.whatsapp.net`] : []
     const fotoFinal = esFotoValida(perfil.foto) ? perfil.foto : PERFIL_DEFAULT_IMG
-    const tipoFoto = esFotoValida(fotoFinal)
+    const tipoFoto  = esFotoValida(fotoFinal)
 
     await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
 
@@ -121,7 +129,7 @@ export default {
           : fs.readFileSync(fotoFinal)
 
         const esVideo = fotoFinal.endsWith('.mp4')
-        const esGif = fotoFinal.endsWith('.gif') || fotoFinal.endsWith('.webp')
+        const esGif   = fotoFinal.endsWith('.gif') || fotoFinal.endsWith('.webp')
 
         if (esVideo) {
           await sock.sendMessage(from, { video: imgBuffer, caption: txt, mentions }, { quoted: msg })

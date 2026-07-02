@@ -2,7 +2,7 @@ const bot = {
   "name": "Midori-Hana",
   "version": "3.0.0",
   "owner": "Hernandez",
-  "ownerNumber": [ "50496926150" ],
+  "ownerNumber": [ "5049692615" ],
   "botNumber": "50432821762",
   "session": "midori-session",
   "prefix": [

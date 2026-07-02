@@ -1,4 +1,3 @@
-import { toBold }    from '../utils/helpers.js'
 import { cleanNumber } from '../utils/jid.js'
 import db            from '../core/sqlite.js'
 
@@ -8,17 +7,18 @@ const _getActivity = db.prepare(`
   ORDER BY msgs DESC
 `)
 
+const BULLETS = ['🐞', '📍', '🐝']
+
 export default {
-  command:   ['contador', 'cont'],
-  tag:       'contador',
-  categoria: 'admin',
-  owner:     false,
-  group:     true,
-  nsfw:      false,
-  descripcion: 'Muestra los miembros más activos del grupo',
+  command:     ['contador', 'cont'],
+  tag:         'contador',
+  categoria:   'admin',
+  owner:       false,
+  group:       true,
+  descripcion: 'Muestra el ranking de los miembros más activos del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
-    await sock.sendMessage(from, { react: { text: '🪷', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('admin'), key: msg.key } })
 
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
@@ -30,7 +30,7 @@ export default {
 
       if (!lista.length) {
         await sock.sendMessage(from, {
-          text: '_Aún no hay actividad registrada._'
+          text: '_Aún no hay actividad registrada en este grupo._'
         }, { quoted: msg })
         return
       }
@@ -46,17 +46,16 @@ export default {
       })
 
       const mentions = []
-      let txt = `𝚁𝙰𝙽𝙺𝙸𝙽𝙶 𝙳𝙴 𝙰𝙲𝚃𝙸𝚅𝙸𝙳𝙰𝙳\n`
-      txt += `⊰᯽⊱┈──╌❊╌──┈⊰᯽⊱\n\n`
+      let txt = `> CONTADOR\n\n`
 
       lista.forEach((r) => {
         const jid = numToJid[r.user] || `${r.user}@s.whatsapp.net`
         mentions.push(jid)
-        txt += `> ✦ *Usuario* @${r.user}\n`
-        txt += `> ✦ *Total Msg:* *${r.msgs}*\n\n`
+        const bullet = BULLETS[Math.floor(Math.random() * BULLETS.length)]
+        txt += `│ ${bullet} @${r.user} · *${r.msgs} msg*\n`
       })
 
-      txt += `> ✦ *Total:* ${lista.length} de ${total} miembros`
+      txt += `\n✦ *Activos* · ${lista.length} de ${total} miembros`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
     } catch {

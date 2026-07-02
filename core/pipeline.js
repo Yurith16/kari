@@ -8,6 +8,7 @@ import {
   isRegistered, registerUser, countUsers
 } from './sqlite.js'
 import { isToxic, getToxicResponse, addWarning, clearWarnings } from '../utils/toxic.js'
+import { verificarSubida } from './levelup.js'
 
 const LINK_RE = /(?:https?:\/\/)?(?:www\.)?(?:chat\.whatsapp\.com|wa\.me|t\.me|telegram\.(?:me|dog|org))\/\S+/i
 
@@ -170,8 +171,8 @@ async function stepMute(ctx, sock, msg) {
 }
 
 async function stepAntiToxic(ctx, sock, msg) {
-  if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin)                     return false
-  if (!ctx.groupCfg?.antiToxic || ctx.groupCfg.antiToxic !== 1)       return false
+  if (!ctx.isGroup || ctx.isOwner || ctx.isAdmin)               return false
+  if (!ctx.groupCfg?.antiToxic || ctx.groupCfg.antiToxic !== 1) return false
 
   const text = extractText(msg)
   if (!text) return false
@@ -289,6 +290,11 @@ async function dispatch(ctx, sock, msg, match) {
     logger.error('Cmd', `${cmdName} — ${err.message}`)
     sock.sendMessage(ctx.from, { text: global.messages?.error }, { quoted: msg }).catch(() => {})
   })
+
+  // ─── Verificar subida de nivel/rango después de comando de economía ────────
+  if (cmd.categoria === 'economia' && ctx.userNum) {
+    verificarSubida(sock, ctx.from, ctx.userNum).catch(() => {})
+  }
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────

@@ -2,8 +2,7 @@
 import { getUser, setUserField } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
-const sesiones  = new Map()
-const procesados = new Set() // IDs de mensajes ya manejados por setperfil
+const sesiones = new Map()
 
 const GENEROS = ['Hombre', 'Mujer', 'Prefiero no decir']
 
@@ -58,6 +57,18 @@ function construirMenu(perfil) {
   return txt
 }
 
+function resetearInactividad(userNum) {
+  const sesion = sesiones.get(userNum)
+  if (sesion && sesion.timeout) {
+    clearTimeout(sesion.timeout)
+  }
+  if (sesion) {
+    sesion.timeout = setTimeout(() => {
+      sesiones.delete(userNum)
+    }, 3 * 60 * 1000)
+  }
+}
+
 export default {
   command:     ['setperfil', 'editarperfil'],
   tag:         'setperfil',
@@ -67,23 +78,24 @@ export default {
   nsfw:        false,
   descripcion: 'Personaliza tu perfil',
 
-  async onMessage(sock, msg, { from, text, userNum }) {
-    if (!userNum) return
+  async onMessage(sock, msg, { from, text, sender }) {
     if (from.endsWith('@g.us')) return
+
+    const selfJid = await getRealJid(sock, sender, msg).catch(() => sender)
+    const userNum = cleanNumber(selfJid)
 
     const sesion = sesiones.get(userNum)
     if (!sesion) return
 
-    const msgId = msg.key?.id
+    // Escudo: Si el ID de este mensaje coincide con el bloqueado, lo ignoramos por completo
+    if (sesion.lockMsgId && sesion.lockMsgId === msg.key?.id) return
+
     const respuestaOriginal = text?.trim()
     const respuesta         = respuestaOriginal?.toLowerCase()
     if (!respuesta) return
 
-    // Ignorar el mensaje que ya fue procesado para elegir campo
-    if (sesion.msgIdIgnorar && sesion.msgIdIgnorar === msgId) return
-
-    // Cancelar en cualquier momento
     if (respuesta === 'cancelar') {
+      if (sesion.timeout) clearTimeout(sesion.timeout)
       sesiones.delete(userNum)
       await sock.sendMessage(from, {
         text: 'Cuando quieras volver a editar tu perfil, aquí estaré.'
@@ -91,17 +103,19 @@ export default {
       return
     }
 
+    resetearInactividad(userNum)
+
     // ── Esperando número de campo ─────────────────────────────────────────────
     if (sesion.paso === 'menu') {
       const idx = parseInt(respuesta) - 1
       if (isNaN(idx) || idx < 0 || idx >= CAMPOS.length) return
 
-      sesion.campo        = CAMPOS[idx]
-      sesion.paso         = 'editar'
-      sesion.msgIdIgnorar = msgId  // ← ignorar este mensaje cuando vuelva al menú
+      sesion.campo     = CAMPOS[idx]
+      sesion.paso      = 'editar'
+      sesion.lockMsgId = msg.key?.id // Bloqueamos para que no entre en la edición de inmediato
 
       await sock.sendMessage(from, { text: PREGUNTAS[sesion.campo] }, { quoted: msg })
-      return
+      return 
     }
 
     // ── Editando campo ────────────────────────────────────────────────────────
@@ -145,8 +159,10 @@ export default {
         valor = PAISES[idx]
       }
 
-      setUserField(userNum, campo, valor)
-      sesion.msgIdIgnorar = null
+      await setUserField(userNum, campo, valor)
+      
+      // Bloqueamos este mismo mensaje para que al pasar a 'menu' no se auto-seleccione ninguna opción
+      sesion.lockMsgId = msg.key?.id 
 
       const confirmaciones = {
         nombre: `Listo, ahora te llamas *${valor}*.`,
@@ -164,7 +180,7 @@ export default {
       sesion.paso  = 'menu'
       sesion.campo = null
 
-      const perfil = getUser(userNum)
+      const perfil = await getUser(userNum)
       await sock.sendMessage(from, { text: construirMenu(perfil) }, { quoted: msg })
       return
     }
@@ -182,16 +198,18 @@ export default {
     const selfNum = cleanNumber(selfJid)
 
     if (sesiones.has(selfNum)) {
-      const perfil = getUser(selfNum)
+      const perfil = await getUser(selfNum)
+      resetearInactividad(selfNum)
       await sock.sendMessage(from, {
         text: `Ya tienes una edición en marcha. Aquí va el menú por si lo perdiste.\n\n${construirMenu(perfil)}`
       }, { quoted: msg })
       return
     }
 
-    const perfil = getUser(selfNum)
-    sesiones.set(selfNum, { paso: 'menu', campo: null, msgIdIgnorar: null })
+    const perfil = await getUser(selfNum)
+    sesiones.set(selfNum, { paso: 'menu', campo: null, lockMsgId: null })
+    resetearInactividad(selfNum)
 
-    await sock.sendMessage(from, { text: construirMenu(perfil) }, { quoted: msg })
+    await sock.sendMessage(from, { text: construirMenu(perfil) })
   }
 }

@@ -2,16 +2,15 @@ import { resolveTarget } from '../utils/target.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 
 export default {
-  command:   ['kick', 'hakai', 'expulsar', 'sacar', 'echar'],
-  tag:       'kick',
-  categoria: 'admin',
-  owner:     false,
-  group:     true,
-  nsfw:      false,
+  command:     ['kick', 'hakai', 'expulsar', 'sacar', 'echar'],
+  tag:         'kick',
+  categoria:   'admin',
+  owner:       false,
+  group:       true,
   descripcion: 'Expulsa a un usuario del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
-    await sock.sendMessage(from, { react: { text: '👢', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('admin'), key: msg.key } })
 
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })

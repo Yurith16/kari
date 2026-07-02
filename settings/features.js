@@ -1,3 +1,4 @@
+//settings/features.js
 const features = {
   "antiLink": false,
   "antiCall": true,

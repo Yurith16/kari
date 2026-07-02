@@ -1,23 +1,23 @@
 import db from '../core/sqlite.js'
 import { cleanNumber } from '../utils/jid.js'
-import { toBold } from '../utils/helpers.js'
 
 const _getActive = db.prepare(`
   SELECT user FROM activity
   WHERE group_id = ? AND msgs > 0
 `)
 
+const BULLETS = ['🐞', '📍', '🐝']
+
 export default {
-  command:   ['fantasmas', 'inactivos', 'silenciosos', 'mudos'],
-  tag:       'fantasmas',
-  categoria: 'admin',
-  owner:     false,
-  group:     true,
-  nsfw:      false,
+  command:     ['fantasmas', 'inactivos', 'silenciosos', 'mudos'],
+  tag:         'fantasmas',
+  categoria:   'admin',
+  owner:       false,
+  group:       true,
   descripcion: 'Detecta y lista los miembros inactivos del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
-    await sock.sendMessage(from, { react: { text: '👻', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('admin'), key: msg.key } })
 
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
@@ -49,23 +49,21 @@ export default {
       const fantasmas = miembros.filter(m => !activos.has(m.num) && !m.admin)
 
       if (!fantasmas.length) {
-        await sock.sendMessage(from, {
-          text: '_No hay fantasmas, todos han participado._'
-        }, { quoted: msg })
+        await sock.sendMessage(from, { text: 'No encontré fantasmas por aquí, todos han participado al menos una vez.' }, { quoted: msg })
         return
       }
 
-      const mentions = fantasmas.map(m => `${m.num}@s.whatsapp.net`)
-
-      let txt = `𝙵𝙰𝙽𝚃𝙰𝚂𝙼𝙰𝚂 𝙳𝙴𝙻 𝙶𝚁𝚄𝙿𝙾\n`
-      txt += `⊰᯽⊱┈──╌❊╌──┈⊰᯽⊱\n\n`
+      const mentions = []
+      let txt = `> FANTASMAS\n\n`
 
       fantasmas.forEach(m => {
-        txt += `> ✦ *Usuario* @${m.num}\n\n`
+        const jid = `${m.num}@s.whatsapp.net`
+        mentions.push(jid)
+        const bullet = BULLETS[Math.floor(Math.random() * BULLETS.length)]
+        txt += `│ ${bullet} @${m.num}\n`
       })
 
-      txt += `> ✦ *Inactivos:* ${fantasmas.length} de ${total}\n`
-      txt += `> ✦ *Activos:* ${activos.size} de ${total}`
+      txt += `\n✦ *Inactivos* · ${fantasmas.length} de ${total} miembros`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
     } catch (err) {

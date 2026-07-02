@@ -55,6 +55,13 @@ const messages = {
   userNeeded:        'Menciona a alguien o responde su mensaje para que sepa con quién estamos trabajando.',
 
   // ─── Grupo ──────────────────────────────────────────────────────────────────
+  notIgnored:       'Ese usuario ni siquiera estaba ignorado en este grupo.',
+  ignoredTitle: 'IGNORADOS',
+  unignoreSuccess:  'Listo, @{num} ya puede volver a usar mis comandos con normalidad.',
+  noIgnoredUsers:   'No tengo a nadie ignorado en este grupo por ahora.',
+  demoteSuccess: 'Ya le quité el rango de administrador a @{num}.',
+  cannotDemoteCreator: 'No puedo quitarle el rango al creador del grupo, él manda aquí.',
+  descNeeded: 'Dime qué descripción quieres poner en el grupo.',
   groupNameChanged:  'El grupo ya tiene nuevo nombre, espero que a todos les guste.',
   groupDescChanged:  'La descripción del grupo fue actualizada sin ningún problema.',
   groupPhotoChanged: 'La foto del grupo fue cambiada, a ver si esta les convence más.',
@@ -66,14 +73,16 @@ const messages = {
   welcomeOff:        'Bienvenidas desactivadas, los nuevos van a entrar en silencio.',
   goodbyeOn:         'Despedidas activadas, voy a despedir a los que se vayan desde ahora.',
   goodbyeOff:        'Despedidas desactivadas, los que se vayan se irán sin que diga nada.',
+  goodbyeDel:        'Despedida personalizada eliminada con éxito. Ahora usaré la que traigo por defecto.',
+  welcomeDel:        'Bienvenida personalizada eliminada con éxito. Ahora usaré la que traigo por defecto.',
   adminModeOn:       'Modo administrador activado, por ahora solo ellos pueden usar mis comandos.',
   adminModeOff:      'Modo administrador desactivado, todos pueden volver a participar con normalidad.',
   antilinkOn:        'Antilink activado, no voy a permitir que se compartan enlaces en este grupo.',
   antilinkOff:       'Antilink desactivado, ya pueden compartir enlaces sin problema.',
 
-  // ─── Registro automático ────────────────────────────────────────────────────
-  autoRegistered:       'Hola, soy Midori 🌸 Te escribo porque acabas de usar el bot por primera vez y no quería que te quedaras sin saber qué pasó. Ya te registré como *{nombre}* para que no tengas que hacer nada. Si en algún momento quieres personalizar tu perfil, usa *.setperfil* y lo dejamos a tu gusto. Que disfrutes el grupo.',
-  autoRegisteredRandom: 'Hola, soy Midori 🌸 No encontré tu nombre en WhatsApp, así que tomé la decisión de registrarte como *{nombre}*. Puedes cambiarlo cuando quieras con *.setperfil*, no te quedes con un nombre que no te gusta. Que disfrutes el grupo.',
+ // ─── Registro automático ────────────────────────────────────────────────────
+  autoRegistered:       '> Hola, soy Midori-Hana🌴\n\nTe escribo porque usas el bot por primera vez, así que tomé la decisión de registrarte como *{nombre}*.\n\nPuedes ver tu perfil actual con *.perfil* o cambiarlo cuando quieras con *.setperfil*, no te quedes con algo que no te gusta. Que disfrutes el grupo.',
+  autoRegisteredRandom: 'Hola, soy Midori 🌸\n\nNo encontré tu nombre en WhatsApp, así que tomé la decisión de registrarte como *{nombre}*.\n\nPuedes ver tu perfil actual con *.perfil* o cambiarlo cuando quieras con *.setperfil*, no te quedes con algo que no te gusta. Que disfrutes el grupo.',
 
   // ─── Economía ───────────────────────────────────────────────────────────────
   ecoDisabled:      'La economía está desactivada en este grupo, así que por ahora no puedo procesar eso.',

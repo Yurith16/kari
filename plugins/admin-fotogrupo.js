@@ -1,27 +1,29 @@
 import { downloadMediaMessage } from '@whiskeysockets/baileys'
 
 export default {
-  command:   'setfoto',
-  tag:       'setfoto',
-  categoria: 'admin',
-  owner:     false,
-  group:     true,
-  nsfw:      false,
+  command:     ['setfoto', 'setpp'],
+  tag:         'setfoto',
+  categoria:   'admin',
+  owner:       false,
+  group:       true,
   descripcion: 'Cambia la foto del grupo',
 
   async execute(sock, msg, { from, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('admin'), key: msg.key } })
+
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
+
     const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
     const imgMsg = quoted?.imageMessage ? { message: quoted } : (msg.message?.imageMessage ? msg : null)
+
     if (!imgMsg) {
-      await sock.sendMessage(from, {
-        text: '🌸 Responde a una imagen bonita y la pongo de foto del grupo.'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: 'Responde a una imagen o envía una para ponerla de foto del grupo.' }, { quoted: msg })
       return
     }
+
     try {
       const buffer = await downloadMediaMessage(imgMsg, 'buffer', {})
       await sock.updateProfilePicture(from, buffer)
