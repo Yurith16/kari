@@ -1,4 +1,5 @@
-import fs from 'fs'
+// plugins/perfil.js
+import fs   from 'fs'
 import axios from 'axios'
 import { getUser, getEconomy } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
@@ -7,15 +8,14 @@ import { toMono } from '../utils/helpers.js'
 import { getRango } from '../settings/rangos.js'
 
 const PERFIL_DEFAULT_IMG = 'https://www.image2url.com/r2/default/images/1780714746057-12c23aaf-4846-4012-b243-4d4f3bb09b4e.png'
-
 const BULLETS = ['🐞', '📍', '🐝']
 
 function formatDate(timestamp) {
   if (!timestamp || timestamp === 0) return null
   const date = new Date(timestamp * 1000)
-  const dia = String(date.getDate()).padStart(2, '0')
-  const mes = String(date.getMonth() + 1).padStart(2, '0')
-  const año = date.getFullYear()
+  const dia  = String(date.getDate()).padStart(2, '0')
+  const mes  = String(date.getMonth() + 1).padStart(2, '0')
+  const año  = date.getFullYear()
   return `${dia}/${mes}/${año}`
 }
 
@@ -66,15 +66,14 @@ export default {
     const perfil = getUser(user)
     if (!perfil) {
       return sock.sendMessage(from, {
-        text: target?.num
-          ? 'Ese usuario aún no tiene perfil.'
-          : global.messages.error
+        text: target?.num ? 'Ese usuario aún no tiene perfil.' : global.messages.error
       }, { quoted: msg })
     }
 
-    const eco    = getEconomy(user)
-    const rango  = getRango(eco?.nivel || 1)
-    const bullet = BULLETS[Math.floor(Math.random() * BULLETS.length)]
+    const eco     = getEconomy(user)
+    const rango   = getRango(eco?.nivel || 1)
+    const fortuna = (eco?.kryons || 0) + (eco?.banco || 0)
+    const bullet  = BULLETS[Math.floor(Math.random() * BULLETS.length)]
 
     let txt = `> ╭─〔 🌸 *Esencia* 🌸 〕\n`
 
@@ -86,9 +85,10 @@ export default {
     if (perfil.registered_at) txt += `> │ ${bullet} *Registrado* · ${formatDate(perfil.registered_at)}\n`
 
     txt += `> │ ${bullet} *Rango* · ${rango.emoji} ${rango.nombre}\n`
+    txt += `> │ ${bullet} *Fortuna* · ${fortuna.toLocaleString()} kryons\n`
 
     if (perfil.frase || perfil.color || perfil.animal) {
-      if (perfil.frase)  txt += `> │ ${bullet} *Frase* · _${perfil.frase || 'Usuario de Midori-Hana'}_\n`
+      if (perfil.frase)  txt += `> │ ${bullet} *Frase* · _${perfil.frase}_\n`
       if (perfil.color)  txt += `> │ ${bullet} *Color* · ${perfil.color}\n`
       if (perfil.animal) txt += `> │ ${bullet} *Animal* · ${perfil.animal}\n`
     } else {
@@ -108,10 +108,10 @@ export default {
       txt += `> │ ${bullet} *Pareja* · ${parejaPerfil?.nombre || perfil.pareja}\n`
     }
     if (perfil.noviazgo_fecha) {
-      txt += `> │ ${bullet} *Novios* · ${tiempoTranscurrido(perfil.noviazgo_fecha)}\n`
+      txt += `> │ ${bullet} *Novios desde* · ${tiempoTranscurrido(perfil.noviazgo_fecha)}\n`
     }
     if (perfil.matrimonio_fecha) {
-      txt += `> │ ${bullet} *Casados* · ${tiempoTranscurrido(perfil.matrimonio_fecha)}\n`
+      txt += `> │ ${bullet} *Casados desde* · ${tiempoTranscurrido(perfil.matrimonio_fecha)}\n`
     }
 
     txt += `> ╰─── ${toMono(global.bot?.name || 'Midori-Hana')}`
