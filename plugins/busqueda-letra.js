@@ -1,26 +1,24 @@
-// plugins/lyrics.js
-
 import axios from 'axios'
 
 export default {
-  command: ['lyrics', 'letra'],
-  tag: 'lyrics',
-  categoria: 'busqueda',
-  owner: false,
-  group: false,
-  nsfw: false,
+  command:     ['lyrics', 'letra'],
+  tag:         'lyrics',
+  categoria:   'media',
+  owner:       false,
+  group:       false,
   descripcion: 'Busca la letra de una canción',
 
   async execute(sock, msg, { from, args }) {
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('media'), key: msg.key } })
+
     if (!args.length) {
-      return sock.sendMessage(from, { text: global.messages.busquedaEmpty }, { quoted: msg })
+      await sock.sendMessage(from, { text: 'debes ingresar el nombre de una canción o artista.' }, { quoted: msg })
+      return
     }
 
     const query = args.join(' ')
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
-
       let artist, title, album, lyrics
 
       try {
@@ -44,30 +42,30 @@ export default {
       } catch {}
 
       if (!lyrics) {
-        const { data } = await axios.get(
-          `https://api.princetechn.com/api/search/lyrics?apikey=prince&query=${encodeURIComponent(query)}`,
-          { timeout: 20000 }
-        )
+        try {
+          const { data } = await axios.get(
+            `https://api.princetechn.com/api/search/lyrics?apikey=prince&query=${encodeURIComponent(query)}`,
+            { timeout: 20000 }
+          )
 
-        if (data?.success && data?.result?.lyrics) {
-          artist = data.result.artist
-          title = data.result.title
-          album = data.result.album
-          lyrics = data.result.lyrics
-        }
+          if (data?.success && data?.result?.lyrics) {
+            artist = data.result.artist
+            title = data.result.title
+            album = data.result.album
+            lyrics = data.result.lyrics
+          }
+        } catch {}
       }
 
       if (!lyrics) {
-        return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
+        return sock.sendMessage(from, { text: 'no se encontró la letra de la canción.' }, { quoted: msg })
       }
 
-      let txt = `🎵 *${artist || 'Desconocido'}*\n`
-      txt += `🎶 _${title || query}_\n`
-      if (album) txt += `💿 ${album}\n`
+      let txt = `> *${title || query}* — *${artist || 'desconocido'}*\n`
+      if (album) txt += `_álbum: ${album}_\n`
       txt += `\n${lyrics}`
 
       await sock.sendMessage(from, { text: txt }, { quoted: msg })
-      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
 
     } catch {
       await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })

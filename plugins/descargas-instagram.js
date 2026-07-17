@@ -1,19 +1,26 @@
 import axios from 'axios'
 
 export default {
-  command:   ['ig', 'instagram','igdl'],
+  command:   ['ig', 'instagram', 'igdl'],
   tag:       'instagram',
   categoria: 'descargas',
-  descripcion: 'Descarga videos y fotos de instagram',
+  descripcion: 'Descarga videos y fotos de Instagram',
   owner:     false,
   group:     false,
 
   async execute(sock, msg, { from, args }) {
     const url = args[0]
 
-    if (!url || !url.includes('instagram.com')) {
+    if (!url) {
       await sock.sendMessage(from, {
-        text: '🌸 Ay, necesito una URL de Instagram para poder descargar. ¿Me la pasas?'
+        text: '¿Y se supone que tengo que adivinar el enlace o qué? Pásamelo y dejo de hacerte esperar.'
+      }, { quoted: msg })
+      return
+    }
+
+    if (!url.includes('instagram.com')) {
+      await sock.sendMessage(from, {
+        text: 'Eso no es un enlace de Instagram. No me hagas perder el tiempo, pásame algo que sirva.'
       }, { quoted: msg })
       return
     }
@@ -21,52 +28,62 @@ export default {
     await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
     try {
-      const apiUrl = `https://api-aswin-sparky.koyeb.app/api/downloader/igdl?url=${encodeURIComponent(url)}`
+      const apiUrl = `https://api.lempi.lat/dl/ig?url=${encodeURIComponent(url)}&apikey=lem851`
       const { data } = await axios.get(apiUrl, { timeout: 30000 })
 
-      if (!data.status || !data.data?.length) {
-        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-        await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
+      if (!data.status || !data.media?.length) {
+        await sock.sendMessage(from, {
+          text: 'No pude descargar eso, y no es por falta de ganas. Revisa el enlace y dime si de verdad funciona.'
+        }, { quoted: msg })
         return
       }
 
-      const media = data.data[0]
-      const mediaUrl = media.url
-      const tipo = media.type
+      const media = data.media
+      const autor = data.autor?.username || 'Desconocido'
+      const caption = data.caption || ''
 
       await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
 
-      const mediaRes = await axios.get(mediaUrl, {
-        responseType: 'arraybuffer',
-        timeout: 120000
-      })
-      const mediaBuffer = Buffer.from(mediaRes.data)
-      const sizeMB = mediaBuffer.length / (1024 * 1024)
+      for (const item of media) {
+        const mediaRes = await axios.get(item.url, {
+          responseType: 'arraybuffer',
+          timeout: 120000
+        })
+        const mediaBuffer = Buffer.from(mediaRes.data)
+        const sizeMB = mediaBuffer.length / (1024 * 1024)
 
-      await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
+        await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
 
-      if (tipo === 'image') {
-        await sock.sendMessage(from, {
-          image: mediaBuffer
-        }, { quoted: msg })
-      } else {
-        if (sizeMB <= 50) {
+        if (item.tipo === 'image') {
           await sock.sendMessage(from, {
-            video: mediaBuffer
+            image: mediaBuffer,
+            caption: `*${caption || 'Sin descripción'}*\n*Usuario:* @${autor}`
           }, { quoted: msg })
         } else {
-          await sock.sendMessage(from, {
-            document: mediaBuffer,
-            mimetype: 'video/mp4',
-            fileName: `instagram_${Date.now()}.mp4`
-          }, { quoted: msg })
+          const videoCaption = `*${caption || 'Sin descripción'}*\n*Usuario:* @${autor}`
+
+          if (sizeMB <= 50) {
+            await sock.sendMessage(from, {
+              video: mediaBuffer,
+              caption: videoCaption
+            }, { quoted: msg })
+          } else {
+            await sock.sendMessage(from, {
+              document: mediaBuffer,
+              mimetype: 'video/mp4',
+              fileName: `instagram_${Date.now()}.mp4`,
+              caption: `${videoCaption}\nEl video pesa más de lo que puedo mandar como video normal, así que te lo paso como documento. No es lo ideal, pero es lo que hay.`
+            }, { quoted: msg })
+          }
         }
       }
 
-      await sock.sendMessage(from, { react: { text: '🌿', key: msg.key } })
+      await sock.sendMessage(from, { react: { text: '🌴', key: msg.key } })
 
     } catch {
-      await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
+      await sock.sendMessage(from, {
+        text: 'No pude descargar eso, y no es por falta de ganas. Revisa el enlace y dime si de verdad funciona.'
+      }, { quoted: msg })
     }
   }
 }

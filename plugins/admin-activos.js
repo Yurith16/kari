@@ -29,15 +29,12 @@ export default {
       const lista = _getActivity.all(from)
 
       if (!lista.length) {
-        await sock.sendMessage(from, {
-          text: '_Aún no hay actividad registrada en este grupo._'
-        }, { quoted: msg })
+        await sock.sendMessage(from, { text: 'Aún no hay actividad registrada en este grupo.' }, { quoted: msg })
         return
       }
 
       const meta    = await sock.groupMetadata(from)
       const members = meta.participants
-      const total   = members.length
 
       const numToJid = {}
       members.forEach(m => {
@@ -46,16 +43,16 @@ export default {
       })
 
       const mentions = []
-      let txt = `> CONTADOR\n\n`
+      let txt = `> miembros más activos y su cantidad de mensajes enviados:\n\n`
+      
+      // Selecciona un único emoji para todo este uso del comando
+      const chosenBullet = BULLETS[Math.floor(Math.random() * BULLETS.length)]
 
       lista.forEach((r) => {
         const jid = numToJid[r.user] || `${r.user}@s.whatsapp.net`
         mentions.push(jid)
-        const bullet = BULLETS[Math.floor(Math.random() * BULLETS.length)]
-        txt += `│ ${bullet} @${r.user} · *${r.msgs} msg*\n`
+        txt += `│ ${chosenBullet} @${r.user} · *${r.msgs} msg*\n`
       })
-
-      txt += `\n✦ *Activos* · ${lista.length} de ${total} miembros`
 
       await sock.sendMessage(from, { text: txt, mentions }, { quoted: msg })
     } catch {

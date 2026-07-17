@@ -1,3 +1,5 @@
+//settings/reaction.js
+
 export const REACTIONS = {
   admin:      ['🌴', '🌾', '🌱', '🍃', '🎐'],
   busqueda:   ['🔍', '👁️', '🧬', '🔮', '🛰️'],

@@ -1,29 +1,26 @@
-// plugins/setwelcome.js
 import { setGroupField } from '../core/sqlite.js'
 
 export default {
-  command: ['setwelcome', 'setbienvenida'],
-  tag: 'setwelcome',
-  categoria: 'admin',
-  owner: false,
-  group: true,
-  nsfw: false,
+  command:     ['setwelcome', 'setbienvenida'],
+  tag:         'setwelcome',
+  categoria:   'admin',
+  owner:       false,
+  group:       true,
   descripcion: 'Personaliza el mensaje de bienvenida del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('admin'), key: msg.key } })
+
     if (!isOwner && !isAdmin) {
-      await sock.sendMessage(from, { text: global.messages?.notAdmin }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
 
-    // Capturar el texto completo con saltos de línea
-    const fullText = msg.message?.extendedTextMessage?.text || msg.message?.conversation || ''
-    const commandName = args[0] ? fullText.slice(0, fullText.indexOf(args[0])).trim() : fullText.split(' ')[0]
-    const texto = fullText.slice(commandName.length).trim()
+    const texto = args.join(' ')
 
     if (!texto) {
       await sock.sendMessage(from, {
-        text: `🌸 *Personalizar bienvenida*\n\n.setwelcome 🌿 Bienvenida, @user.\n\nPara borrar: .delwelcome`
+        text: 'dime qué mensaje de bienvenida quieres que ponga. usa @user para etiquetar al nuevo, a ver si al menos él me presta atención.'
       }, { quoted: msg })
       return
     }
@@ -31,7 +28,7 @@ export default {
     setGroupField(from, 'welcomeText', texto)
 
     await sock.sendMessage(from, {
-      text: `🌸 Listo, ya quedó tu bienvenida. 🌿\n\n${texto}`
+      text: `listo, ya guardé la bienvenida. espero que los que entren no me rompan el corazón como el último que se fue.\n\n> ${texto}`
     }, { quoted: msg })
   }
 }

@@ -20,6 +20,18 @@ if (!fs.existsSync(MEDIA_DIR)) {
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  API: Lempy
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function sourceLempy(videoUrl) {
+  const { data } = await axios.get(`https://api.lempi.lat/dl/ytv?url=${encodeURIComponent(videoUrl)}&apikey=lem851`, {
+    headers: { 'User-Agent': UA }, timeout: 15000
+  })
+  if (!data?.status || !data?.descarga?.url) throw new Error('Lempy sin video')
+  return { url: data.descarga.url, title: data.titulo }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  SCRAPER: y2mate (cnv.cx)
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -191,6 +203,7 @@ async function sourceFgSenna(videoUrl) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const LARGE_SOURCES = [
+  { name: 'Lempy',           fn: sourceLempy },
   { name: 'Elite ytdown',   fn: sourceEliteYtdown },
   { name: 'y2mate',         fn: sourceY2mate },
   { name: 'ytdown.to',      fn: sourceYtdownTo },
@@ -292,6 +305,7 @@ export async function downloadVideoLarge(videoUrl) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const sources = [
+  { name: 'Lempy',           fn: sourceLempy },
   { name: 'y2mate',         fn: sourceY2mate },
   { name: 'ytdown.to',      fn: sourceYtdownTo },
   { name: 'Apinexus v2',    fn: sourceApinexusV2 },

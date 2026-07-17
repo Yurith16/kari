@@ -1,14 +1,13 @@
 export default {
-  command:   ['nombre', 'name', 'groupname', 'setname', 'cambiarnombre'],
-  tag:       'nombre',
-  categoria: 'admin',
-  owner:     false,
-  group:     true,
-  nsfw:      false,
+  command:     ['setname', 'titulo'],
+  tag:         'setname',
+  categoria:   'admin',
+  owner:       false,
+  group:       true,
   descripcion: 'Cambia el nombre del grupo',
 
   async execute(sock, msg, { from, args, isOwner, isAdmin }) {
-    await sock.sendMessage(from, { react: { text: '✏️', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('admin'), key: msg.key } })
 
     if (!isOwner && !isAdmin) {
       await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
@@ -17,9 +16,7 @@ export default {
 
     const nombre = args.join(' ')
     if (!nombre) {
-      await sock.sendMessage(from, {
-        text: '_Dime qué nombre le pongo al grupo._'
-      }, { quoted: msg })
+      await sock.sendMessage(from, { text: 'Dime qué nombre le pongo al grupo.' }, { quoted: msg })
       return
     }
 

@@ -1,5 +1,4 @@
-import { getRealJid, cleanNumber } from '../utils/jid.js'
-
+// plugins/main-ping.js
 function formatUptime() {
   const start = global.connectionStartTime || Date.now()
   const ms = Date.now() - start
@@ -14,31 +13,19 @@ function formatUptime() {
 }
 
 export default {
-  command: 'ping',
-  tag: 'ping',
-  categoria: 'main',
-  descripcion: 'Muestra el estado de Midori-Hana',
-  owner: false,
-  group: false,
-  nsfw: false,
+  command:     'ping',
+  tag:         'ping',
+  categoria:   'main',
+  descripcion: 'Muestra cuánto tiempo llevo activa',
+  owner:       false,
+  group:       false,
+  nsfw:        false,
 
-  async execute(sock, msg, { from, sender }) {
-    const inicio  = Date.now()
-    const bot     = global.bot || {}
+  async execute(sock, msg, { from }) {
+    await sock.sendMessage(from, { react: { text: '🌴', key: msg.key } })
 
-    const realJid = await getRealJid(sock, sender, msg).catch(() => sender)
-    const num     = cleanNumber(realJid)
-    const jidFinal = `${num}@s.whatsapp.net`
-    const latencia = Date.now() - inicio
+    const texto = `Llevo activa *${formatUptime()}* sin caerme, lo cual ya es un logro considerando todo.`
 
-    const txt = `> 🩷 Hola @${num}, soy *${bot.name || 'Midori-Hana'}*.\n` +
-      `> ✦ *Estado:* Activa\n` +
-      `> ✦ *Latencia:* ${latencia}ms\n` +
-      `> ✦ *Activa desde hace:* ${formatUptime()}`
-
-    await sock.sendMessage(from, {
-      text: txt,
-      mentions: [jidFinal]
-    }, { quoted: msg })
+    await sock.sendMessage(from, { text: texto }, { quoted: msg })
   }
 }

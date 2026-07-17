@@ -1,115 +1,72 @@
-// plugins/mediafire.js
-
 import axios from 'axios'
-import * as cheerio from 'cheerio'
-import fs from 'fs'
-import path from 'path'
-import { lookup } from 'mime-types'
 
 export default {
-  command: ['mediafire', 'mf'],
-  tag: 'mediafire',
+  command:   ['mediafire', 'mf', 'mfire'],
+  tag:       'mediafire',
   categoria: 'descargas',
-  owner: false,
-  group: false,
-  nsfw: false,
-  descripcion: 'Descarga archivos de MediaFire',
+  descripcion: 'Descarga archivos de Mediafire',
+  owner:     false,
+  group:     false,
 
   async execute(sock, msg, { from, args }) {
-    if (!args.length) return sock.sendMessage(from, { 
-      text: '🌸 Pásame el enlace de MediaFire que quieres descargar.'
-    }, { quoted: msg })
-
     const url = args[0]
 
-    if (!url.includes('mediafire.com')) {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-      return await sock.sendMessage(from, { text: '🌸 Eso no parece un enlace de MediaFire.' }, { quoted: msg })
+    if (!url) {
+      await sock.sendMessage(from, {
+        text: '¿Y se supone que tengo que adivinar el enlace o qué? Pásamelo y dejo de hacerte esperar.'
+      }, { quoted: msg })
+      return
     }
 
-    let tempFile = null
+    if (!url.includes('mediafire.com')) {
+      await sock.sendMessage(from, {
+        text: 'Eso no es un enlace de Mediafire. No me hagas perder el tiempo, pásame algo que sirva.'
+      }, { quoted: msg })
+      return
+    }
+
+    await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
+      const apiUrl = `https://api.lempi.lat/dl/mediafire?url=${encodeURIComponent(url)}&apikey=lem851`
+      const { data } = await axios.get(apiUrl, { timeout: 30000 })
 
-      // Scraping del enlace directo
-      const res = await axios.get(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        timeout: 30000
+      if (!data.status || !data.resultado) {
+        await sock.sendMessage(from, {
+          text: 'No pude descargar eso, y no es por falta de ganas. Revisa el enlace y dime si de verdad funciona.'
+        }, { quoted: msg })
+        return
+      }
+
+      const resultado = data.resultado
+      const fileUrl = resultado.url
+      const fileName = resultado.archivo || `mediafire_${Date.now()}`
+      const fileSize = resultado.peso || 'Desconocido'
+
+      await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
+
+      const fileRes = await axios.get(fileUrl, {
+        responseType: 'arraybuffer',
+        timeout: 180000
       })
+      const fileBuffer = Buffer.from(fileRes.data)
+      const sizeMB = fileBuffer.length / (1024 * 1024)
 
-      const $ = cheerio.load(res.data)
-      let downloadLink = $('#downloadButton').attr('href')
-      
-      if (!downloadLink || downloadLink.includes('javascript:void(0)')) {
-        const match = res.data.match(/href="(https:\/\/download\d+\.mediafire\.com[^"]+)"/)
-        downloadLink = match ? match[1] : null
-      }
+      await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
 
-      if (!downloadLink) {
-        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-        return await sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
-      }
-
-      const fileName = $('.filename').text().trim() || 'archivo_mediafire'
-      const sizeText = $('#downloadButton').text().replace('Download', '').replace(/[()]/g, '').trim() || 'N/A'
-
-      // Verificar tamaño máximo 800MB
-      let sizeMB = 0
-      const sizeMatch = sizeText.match(/([\d.]+)\s*(KB|MB|GB)/i)
-      if (sizeMatch) {
-        const num = parseFloat(sizeMatch[1])
-        const unit = sizeMatch[2].toUpperCase()
-        if (unit === 'KB') sizeMB = num / 1024
-        if (unit === 'MB') sizeMB = num
-        if (unit === 'GB') sizeMB = num * 1024
-      }
-
-      if (sizeMB > 800) {
-        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-        return await sock.sendMessage(from, { text: '🌸 Este archivo pesa más de 800MB, no puedo descargarlo.' }, { quoted: msg })
-      }
-
-      await sock.sendMessage(from, { react: { text: '⏳', key: msg.key } })
-
-      // Descargar
-      const mediafireDir = path.join(process.cwd(), 'tmp', 'mediafire')
-      if (!fs.existsSync(mediafireDir)) fs.mkdirSync(mediafireDir, { recursive: true })
-
-      const safeFileName = fileName.replace(/[<>:"/\\|?*]/g, '_')
-      tempFile = path.join(mediafireDir, `${Date.now()}_${safeFileName}`)
-
-      const writer = fs.createWriteStream(tempFile)
-      const response = await axios({
-        method: 'GET',
-        url: downloadLink,
-        responseType: 'stream',
-        timeout: 600000
-      })
-
-      response.data.pipe(writer)
-      await new Promise((resolve, reject) => {
-        writer.on('finish', resolve)
-        writer.on('error', reject)
-      })
-
-      const ext = fileName.split('.').pop()?.toLowerCase()
-      const mime = lookup(ext) || 'application/octet-stream'
-
-      const enviado = await sock.sendMessage(from, {
-        document: fs.readFileSync(tempFile),
-        mimetype: mime,
-        fileName: fileName
+      await sock.sendMessage(from, {
+        document: fileBuffer,
+        fileName: fileName,
+        mimetype: 'application/octet-stream',
+        caption: `📦 ${fileName}\n📏 ${fileSize}`
       }, { quoted: msg })
 
-      await sock.sendMessage(from, { react: { text: '🌸', key: msg.key } })
-      if (enviado) await sock.sendMessage(from, { react: { text: '🌱', key: enviado.key } })
+      await sock.sendMessage(from, { react: { text: '🌴', key: msg.key } })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
-    } finally {
-      if (tempFile && fs.existsSync(tempFile)) fs.unlinkSync(tempFile)
+      await sock.sendMessage(from, {
+        text: 'No pude descargar eso, y no es por falta de ganas. Revisa el enlace y dime si de verdad funciona.'
+      }, { quoted: msg })
     }
   }
 }

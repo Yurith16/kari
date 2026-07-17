@@ -1,44 +1,24 @@
 import ytSearch from 'yt-search'
 import axios from 'axios'
 import sharp from 'sharp'
-import { downloadAudio } from '../utils/audio.js'
-
-const descargando = new Set()
-const descargaTimeouts = new Map()
 
 export default {
-  command: ['play','ytmp3'],
-  tag: 'play',
+  command:   ['y'],
+  tag:       'ytv',
   categoria: 'descargas',
-  owner: false,
-  group: false,
-  nsfw: false,
-  descripcion: 'Descarga audio de YouTube',
+  descripcion: 'Descarga videos de YouTube',
+  owner:     false,
+  group:     false,
 
   async execute(sock, msg, { from, args }) {
     if (!args.length) {
       return sock.sendMessage(from, {
-        text: '¿Y se supone que tengo que adivinar qué canción quieres o qué? Pásame el nombre o el enlace y dejo de hacerte esperar.'
-      }, { quoted: msg })
-    }
-
-    const userId = msg.key.participant || msg.key.remoteJid
-
-    if (descargando.has(userId)) {
-      return sock.sendMessage(from, {
-        text: 'Todavía estoy con tu descarga anterior, no me hagas trabajar el doble. Espera un momento.'
+        text: '¿Y se supone que tengo que adivinar qué video quieres o qué? Pásame el nombre o el enlace y dejo de hacerte esperar.'
       }, { quoted: msg })
     }
 
     const query = args.join(' ')
     const isUrl = /^https?:\/\//.test(query)
-
-    descargando.add(userId)
-
-    const timeout = setTimeout(() => {
-      descargando.delete(userId)
-    }, 600000)
-    descargaTimeouts.set(userId, timeout)
 
     try {
       await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
@@ -62,15 +42,6 @@ export default {
           return
         }
         const video = search.videos[0]
-
-        const durSecs = video.duration?.seconds || 0
-        if (durSecs > 18000) {
-          await sock.sendMessage(from, {
-            text: 'Ese audio dura más de 5 horas. Ni yo que soy un bot me atrevo a descargar algo tan largo, busca algo más razonable.'
-          }, { quoted: msg })
-          return
-        }
-
         videoUrl = video.url
         title = video.title
         thumbnail = video.thumbnail
@@ -84,7 +55,7 @@ export default {
         const midoriEmojis = ['🌴', '🌱', '🌾', '🐛', '🐝']
         const emo = midoriEmojis[Math.floor(Math.random() * midoriEmojis.length)]
 
-        const videoDetails = `> *${title || 'Audio'}*\n\n` +
+        const videoDetails = `> *${title || 'Video'}*\n\n` +
           `> ${emo} *Canal:* ${author || 'YouTube'}\n` +
           `> ${emo} *Duración:* ${duration || '--'}\n` +
           `> ${emo} *Vistas:* ${views ? Number(views).toLocaleString() : '--'}\n` +
@@ -107,25 +78,40 @@ export default {
         }
       }
 
+      const apiUrl = `https://api.lempi.lat/dl/ytv?url=${encodeURIComponent(videoUrl)}&apikey=lem851`
+      const { data } = await axios.get(apiUrl, { timeout: 30000 })
+
+      if (!data.status || !data.descarga) {
+        await sock.sendMessage(from, {
+          text: 'No pude descargar eso, y no es por falta de ganas. Revisa el enlace y dime si de verdad funciona.'
+        }, { quoted: msg })
+        return
+      }
+
       await sock.sendMessage(from, { react: { text: '📥', key: msg.key } })
 
-      const { buffer, title: finalTitle, sizeMB } = await downloadAudio(videoUrl)
-      title = finalTitle || title
+      const videoRes = await axios.get(data.descarga.url, {
+        responseType: 'arraybuffer',
+        timeout: 180000
+      })
+      const videoBuffer = Buffer.from(videoRes.data)
+      const sizeMB = videoBuffer.length / (1024 * 1024)
 
       await sock.sendMessage(from, { react: { text: '📤', key: msg.key } })
 
-      if (sizeMB <= 80) {
+      const caption = `*${data.titulo || title || 'Video'}*\n*Canal:* ${data.canal || author || 'YouTube'}\n*Duración:* ${data.duracion || duration || '--'}\n*Calidad:* ${data.descarga.calidad || '--'}`
+
+      if (sizeMB <= 50) {
         await sock.sendMessage(from, {
-          audio: buffer,
-          mimetype: 'audio/mpeg',
-          fileName: `${title}.mp3`
+          video: videoBuffer,
+          caption: caption
         }, { quoted: msg })
       } else {
         await sock.sendMessage(from, {
-          document: buffer,
-          mimetype: 'audio/mpeg',
-          fileName: `${title}.mp3`,
-          caption: `*${title}*\nEl audio pesa más de lo que puedo mandar como audio normal, así que te lo paso como documento. No es lo ideal, pero es lo que hay.`
+          document: videoBuffer,
+          mimetype: 'video/mp4',
+          fileName: `${data.titulo || 'video'}.mp4`,
+          caption: `${caption}\nEl video pesa más de lo que puedo mandar como video normal, así que te lo paso como documento. No es lo ideal, pero es lo que hay.`
         }, { quoted: msg })
       }
 
@@ -133,12 +119,8 @@ export default {
 
     } catch {
       await sock.sendMessage(from, {
-        text: 'No pude descargar eso, y no es por falta de ganas. Probé todo lo que tenía y nada funcionó.'
+        text: 'No pude descargar eso, y no es por falta de ganas. Revisa el enlace y dime si de verdad funciona.'
       }, { quoted: msg })
-    } finally {
-      clearTimeout(descargaTimeouts.get(userId))
-      descargaTimeouts.delete(userId)
-      descargando.delete(userId)
     }
   }
 }

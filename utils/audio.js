@@ -1,5 +1,3 @@
-// utils/audio.js
-
 import fs from 'fs'
 import axios from 'axios'
 import fg from 'fg-senna'
@@ -17,9 +15,21 @@ if (!fs.existsSync(MEDIA_DIR)) {
   fs.mkdirSync(MEDIA_DIR, { recursive: true })
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  FUENTE 1: mp3yt.is (cnv.cx)
-// ═══════════════════════════════════════════════════════════════════════════
+async function sourceLempy(videoUrl) {
+  const { data } = await axios.get(`https://api.lempi.lat/dl/yta?url=${encodeURIComponent(videoUrl)}&apikey=lem851`, {
+    headers: { 'User-Agent': UA }, timeout: 15000
+  })
+  if (!data?.status || !data?.descarga?.url) throw new Error('Lempy sin audio')
+  return { url: data.descarga.url, title: data.titulo }
+}
+
+async function sourceAzbry(videoUrl) {
+  const { data } = await axios.get(`https://api.azbry.com/api/download/ytmp3?url=${encodeURIComponent(videoUrl)}`, {
+    headers: { 'User-Agent': UA }, timeout: 15000
+  })
+  if (!data?.status || !data?.result?.download) throw new Error('Azbry sin audio')
+  return { url: data.result.download, title: data.result.title }
+}
 
 async function sourceMp3yt(videoUrl) {
   const headers = {
@@ -47,10 +57,6 @@ async function sourceMp3yt(videoUrl) {
   throw new Error('mp3yt falló')
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  APIs Apinexus
-// ═══════════════════════════════════════════════════════════════════════════
-
 async function sourceApinexus(videoUrl, version) {
   const urls = {
     v1: 'https://panel.apinexus.fun/api/youtube/mp3',
@@ -70,10 +76,6 @@ async function sourceApinexusV2(videoUrl) { return sourceApinexus(videoUrl, 'v2'
 async function sourceApinexusV3(videoUrl) { return sourceApinexus(videoUrl, 'v3') }
 async function sourceApinexusV4(videoUrl) { return sourceApinexus(videoUrl, 'v4') }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  APIs PrinceTech
-// ═══════════════════════════════════════════════════════════════════════════
-
 async function princeGet(endpoint, videoUrl) {
   const { data } = await axios.get(`https://api.princetechn.com/api/download/${endpoint}?apikey=prince&url=${encodeURIComponent(videoUrl)}`, {
     headers: { 'User-Agent': UA }, timeout: 15000
@@ -89,10 +91,6 @@ async function sourcePrinceYtdl(videoUrl)   { return princeGet('ytdl', videoUrl)
 async function sourcePrinceYtdlv2(videoUrl) { return princeGet('ytdlv2', videoUrl) }
 async function sourcePrinceDlmp3(videoUrl)  { return princeGet('dlmp3', videoUrl) }
 async function sourcePrinceYtmusic(videoUrl){ return princeGet('ytmusic', videoUrl) }
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  APIs EliteProTech
-// ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceEliteYtdown(videoUrl) {
   const { data } = await axios.get(`https://eliteprotech-apis.zone.id/ytdown?url=${encodeURIComponent(videoUrl)}&format=mp3`, {
@@ -110,10 +108,6 @@ async function sourceEliteYtmp3(videoUrl) {
   return { url: data.result.download, title: data.result.title }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  APIs Delirius
-// ═══════════════════════════════════════════════════════════════════════════
-
 async function sourceDeliriusV1(videoUrl) {
   const { data } = await axios.get(`https://api.delirius.store/download/ytmp3?url=${encodeURIComponent(videoUrl)}`, {
     headers: { 'User-Agent': UA }, timeout: 15000
@@ -130,19 +124,11 @@ async function sourceDeliriusV2(videoUrl) {
   return { url: data.data.download, title: data.data.title }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  API FG-Senna
-// ═══════════════════════════════════════════════════════════════════════════
-
 async function sourceFgSenna(videoUrl) {
   const res = await fg.yta(videoUrl)
   if (res && res.dl_url) return { url: res.dl_url, title: res.title }
   throw new Error('FG-Senna falló')
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  cnvmp3
-// ═══════════════════════════════════════════════════════════════════════════
 
 async function sourceCnvmp3(videoUrl) {
   const videoId = videoUrl.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[&?]|$)/)?.[1]
@@ -183,10 +169,6 @@ async function sourceCnvmp3(videoUrl) {
   throw new Error('cnvmp3 falló')
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  ytdlp.online
-// ═══════════════════════════════════════════════════════════════════════════
-
 async function sourceYtdlp(videoUrl) {
   const initRes = await axios.get('https://ytdlp.online/', { headers: { 'User-Agent': UA } })
   const cookies = initRes.headers['set-cookie']?.join('; ') || ''
@@ -225,11 +207,9 @@ async function sourceYtdlp(videoUrl) {
   throw new Error('ytdlp falló')
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  FUENTES: mp3yt.is primero, luego el resto
-// ═══════════════════════════════════════════════════════════════════════════
-
 const sources = [
+  { name: 'Lempy',            fn: sourceLempy },
+  { name: 'Azbry',            fn: sourceAzbry },
   { name: 'mp3yt.is',         fn: sourceMp3yt },
   { name: 'Apinexus v2',      fn: sourceApinexusV2 },
   { name: 'Apinexus v1',      fn: sourceApinexusV1 },
@@ -249,10 +229,6 @@ const sources = [
   { name: 'cnvmp3',           fn: sourceCnvmp3 },
   { name: 'ytdlp.online',     fn: sourceYtdlp },
 ]
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  FUNCIÓN PRINCIPAL
-// ═══════════════════════════════════════════════════════════════════════════
 
 export async function downloadAudio(videoUrl) {
   for (const source of sources) {

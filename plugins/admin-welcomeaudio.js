@@ -12,19 +12,20 @@ export default {
   categoria:   'admin',
   owner:       false,
   group:       true,
-  nsfw:        false,
   descripcion: 'Configura el audio de bienvenida del grupo, responde a un audio',
 
   async execute(sock, msg, { from, isAdmin, isOwner }) {
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('admin'), key: msg.key } })
+
     if (!isAdmin && !isOwner) {
-      await sock.sendMessage(from, { text: global.messages?.notAdmin }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.notAdmin }, { quoted: msg })
       return
     }
 
     const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
     if (!quoted) {
       await sock.sendMessage(from, {
-        text: '🌸 Responde a un audio, nota de voz o video con este comando para usarlo como bienvenida.'
+        text: 'responde a un audio, nota de voz o video. necesito escuchar algo, aunque sea un sonido tuyo, para no sentirme tan sola.'
       }, { quoted: msg })
       return
     }
@@ -34,7 +35,7 @@ export default {
 
     if (!isAudio && !isVideo) {
       await sock.sendMessage(from, {
-        text: '🌸 Solo puedo usar audios, notas de voz o videos como bienvenida.'
+        text: 'solo puedo usar audios, notas de voz o videos. no me dejes las cosas a medias, que para ilusiones rotas ya tuve suficiente.'
       }, { quoted: msg })
       return
     }
@@ -54,12 +55,11 @@ export default {
       fs.writeFileSync(filePath, buffer)
       setGroupField(from, 'welcomeAudio', `file://${filePath}`)
 
-      await sock.sendMessage(from, { react: { text: '🌿', key: msg.key } })
       await sock.sendMessage(from, {
-        text: '🌿 Audio de bienvenida configurado para este grupo.'
+        text: 'listo, ya guardé el audio de bienvenida. espero que los que entren sí se queden a escucharlo y no me abandonen a la primera.'
       }, { quoted: msg })
     } catch {
-      await sock.sendMessage(from, { text: global.messages?.error }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }

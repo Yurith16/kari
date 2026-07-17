@@ -1,23 +1,24 @@
 // creditos a YJ-EspinoX
 import axios from 'axios'
-import { getBotSignature } from '../utils/formatters.js'
 
 export default {
-  command: ['pinterest', 'pin','pindl'],
-  tag: 'pinterest',
-  categoria: 'descargas',
+  command:     ['pinterest', 'pin', 'pindl'],
+  tag:         'pinterest',
+  categoria:   'media',
   descripcion: 'Busca y descarga un álbum de 10 imágenes de Pinterest',
-  owner: false,
-  group: false,
-  nsfw: false,
+  owner:       false,
+  group:       false,
 
   async execute(sock, msg, { from, args }) {
+    await sock.sendMessage(from, { react: { text: global.getRandomReaction('media'), key: msg.key } })
+
     const query = args.join(' ')
-    if (!query) return sock.sendMessage(from, { text: global.messages.busquedaEmpty }, { quoted: msg })
+    if (!query) {
+      await sock.sendMessage(from, { text: 'Dime que deseas buscar en pinterest' }, { quoted: msg })
+      return
+    }
 
     try {
-      await sock.sendMessage(from, { react: { text: '🔎', key: msg.key } })
-
       const session = await axios.get('https://es.pinterest.com/', {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
@@ -50,8 +51,8 @@ export default {
 
       const results = data.resource_response?.data?.results || []
       if (results.length === 0) {
-        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-        return sock.sendMessage(from, { text: global.messages.busquedaNotFound }, { quoted: msg })
+        await sock.sendMessage(from, { text: 'no se encontraron resultados para tu búsqueda.' }, { quoted: msg })
+        return
       }
 
       const shuffled = results.sort(() => 0.5 - Math.random())
@@ -59,8 +60,6 @@ export default {
 
       let albumKey = null
       let enviados = 0
-
-      const signature = `           ${getBotSignature(global.bot)}`
 
       for (const pin of selectedPins) {
         try {
@@ -90,16 +89,9 @@ export default {
             albumKey = album.key
           }
 
-          const caption = enviados === 0
-            ? `
-  ♡ *Búsqueda:* _${query}_
-  · · ─────── ·🌸· ─────── · ·
-     ${signature}`
-            : ''
-
           const mediaMsg = await sock.generateWAMessage(from, {
             image: buffer,
-            caption
+            caption: ''
           }, { upload: sock.waUploadToServer })
 
           mediaMsg.message.messageContextInfo = {
@@ -115,15 +107,11 @@ export default {
       }
 
       if (enviados === 0) {
-        await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-        return sock.sendMessage(from, { text: global.messages.descargaError }, { quoted: msg })
+        await sock.sendMessage(from, { text: 'no se pudo descargar ninguna imagen del álbum.' }, { quoted: msg })
       }
 
-      await sock.sendMessage(from, { react: { text: '✨', key: msg.key } })
-
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
-      return sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
+      await sock.sendMessage(from, { text: global.messages.error }, { quoted: msg })
     }
   }
 }
