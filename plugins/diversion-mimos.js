@@ -8,11 +8,10 @@ export default {
   categoria: 'diversion',
   owner:     false,
   group:     false,
-  nsfw:      false,
   descripcion: 'Envía un gif de mimos a alguien',
 
   async execute(sock, msg, { from }) {
-    await sock.sendMessage(from, { react: { text: '☁️', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '🧸', key: msg.key } })
 
     try {
       const apiUrl = `https://api.delirius.store/reactions/fluff`
@@ -51,29 +50,32 @@ export default {
         const victimTag = victima.split('@')[0]
         
         const frasesPareja = [
-          `☁️ @${selfTag} dejó de lado su orgullo por un segundo para llenarle el chat de mimos a @${victimTag}... Un intento desesperado por curar los celos y la distancia. 💖`,
-          `🔥 Entre tantos silencios y verdades reprimidas, @${selfTag} se puso dulce con @${victimTag}. Un abrazo digital cargado de un drama pasional indomable.`,
-          `✨ @${selfTag} buscó refugio en los brazos de @${victimTag} con timidez. Dejando expuesto ante todo el grupo lo mucho que le quema su fría indiferencia.`,
-          `🎭 Rompiendo el hielo de la peor forma, @${selfTag} le da cariño a @${victimTag}. Un destello de ternura pura que busca revivir la complicidad perdida.`,
-          `📜 @${selfTag} no pudo fingir más desinterés y se rindió ante @${victimTag}, cobrando una vieja deuda de amor con caricias que nadie más comprende.`
+          `@${selfTag} le dio mimos a @${victimTag}, de esos que se agradecen con el alma. 🧸`,
+          `@${selfTag} se puso tierno con @${victimTag}, y se le nota lo bonito. ☁️`,
+          `@${selfTag} llenó de cariño a @${victimTag}, así sin avisar y sin pretextos. 🌸`
         ]
         
         txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
       } 
-      else {
-        if (victima === selfJid) {
-          mentions.push(selfJid)
-        }
+      else if (victima === selfJid) {
+        mentions.push(selfJid)
         
         const frasesSolo = [
-          `🌸 @${selfTag} anda en modo esponjoso en solitario... Buscando desesperadamente llamar la atención de un corazón distante que prefiere ignorarle.`,
-          `☁️ @${selfTag} se mima a sí mismo en el chat para ocultar el vacío de su pantalla. Un drama silencioso de ego herido al notar la soledad del grupo.`,
-          `🧸 @${selfTag} está repartiendo vibras bonitas al aire. Una coraza cínica para no aceptar que se muere por unos cariños que hoy no va a recibir.`,
-          `🍬 @${selfTag} entró en modo dulce consigo mismo. Sus defensas cayeron por completo al darse cuenta de que su orgullo no basta para sanar la nostalgia.`,
-          `🩹 @${selfTag} abraza la nada frente al chat vacío. Un alma lastimada que simula ternura para no estallar en reclamos ante esa persona especial.`
+          `@${selfTag} se está dando cariño a sí mismo, el amor propio es primero. 🧸`,
+          `@${selfTag} anda en modo esponjoso consigo mismo, a veces hace falta. ☁️`,
+          `@${selfTag} se mimó solito, no hay que esperar a que otro lo haga. 🌸`
         ]
         
         txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
+      }
+      else {
+        const frasesMidori = [
+          `@${selfTag} no mencionó a nadie, así que yo te doy mimitos. Ven aquí, no digas que no te quiero. 🧸`,
+          `@${selfTag} se quedó sin mimos, pero aquí estoy yo para darte cariño. ☁️`,
+          `@${selfTag} nadie se ofreció a mimarte, así que me toca a mí. No te quejes. 🌸`
+        ]
+        
+        txt = frasesMidori[Math.floor(Math.random() * frasesMidori.length)]
       }
 
       await sock.sendMessage(from, {
@@ -84,7 +86,37 @@ export default {
       }, { quoted: msg })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      const selfJid = await getRealJid(sock, msg.key.participant || msg.key.remoteJid, msg).catch(() => null)
+      const selfTag = selfJid ? selfJid.split('@')[0] : 'Alguien'
+      
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+      const quotedParticipant = contextInfo?.participant
+      const mentionedJids = contextInfo?.mentionedJid || []
+      const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+      const textMentions = fullText.match(/@(\d+)/g) || []
+      
+      let victima = null
+      if (quotedParticipant) {
+        victima = quotedParticipant.split('@')[0]
+      } else if (mentionedJids.length > 0) {
+        victima = mentionedJids[0].split('@')[0]
+      } else if (textMentions.length > 0) {
+        victima = textMentions[0].replace('@', '')
+      }
+
+      let txt = ''
+      if (victima && victima !== selfTag) {
+        txt = `@${selfTag} le dio mimos a @${victima}, de esos que se agradecen con el alma. 🧸`
+      } else if (victima === selfTag) {
+        txt = `@${selfTag} se está dando cariño a sí mismo, el amor propio es primero. 🧸`
+      } else {
+        txt = `@${selfTag} no mencionó a nadie, así que yo te doy mimitos. Ven aquí, no digas que no te quiero. 🧸`
+      }
+
+      await sock.sendMessage(from, {
+        text: txt,
+        mentions: [selfJid].filter(Boolean)
+      }, { quoted: msg })
     }
   }
 }

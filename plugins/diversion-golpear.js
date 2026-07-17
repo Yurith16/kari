@@ -8,7 +8,6 @@ export default {
   categoria: 'diversion',
   owner:     false,
   group:     false,
-  nsfw:      false,
   descripcion: 'Envía un gif de golpe a alguien',
 
   async execute(sock, msg, { from }) {
@@ -51,29 +50,32 @@ export default {
         const victimTag = victima.split('@')[0]
         
         const frasesPareja = [
-          `💥 *¡Fight!* @${selfTag} descargó toda su frustración metiéndole un fuerte golpe a @${victimTag}... Un estallido violento nacido de los celos y del orgullo herido que ya no pudo reprimir.`,
-          `🔥 Un impacto seco que dolió en el alma: @${selfTag} arremetió contra @${victimTag} en el chat. Un reclamo pasional envuelto en furia para romper una distancia insoportable.`,
-          `💔 @${selfTag} le plantó un golpe certero a @${victimTag}. Destrozando las apariencias y exponiendo las verdades amargas que ambos intentaban ocultar ante el grupo.`,
-          `🎭 @${selfTag} atacó a @${victimTag} sin piedad. Una muestra de rabia desatada para no admitir cuánto le quema la maldita indiferencia de esa persona especial.`,
-          `📜 Se quebró la tregua: @${selfTag} arrolló con un golpe a @${victimTag}. El límite se cruzó y el drama se apoderó por completo de la pantalla esta noche.`
+          `@${selfTag} le metió un golpe a @${victimTag}, algo habrá hecho para merecerlo. 👊`,
+          `@${selfTag} le soltó una patada a @${victimTag}, se ve que se lo tenía guardado. 🦵`,
+          `@${selfTag} arremetió contra @${victimTag}, la tensión se siente en el chat. 💥`
         ]
         
         txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
       } 
-      else {
-        if (victima === selfJid) {
-          mentions.push(selfJid)
-        }
+      else if (victima === selfJid) {
+        mentions.push(selfJid)
         
         const frasesSolo = [
-          `🤡 @${selfTag} se dio un golpe solito contra la realidad... Intentando borrar de su mente el recuerdo constante de un amor indomable que prefiere ignorarle.`,
-          `💨 @${selfTag} anda tirando golpes cínicos al aire. Una coraza hostil para ocultar que se siente completamente solo y abandonado en el chat.`,
-          `🤕 @${selfTag} se metió un golpe propio para ver si despertaba del letargo, dándose cuenta de que su orgullo cayó buscando una atención que no va a recibir.`,
-          `🥊 @${selfTag} quería pelear con todas sus fuerzas pero no encontró contrincante, quedando atrapado en un drama pasional en solitario frente a la pantalla vacía.`,
-          `🩹 @${selfTag} se castigó a sí mismo con un frío golpe de realidad. Un alma lastimada que disfraza su nostalgia con una actitud destructiva.`
+          `@${selfTag} se golpeó a sí mismo, a veces uno necesita descargar la frustración. 👊`,
+          `@${selfTag} anda tirando golpes al aire, mejor despejarse así. 🦵`,
+          `@${selfTag} quería pelear pero no encontró contrincante, así que se golpeó solo. 💥`
         ]
         
         txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
+      }
+      else {
+        const frasesMidori = [
+          `@${selfTag} no mencionó a nadie, así que yo recibo el golpe. Con cariño, espero. 👊`,
+          `@${selfTag} se quedó sin víctima, pero aquí estoy yo para aguantar el madraso. 🦵`,
+          `@${selfTag} tiró el golpe al aire y yo lo atrapé, no preguntes cómo. 💥`
+        ]
+        
+        txt = frasesMidori[Math.floor(Math.random() * frasesMidori.length)]
       }
 
       await sock.sendMessage(from, {
@@ -84,7 +86,37 @@ export default {
       }, { quoted: msg })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      const selfJid = await getRealJid(sock, msg.key.participant || msg.key.remoteJid, msg).catch(() => null)
+      const selfTag = selfJid ? selfJid.split('@')[0] : 'Alguien'
+      
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+      const quotedParticipant = contextInfo?.participant
+      const mentionedJids = contextInfo?.mentionedJid || []
+      const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+      const textMentions = fullText.match(/@(\d+)/g) || []
+      
+      let victima = null
+      if (quotedParticipant) {
+        victima = quotedParticipant.split('@')[0]
+      } else if (mentionedJids.length > 0) {
+        victima = mentionedJids[0].split('@')[0]
+      } else if (textMentions.length > 0) {
+        victima = textMentions[0].replace('@', '')
+      }
+
+      let txt = ''
+      if (victima && victima !== selfTag) {
+        txt = `@${selfTag} le metió un golpe a @${victima}, algo habrá hecho para merecerlo. 👊`
+      } else if (victima === selfTag) {
+        txt = `@${selfTag} se golpeó a sí mismo, a veces uno necesita descargar la frustración. 👊`
+      } else {
+        txt = `@${selfTag} no mencionó a nadie, así que yo recibo el golpe. Con cariño, espero. 👊`
+      }
+
+      await sock.sendMessage(from, {
+        text: txt,
+        mentions: [selfJid].filter(Boolean)
+      }, { quoted: msg })
     }
   }
 }

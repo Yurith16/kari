@@ -320,7 +320,7 @@ export async function handleMessage(sock, msg) {
     // ─── Registro automático — solo cuando usa un comando ────────────────────
     if (match && !ctx.fromMe && ctx.userNum && ctx.userNum.length >= 8) {
       if (!isRegistered(ctx.userNum)) {
-        autoRegistrar(msg, ctx.userNum)
+        setImmediate(() => autoRegistrar(msg, ctx.userNum))
       }
     }
 

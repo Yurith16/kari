@@ -8,10 +8,9 @@ export default {
   categoria: 'diversion',
   owner:     false,
   group:     false,
-  nsfw:      false,
   descripcion: 'Envía un gif de abrazo a alguien',
 
-  async execute(sock, msg, { from, args }) {
+  async execute(sock, msg, { from }) {
     await sock.sendMessage(from, { react: { text: '🫂', key: msg.key } })
 
     try {
@@ -51,30 +50,32 @@ export default {
         const victimTag = victima.split('@')[0]
         
         const frasesPareja = [
-          `🫂 @${selfTag} envolvió entre sus brazos a @${victimTag}... Un refugio perfecto donde el orgullo se desarma y las palabras románticas ya no hacen falta. ✨`,
-          `🔥 @${selfTag} le dio un abrazo eterno a @${victimTag}... De esos que se sienten en el pecho y dejan la duda de si es un tierno afecto o el inicio de algo prohibido.`,
-          `🫂 ¡Qué momento! @${selfTag} se acurrucó con @${victimTag}. Un abrazo tan cálido que logró congelar el tiempo, acallando por un instante todos los celos y los miedos del pasado.`,
-          `💞 @${selfTag} abrazó con fuerza a @${victimTag}... Como queriendo unir los pedazos rotos de una historia que se resiste a morir en el olvido.`,
-          `✨ @${selfTag} buscó el calor de @${victimTag} en un abrazo... De esos que extrañas en las noches frías y que te recuerdan a quién le pertenece realmente tu atención.`
+          `@${selfTag} le dio un abrazo a @${victimTag}, de esos que se sienten bonito. 🤗`,
+          `@${selfTag} se acercó y abrazó a @${victimTag}, porque a veces hace falta sin razón. 🫂`,
+          `@${selfTag} envolvió a @${victimTag} en un abrazo, así sin avisar y sin pretextos. 🌴`
         ]
         
         txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
       } 
-      else {
-        // Entra aquí si se abraza a sí mismo o si no mencionó a nadie
-        if (victima === selfJid) {
-          mentions.push(selfJid)
-        }
+      else if (victima === selfJid) {
+        mentions.push(selfJid)
         
         const frasesSolo = [
-          `💔 @${selfTag} se abrazó a sí mismo... Hay ausencias que pesan demasiado y verdades en el alma que ni el mejor de los orgullos puede ocultar.`,
-          `🧸 @${selfTag} anda buscando un abracito desesperadamente... ¿Alguien se ofrece a calmar ese corazón indomable que se esconde detrás de la pantalla?`,
-          `🫂 @${selfTag} se quedó con los brazos abiertos en el chat. A veces, el silencio de esa persona especial duele más que un rechazo directo.`,
-          `🥺 @${selfTag} entró en modo cariñoso, pero la persona que habita en sus pensamientos parece no darse cuenta. Le tocó abrazar su almohada hoy.`,
-          `🩹 @${selfTag} se dio un auto-abrazo para sanar un poquito. A veces hay que ser el propio refugio cuando los demás solo saben jugar con tus emociones.`
+          `@${selfTag} se abrazó a sí mismo, porque a veces uno necesita su propio cariño. 🤗`,
+          `@${selfTag} se dio un abrazo, no hay que esperar a que otro lo haga. 🫂`,
+          `@${selfTag} se envolvió en sus propios brazos, a veces toca. 🌴`
         ]
         
         txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
+      }
+      else {
+        const frasesMidori = [
+          `@${selfTag} no mencionó a nadie, así que yo te abrazo. Ven aquí, no digas que no te quiero. 🤗`,
+          `@${selfTag} se quedó sin abrazo, pero aquí estoy yo. Toma tu abrazo de Midori, no es mucho pero es con cariño. 🫂`,
+          `@${selfTag} nadie se ofreció a abrazarte, así que me toca a mí. No te quejes, es con buena intención. 🌴`
+        ]
+        
+        txt = frasesMidori[Math.floor(Math.random() * frasesMidori.length)]
       }
 
       await sock.sendMessage(from, {
@@ -85,7 +86,37 @@ export default {
       }, { quoted: msg })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      const selfJid = await getRealJid(sock, msg.key.participant || msg.key.remoteJid, msg).catch(() => null)
+      const selfTag = selfJid ? selfJid.split('@')[0] : 'Alguien'
+      
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+      const quotedParticipant = contextInfo?.participant
+      const mentionedJids = contextInfo?.mentionedJid || []
+      const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+      const textMentions = fullText.match(/@(\d+)/g) || []
+      
+      let victima = null
+      if (quotedParticipant) {
+        victima = quotedParticipant.split('@')[0]
+      } else if (mentionedJids.length > 0) {
+        victima = mentionedJids[0].split('@')[0]
+      } else if (textMentions.length > 0) {
+        victima = textMentions[0].replace('@', '')
+      }
+
+      let txt = ''
+      if (victima && victima !== selfTag) {
+        txt = `@${selfTag} le dio un abrazo a @${victima}, de esos que se sienten bonito. 🤗`
+      } else if (victima === selfTag) {
+        txt = `@${selfTag} se abrazó a sí mismo, porque a veces uno necesita su propio cariño. 🤗`
+      } else {
+        txt = `@${selfTag} no mencionó a nadie, así que yo te abrazo. Ven aquí, no digas que no te quiero. 🤗`
+      }
+
+      await sock.sendMessage(from, {
+        text: txt,
+        mentions: [selfJid].filter(Boolean)
+      }, { quoted: msg })
     }
   }
 }

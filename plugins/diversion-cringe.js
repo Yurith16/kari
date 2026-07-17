@@ -8,7 +8,6 @@ export default {
   categoria: 'diversion',
   owner:     false,
   group:     false,
-  nsfw:      false,
   descripcion: 'Envía un gif de cringe',
 
   async execute(sock, msg, { from }) {
@@ -51,29 +50,32 @@ export default {
         const victimTag = victima.split('@')[0]
         
         const frasesPareja = [
-          `😬 @${selfTag} sintió un cringe profundo por la actitud de @${victimTag}... Un intento desesperado de llamar la atención que solo dejó expuesto su orgullo herido. 💀`,
-          `🤢 @${selfTag} vio la escena de @${victimTag} y prefirió desviar la mirada. Hay textos en el chat que dan pena ajena y delatan unos celos imposibles de ocultar.`,
-          `✨ @${selfTag} vio cómo @${victimTag} rogaba afecto y sintió un escalofrío. El drama pasional se volvió ridículo ante las miradas secretas del grupo.`,
-          `🎭 Qué amargo momento... @${selfTag} presenció el espectáculo de @${victimTag} y se le congeló la sonrisa. Hay silencios que salvan, pero esto dio puro cringe.`,
-          `📜 El ego por los suelos: @${selfTag} no pudo ocultar su incomodidad ante las palabras de @${victimTag}. Una desconexión total que enterró los recuerdos de su vieja complicidad.`
+          `@${selfTag} sintió cringe por lo que hizo @${victimTag}, qué pena ajena. 😬`,
+          `@${selfTag} no puede con la vergüenza que le dio @${victimTag}, alguien que lo ayude. 🤢`,
+          `@${selfTag} vio a @${victimTag} y le dio un escalofrío de esos incómodos. 💀`
         ]
         
         txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
       } 
-      else {
-        if (victima === selfJid) {
-          mentions.push(selfJid)
-        }
+      else if (victima === selfJid) {
+        mentions.push(selfJid)
         
         const frasesSolo = [
-          `😬 @${selfTag} recordó sus propios mensajes del pasado y sufrió de cringe nivel experto... El precio de haber bajado la guardia por alguien indiferente.`,
-          `🤢 @${selfTag} no puede con tanta pena ajena consigo mismo. Su orgullo le exige borrar el chat para no aceptar que se humilló buscando atención.`,
-          `💀 @${selfTag} entró en crisis total y se ahoga en su propio drama. Un alma indomable arrepentida de haber mostrado un segundo de vulnerabilidad.`,
-          `🙈 @${selfTag} se tapó los ojos ante la pantalla vacía. Le da cringe recordar cuánto esperó un mensaje de esa persona que habita en sus pensamientos.`,
-          `🩹 @${selfTag} se arrepintió de sus indirectas románticas. El silencio del chat transformó su gran declaración en un incómodo momento de soledad.`
+          `@${selfTag} recordó algo que hizo y le dio cringe nivel experto. 😬`,
+          `@${selfTag} se avergonzó solito, a todos nos ha pasado. 🤢`,
+          `@${selfTag} sintió pena ajena de sí mismo, tranquilo no eres el único. 💀`
         ]
         
         txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
+      }
+      else {
+        const frasesMidori = [
+          `@${selfTag} no mencionó a nadie, pero yo ya sentí el cringe por él. 😬`,
+          `@${selfTag} se quedó sin culpable, aunque la pena ajena se siente igual. 🤢`,
+          `@${selfTag} no señaló a nadie, pero algo incómodo pasó y todos lo sabemos. 💀`
+        ]
+        
+        txt = frasesMidori[Math.floor(Math.random() * frasesMidori.length)]
       }
 
       await sock.sendMessage(from, {
@@ -84,7 +86,37 @@ export default {
       }, { quoted: msg })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      const selfJid = await getRealJid(sock, msg.key.participant || msg.key.remoteJid, msg).catch(() => null)
+      const selfTag = selfJid ? selfJid.split('@')[0] : 'Alguien'
+      
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+      const quotedParticipant = contextInfo?.participant
+      const mentionedJids = contextInfo?.mentionedJid || []
+      const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+      const textMentions = fullText.match(/@(\d+)/g) || []
+      
+      let victima = null
+      if (quotedParticipant) {
+        victima = quotedParticipant.split('@')[0]
+      } else if (mentionedJids.length > 0) {
+        victima = mentionedJids[0].split('@')[0]
+      } else if (textMentions.length > 0) {
+        victima = textMentions[0].replace('@', '')
+      }
+
+      let txt = ''
+      if (victima && victima !== selfTag) {
+        txt = `@${selfTag} sintió cringe por lo que hizo @${victima}, qué pena ajena. 😬`
+      } else if (victima === selfTag) {
+        txt = `@${selfTag} recordó algo que hizo y le dio cringe nivel experto. 😬`
+      } else {
+        txt = `@${selfTag} no mencionó a nadie, pero yo ya sentí el cringe por él. 😬`
+      }
+
+      await sock.sendMessage(from, {
+        text: txt,
+        mentions: [selfJid].filter(Boolean)
+      }, { quoted: msg })
     }
   }
 }

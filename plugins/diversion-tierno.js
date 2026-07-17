@@ -8,7 +8,6 @@ export default {
   categoria: 'diversion',
   owner:     false,
   group:     false,
-  nsfw:      false,
   descripcion: 'Envía un gif tierno',
 
   async execute(sock, msg, { from }) {
@@ -48,29 +47,32 @@ export default {
         const victimTag = victima.split('@')[0]
         
         const frasesPareja = [
-          `🐾 Mirando de reojo por puros celos, @${selfTag} decidió bajarse el orgullo y ponerse tierno solo con @${victimTag}... Aprovecha que esto no pasa seguido. 💖`,
-          `🔥 Para que veas que no todo es pelea, @${selfTag} te tira un gesto lindo @${victimTag}. A ver si dejas la cobardía y respondes el chat.`,
-          `💥 @${selfTag} se tragó su orgullo herido y te trata con dulzura @${victimTag}... Aunque te encante jugar al tipo duro e indiferente ante el grupo.`,
-          `🎭 Dejando el drama de lado por cinco minutos, @${selfTag} intenta ablandar el corazón de piedra de @${victimTag}. Rompe esa distancia ya.`,
-          `📜 Menos indirectas y más verdades: @${selfTag} se pone lindo con @${victimTag} para cobrar una vieja deuda de atención en este chat.`
+          `@${selfTag} se puso tierno con @${victimTag}, qué bonito cuando se le sale lo suave. 🐾`,
+          `@${selfTag} le sacó el lado adorable a @${victimTag}, así sin esfuerzo. 🌸`,
+          `@${selfTag} anda en modo lindo con @${victimTag}, y se le nota lo natural. 💖`
         ]
         
         txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
       } 
-      else {
-        if (victima === selfJid) {
-          mentions.push(selfJid)
-        }
+      else if (victima === selfJid) {
+        mentions.push(selfJid)
         
         const frasesSolo = [
-          `🐾 @${selfTag} anda en modo tierno con la pantalla vacía... Qué payaso/a te ves esperando mimos de quien prefiere ignorarte.`,
-          `🌸 El colmo del cinismo: @${selfTag} se pone adorable en solitario. Una táctica inútil para llamar la atención de un corazón indomable.`,
-          `🍬 Con el ego tocado pero la frente en alto, @${selfTag} se tira flores a sí mismo en el chat. Cansado/a de rogarle atención a los demás.`,
-          `🧸 @${selfTag} activó su modo lindo solo para curarse la nostalgia. Al menos su amor propio es más fuerte que tu maldito silencio.`,
-          `🩹 @${selfTag} reparte dulzura al aire en el grupo. Una coraza perfecta para ocultar que se muere de celos por alguien que no escribe.`
+          `@${selfTag} se puso tierno consigo mismo, a veces hace falta ser dulce con uno. 🐾`,
+          `@${selfTag} anda en modo adorable en solitario, el amor propio es primero. 🌸`,
+          `@${selfTag} se tiró flores a sí mismo, porque esperar a que otro lo haga cansa. 💖`
         ]
         
         txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
+      }
+      else {
+        const frasesMidori = [
+          `@${selfTag} no mencionó a nadie, pero yo detecto ternura en el aire. Algo me dice que hay un corazón blandito por ahí. 🐾`,
+          `@${selfTag} se puso adorable y no dijo por quién, pero aquí andamos de chismosas queriendo saber. 🌸`,
+          `@${selfTag} anda repartiendo dulzura al vacío, alguien le gusta y no lo quiere soltar. 💖`
+        ]
+        
+        txt = frasesMidori[Math.floor(Math.random() * frasesMidori.length)]
       }
 
       await sock.sendMessage(from, {
@@ -81,7 +83,37 @@ export default {
       }, { quoted: msg })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      const selfJid = await getRealJid(sock, msg.key.participant || msg.key.remoteJid, msg).catch(() => null)
+      const selfTag = selfJid ? selfJid.split('@')[0] : 'Alguien'
+      
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+      const quotedParticipant = contextInfo?.participant
+      const mentionedJids = contextInfo?.mentionedJid || []
+      const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+      const textMentions = fullText.match(/@(\d+)/g) || []
+      
+      let victima = null
+      if (quotedParticipant) {
+        victima = quotedParticipant.split('@')[0]
+      } else if (mentionedJids.length > 0) {
+        victima = mentionedJids[0].split('@')[0]
+      } else if (textMentions.length > 0) {
+        victima = textMentions[0].replace('@', '')
+      }
+
+      let txt = ''
+      if (victima && victima !== selfTag) {
+        txt = `@${selfTag} se puso tierno con @${victima}, qué bonito cuando se le sale lo suave. 🐾`
+      } else if (victima === selfTag) {
+        txt = `@${selfTag} se puso tierno consigo mismo, a veces hace falta ser dulce con uno. 🐾`
+      } else {
+        txt = `@${selfTag} no mencionó a nadie, pero yo detecto ternura en el aire. Algo me dice que hay un corazón blandito por ahí. 🐾`
+      }
+
+      await sock.sendMessage(from, {
+        text: txt,
+        mentions: [selfJid].filter(Boolean)
+      }, { quoted: msg })
     }
   }
 }

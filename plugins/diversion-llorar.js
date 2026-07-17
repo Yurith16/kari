@@ -8,11 +8,10 @@ export default {
   categoria: 'diversion',
   owner:     false,
   group:     false,
-  nsfw:      false,
   descripcion: 'Envía un gif de llanto',
 
   async execute(sock, msg, { from }) {
-    await sock.sendMessage(from, { react: { text: '😭', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '😢', key: msg.key } })
 
     try {
       const apiUrl = `https://api.delirius.store/reactions/cry`
@@ -51,29 +50,32 @@ export default {
         const victimTag = victima.split('@')[0]
         
         const frasesPareja = [
-          `😭 Las lágrimas vencieron al orgullo: @${selfTag} se quebró por culpa del desdén de @${victimTag}... Un llanto amargo nacido de celos silenciosos que ya no puede ocultar. 💔`,
-          `🔥 @${selfTag} no pudo contener la tristeza ante la fría actitud de @${victimTag}. Un drama pasional que estalla en reproches silenciosos y miradas vacías en el chat.`,
-          `💥 Con el ego destrozado, @${selfTag} llora amargamente por @${victimTag}. Las palabras hirientes cruzaron el límite, quebrando una vieja complicidad.`,
-          `🎭 Detrás de la máscara de indiferencia, @${selfTag} se desahoga en llanto frente a @${victimTag}... Un ruego desesperado por un poco de atención ante el grupo.`,
-          `📜 El silencio de @${victimTag} fue un golpe devastador. @${selfTag} derrama lágrimas esta noche al notar que la distancia se volvió insalvable.`
+          `@${selfTag} está llorando por @${victimTag}, se vale de vez en cuando. 😢`,
+          `@${selfTag} llora junto a @${victimTag}, a veces hace falta soltarlo. 💧`,
+          `@${selfTag} soltó una lágrima por @${victimTag}, de esas que salen del alma. 😭`
         ]
         
         txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
       } 
-      else {
-        if (victima === selfJid) {
-          mentions.push(selfJid)
-        }
+      else if (victima === selfJid) {
+        mentions.push(selfJid)
         
         const frasesSolo = [
-          `😭 @${selfTag} se hundió en un llanto silencioso frente a la pantalla vacía... Intentando asimilar el dolor de amar a un corazón indomable y distante.`,
-          `💔 El orgullo cayó por completo: @${selfTag} llora a solas en el chat. Una crisis pasional nacida de la dolorosa certeza de no ser correspondido hoy.`,
-          `🥺 @${selfTag} entró en modo tristeza profunda y se ahoga en sus propias indirectas. Un alma lastimada que extraña unos mimos que ya no llegarán.`,
-          `💧 @${selfTag} empezó a llorar con cinismo para no aceptar el vacío. El drama de la soledad le ganó la partida ante el silencio absoluto de esa persona especial.`,
-          `🩹 @${selfTag} abraza sus propios recuerdos con nostalgia. Escondiendo un corazón herido detrás de un llanto amargo que nadie en el grupo logra comprender.`
+          `@${selfTag} se echó a llorar solito, a veces el alma necesita desahogarse. 😢`,
+          `@${selfTag} anda triste y llorando, un buen llanto limpia el corazón. 💧`,
+          `@${selfTag} soltó las lágrimas sin avisar, no hay que guardarse todo. 😭`
         ]
         
         txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
+      }
+      else {
+        const frasesMidori = [
+          `@${selfTag} no mencionó a nadie, así que yo lloro contigo. Un llanto compartido pesa menos. 😢`,
+          `@${selfTag} se quedó sin hombro donde llorar, pero aquí está el mío por si sirve. 💧`,
+          `@${selfTag} está llorando y no dijo por qué, pero yo lo acompaño en silencio. 😭`
+        ]
+        
+        txt = frasesMidori[Math.floor(Math.random() * frasesMidori.length)]
       }
 
       await sock.sendMessage(from, {
@@ -84,7 +86,37 @@ export default {
       }, { quoted: msg })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      const selfJid = await getRealJid(sock, msg.key.participant || msg.key.remoteJid, msg).catch(() => null)
+      const selfTag = selfJid ? selfJid.split('@')[0] : 'Alguien'
+      
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+      const quotedParticipant = contextInfo?.participant
+      const mentionedJids = contextInfo?.mentionedJid || []
+      const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+      const textMentions = fullText.match(/@(\d+)/g) || []
+      
+      let victima = null
+      if (quotedParticipant) {
+        victima = quotedParticipant.split('@')[0]
+      } else if (mentionedJids.length > 0) {
+        victima = mentionedJids[0].split('@')[0]
+      } else if (textMentions.length > 0) {
+        victima = textMentions[0].replace('@', '')
+      }
+
+      let txt = ''
+      if (victima && victima !== selfTag) {
+        txt = `@${selfTag} está llorando por @${victima}, se vale de vez en cuando. 😢`
+      } else if (victima === selfTag) {
+        txt = `@${selfTag} se echó a llorar solito, a veces el alma necesita desahogarse. 😢`
+      } else {
+        txt = `@${selfTag} no mencionó a nadie, así que yo lloro contigo. Un llanto compartido pesa menos. 😢`
+      }
+
+      await sock.sendMessage(from, {
+        text: txt,
+        mentions: [selfJid].filter(Boolean)
+      }, { quoted: msg })
     }
   }
 }

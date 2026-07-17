@@ -8,7 +8,6 @@ export default {
   categoria: 'diversion',
   owner:     false,
   group:     false,
-  nsfw:      false,
   descripcion: 'Envía un gif de bully a alguien',
 
   async execute(sock, msg, { from }) {
@@ -51,29 +50,32 @@ export default {
         const victimTag = victima.split('@')[0]
         
         const frasesPareja = [
-          `👊 ¡F por @${victimTag}! @${selfTag} lo está agarrando de bajada... Un ataque directo para ocultar los celos y el drama que callan. 😈`,
-          `🔥 @${selfTag} se desquitó con todo su orgullo frente a @${victimTag}... Una humillación fría en el chat que busca romper la tensión acumulada.`,
-          `💥 Con el ego al límite, @${selfTag} empezó a joder a @${victimTag}. Palabras que buscan herir para tapar las dudas y secretos que los distancian.`,
-          `🎭 @${selfTag} acorraló a @${victimTag} con sus burlas. Una máscara de malicia para no admitir que le duele su maldita indiferencia.`,
-          `📜 @${selfTag} no tuvo piedad con @${victimTag} hoy. Destrozando su paciencia ante las miradas secretas de todo el grupo.`
+          `@${selfTag} está molestando a @${victimTag}, algo habrá hecho para merecerlo. 👊`,
+          `@${selfTag} se fue con todo contra @${victimTag}, no tuvo piedad. 💢`,
+          `@${selfTag} agarró de bajada a @${victimTag}, así sin avisar. 😈`
         ]
         
         txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
       } 
-      else {
-        if (victima === selfJid) {
-          mentions.push(selfJid)
-        }
+      else if (victima === selfJid) {
+        mentions.push(selfJid)
         
         const frasesSolo = [
-          `🤡 @${selfTag} se está molestando solito en el chat... Buscando desesperadamente llamar la atención de un corazón indomable y distante.`,
-          `🙊 @${selfTag} se humilló solo sin contexto... Un drama silencioso de orgullo herido al notar que nadie leyó sus mensajes cariñosos.`,
-          `📉 @${selfTag} entró en crisis y se hace bully a sí mismo. Sus defensas cayeron al darse cuenta de que no es correspondido hoy.`,
-          `😈 @${selfTag} se jode solo para ocultar el vacío de la pantalla y no aceptar que la soledad le está ganando la partida.`,
-          `🩹 @${selfTag} se atacó a sí mismo con cinismo. Escondiendo un alma lastimada detrás de bromas crueles que nadie más comprende.`
+          `@${selfTag} se está molestando solito, qué raro se está poniendo esto. 👊`,
+          `@${selfTag} se hace bully a sí mismo, no sé si reír o preocuparme. 💢`,
+          `@${selfTag} entró en modo autodestrucción, alguien que lo detenga. 😈`
         ]
         
         txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
+      }
+      else {
+        const frasesMidori = [
+          `@${selfTag} no mencionó a nadie, pero yo no me meto en peleas ajenas. Busca a alguien más para eso. 👊`,
+          `@${selfTag} se quedó sin víctima, y la verdad yo no estoy para que me estén molestando. 💢`,
+          `@${selfTag} quería joder a alguien pero no dijo a quién, así que se quedó con las ganas. 😈`
+        ]
+        
+        txt = frasesMidori[Math.floor(Math.random() * frasesMidori.length)]
       }
 
       await sock.sendMessage(from, {
@@ -84,7 +86,37 @@ export default {
       }, { quoted: msg })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      const selfJid = await getRealJid(sock, msg.key.participant || msg.key.remoteJid, msg).catch(() => null)
+      const selfTag = selfJid ? selfJid.split('@')[0] : 'Alguien'
+      
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+      const quotedParticipant = contextInfo?.participant
+      const mentionedJids = contextInfo?.mentionedJid || []
+      const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+      const textMentions = fullText.match(/@(\d+)/g) || []
+      
+      let victima = null
+      if (quotedParticipant) {
+        victima = quotedParticipant.split('@')[0]
+      } else if (mentionedJids.length > 0) {
+        victima = mentionedJids[0].split('@')[0]
+      } else if (textMentions.length > 0) {
+        victima = textMentions[0].replace('@', '')
+      }
+
+      let txt = ''
+      if (victima && victima !== selfTag) {
+        txt = `@${selfTag} está molestando a @${victima}, algo habrá hecho para merecerlo. 👊`
+      } else if (victima === selfTag) {
+        txt = `@${selfTag} se está molestando solito, qué raro se está poniendo esto. 👊`
+      } else {
+        txt = `@${selfTag} no mencionó a nadie, pero yo no me meto en peleas ajenas. Busca a alguien más para eso. 👊`
+      }
+
+      await sock.sendMessage(from, {
+        text: txt,
+        mentions: [selfJid].filter(Boolean)
+      }, { quoted: msg })
     }
   }
 }

@@ -8,7 +8,6 @@ export default {
   categoria: 'diversion',
   owner:     false,
   group:     false,
-  nsfw:      false,
   descripcion: 'Envía un gif de baile',
 
   async execute(sock, msg, { from }) {
@@ -51,29 +50,32 @@ export default {
         const victimTag = victima.split('@')[0]
         
         const frasesPareja = [
-          `💃 ¡Qué ritmo! @${selfTag} sacó a bailar a @${victimTag}... Sus pasos se coordinan tan bien que por un momento logran olvidar la tensión y los celos que ocultan. ✨`,
-          `🔥 @${selfTag} y @${victimTag} dominan la pista de baile. Una conexión tan intensa que despierta miradas secretas y murmullos en todo el grupo.`,
-          `✨ @${selfTag} comparte un baile suave con @${victimTag}... Dejándose llevar por la música para romper el hielo y ese orgullo que a veces los mantiene distantes.`,
-          `💞 @${selfTag} gira en la pista sosteniendo a @${victimTag}. Un vaivén perfecto que intenta revivir viejos sentimientos que se resisten a apagarse.`,
-          `🎵 En medio de las luces, @${selfTag} guía a @${victimTag} en un baile cerrado. Una tregua romántica perfecta donde las palabras ya no hacen falta.`
+          `@${selfTag} sacó a bailar a @${victimTag}, qué bien se ven juntos en la pista. 💃`,
+          `@${selfTag} y @${victimTag} están bailando, esa conexión no se ensaya. ✨`,
+          `@${selfTag} se lanzó a bailar con @${victimTag}, así sin avisar y sin vergüenza. 🕺`
         ]
         
         txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
       } 
-      else {
-        if (victima === selfJid) {
-          mentions.push(selfJid)
-        }
+      else if (victima === selfJid) {
+        mentions.push(selfJid)
         
         const frasesSolo = [
-          `🕺 ¡Suelten la música! @${selfTag} se puso a bailar con toda la actitud... Intentando ahogar las penas de un amor que no sabe corresponderle.`,
-          `💃 @${selfTag} sacó los pasos prohibidos en solitario. Demostrando que tiene el control y que no necesita la atención de nadie más para brillar.`,
-          `✨ @${selfTag} está celebrando en medio de la pista solo. Su orgullo brilla tanto como sus movimientos, aunque su mirada busque discretamente a alguien.`,
-          `💔 @${selfTag} baila con su propia sombra. La música suena fuerte, pero el vacío que dejó esa persona especial en el chat se nota en cada paso.`,
-          `🎵 @${selfTag} se deja llevar por el ritmo a solas. Un refugio perfecto para despejar la mente y sanar un corazón indomable.`
+          `@${selfTag} se puso a bailar solito, con toda la actitud. 💃`,
+          `@${selfTag} sacó los pasos prohibidos, no necesita a nadie para brillar. 🕺`,
+          `@${selfTag} está bailando con su propia sombra, y lo hace bien. ✨`
         ]
         
         txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
+      }
+      else {
+        const frasesMidori = [
+          `@${selfTag} no mencionó a nadie, así que yo bailo contigo para que no estés solo. 💃`,
+          `@${selfTag} se quedó sin pareja, ven que yo te acompaño en la pista. 🕺`,
+          `@${selfTag} nadie más se animó, pero yo sí. Vamos a bailar juntos. ✨`
+        ]
+        
+        txt = frasesMidori[Math.floor(Math.random() * frasesMidori.length)]
       }
 
       await sock.sendMessage(from, {
@@ -84,7 +86,37 @@ export default {
       }, { quoted: msg })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      const selfJid = await getRealJid(sock, msg.key.participant || msg.key.remoteJid, msg).catch(() => null)
+      const selfTag = selfJid ? selfJid.split('@')[0] : 'Alguien'
+      
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+      const quotedParticipant = contextInfo?.participant
+      const mentionedJids = contextInfo?.mentionedJid || []
+      const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+      const textMentions = fullText.match(/@(\d+)/g) || []
+      
+      let victima = null
+      if (quotedParticipant) {
+        victima = quotedParticipant.split('@')[0]
+      } else if (mentionedJids.length > 0) {
+        victima = mentionedJids[0].split('@')[0]
+      } else if (textMentions.length > 0) {
+        victima = textMentions[0].replace('@', '')
+      }
+
+      let txt = ''
+      if (victima && victima !== selfTag) {
+        txt = `@${selfTag} sacó a bailar a @${victima}, qué bien se ven juntos en la pista. 💃`
+      } else if (victima === selfTag) {
+        txt = `@${selfTag} se puso a bailar solito, con toda la actitud. 💃`
+      } else {
+        txt = `@${selfTag} no mencionó a nadie, así que yo bailo contigo para que no estés solo. 💃`
+      }
+
+      await sock.sendMessage(from, {
+        text: txt,
+        mentions: [selfJid].filter(Boolean)
+      }, { quoted: msg })
     }
   }
 }

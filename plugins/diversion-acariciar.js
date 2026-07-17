@@ -8,11 +8,10 @@ export default {
   categoria: 'diversion',
   owner:     false,
   group:     false,
-  nsfw:      false,
   descripcion: 'Envía un gif de caricias a alguien',
 
   async execute(sock, msg, { from }) {
-    await sock.sendMessage(from, { react: { text: '🖐️', key: msg.key } })
+    await sock.sendMessage(from, { react: { text: '🫳', key: msg.key } })
 
     try {
       const apiUrl = `https://api.delirius.store/reactions/pat`
@@ -51,29 +50,32 @@ export default {
         const victimTag = victima.split('@')[0]
         
         const frasesPareja = [
-          `🖐️ @${selfTag} acarició suavemente la cabecita de @${victimTag}... Un gesto tan dulce que oculta el miedo latente de perder su atención algún día. ✨`,
-          `🌸 @${selfTag} mimó con ternura a @${victimTag}. Intentando calmar un corazón inquieto, recordándole que no todo tiene que terminar en reclamos y distancia.`,
-          `✨ Una dulce caricia de @${selfTag} para @${victimTag}... Un pacto silencioso en el chat que desafía el orgullo que tantas veces los aleja.`,
-          `💞 @${selfTag} le dio unos mimos a @${victimTag}... Buscando revivir esa complicidad que a veces parece desvanecerse entre el silencio y las dudas.`,
-          `🍿 @${selfTag} acarició con delicadeza a @${victimTag}. Un detalle tan íntimo y privado que despierta miradas secretas y un toque de celos en el grupo.`
+          `@${selfTag} acarició a @${victimTag}, un gesto que nunca sobra. 🫳`,
+          `@${selfTag} le hizo cariño a @${victimTag}, así tranqui y sin prisas. 🌸`,
+          `@${selfTag} mimó a @${victimTag} con suavidad, porque a veces hace falta sin motivo. ✨`
         ]
         
         txt = frasesPareja[Math.floor(Math.random() * frasesPareja.length)]
       } 
-      else {
-        if (victima === selfJid) {
-          mentions.push(selfJid)
-        }
+      else if (victima === selfJid) {
+        mentions.push(selfJid)
         
         const frasesSolo = [
-          `🥺 @${selfTag} se acaricia la cabeza solito... Buscando un consuelo que esa persona especial simplemente no le quiere dar hoy.`,
-          `✨ @${selfTag} se da ánimos a sí mismo en silencio. Secando las lágrimas de un desamor y recordándose que vale demasiado.`,
-          `💔 @${selfTag} busca desesperadamente un mimo... Pero la persona que le importa prefiere ignorar su tierno llamado.`,
-          `🍃 @${selfTag} se dio un cariñito propio para sanar el alma. A veces toca ser fuerte cuando el orgullo ajeno congela el chat.`,
-          `📜 @${selfTag} se quedó esperando una caricia sincera... Al final, el vacío de la pantalla fue su única compañía esta noche.`
+          `@${selfTag} se acaricia solito, porque un poco de autocariño nunca cae mal. 🫳`,
+          `@${selfTag} se dio cariño a sí mismo, a veces toca. 🌸`,
+          `@${selfTag} se mimó solito, no hay que esperar a que otro lo haga. ✨`
         ]
         
         txt = frasesSolo[Math.floor(Math.random() * frasesSolo.length)]
+      }
+      else {
+        const frasesMidori = [
+          `@${selfTag} no mencionó a nadie, así que yo le hago cariño. Toma tu mimo, no digas que no te quiero. 🫳`,
+          `@${selfTag} se quedó sin que nadie lo acaricie, pero aquí estoy yo. Ven, un mimo de Midori nunca sobra. 🌸`,
+          `@${selfTag} nadie se ofreció a darte cariño, así que me toca a mí. No te quejes, es con buena intención. ✨`
+        ]
+        
+        txt = frasesMidori[Math.floor(Math.random() * frasesMidori.length)]
       }
 
       await sock.sendMessage(from, {
@@ -84,7 +86,37 @@ export default {
       }, { quoted: msg })
 
     } catch {
-      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } })
+      const selfJid = await getRealJid(sock, msg.key.participant || msg.key.remoteJid, msg).catch(() => null)
+      const selfTag = selfJid ? selfJid.split('@')[0] : 'Alguien'
+      
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo
+      const quotedParticipant = contextInfo?.participant
+      const mentionedJids = contextInfo?.mentionedJid || []
+      const fullText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+      const textMentions = fullText.match(/@(\d+)/g) || []
+      
+      let victima = null
+      if (quotedParticipant) {
+        victima = quotedParticipant.split('@')[0]
+      } else if (mentionedJids.length > 0) {
+        victima = mentionedJids[0].split('@')[0]
+      } else if (textMentions.length > 0) {
+        victima = textMentions[0].replace('@', '')
+      }
+
+      let txt = ''
+      if (victima && victima !== selfTag) {
+        txt = `@${selfTag} acarició a @${victima}, un gesto que nunca sobra. 🫳`
+      } else if (victima === selfTag) {
+        txt = `@${selfTag} se acaricia solito, porque un poco de autocariño nunca cae mal. 🫳`
+      } else {
+        txt = `@${selfTag} no mencionó a nadie, así que yo le hago cariño. Toma tu mimo, no digas que no te quiero. 🫳`
+      }
+
+      await sock.sendMessage(from, {
+        text: txt,
+        mentions: [selfJid].filter(Boolean)
+      }, { quoted: msg })
     }
   }
 }

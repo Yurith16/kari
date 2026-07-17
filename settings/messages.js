@@ -81,8 +81,8 @@ const messages = {
   antilinkOff:       'Antilink desactivado, ya pueden compartir enlaces sin problema.',
 
  // ─── Registro automático ────────────────────────────────────────────────────
-  autoRegistered:       '> Hola, soy Midori-Hana🌴\n\nTe escribo porque usas el bot por primera vez, así que tomé la decisión de registrarte como *{nombre}*.\n\nPuedes ver tu perfil actual con *.perfil* o cambiarlo cuando quieras con *.setperfil*, no te quedes con algo que no te gusta. Que disfrutes el grupo.',
-  autoRegisteredRandom: 'Hola, soy Midori 🌸\n\nNo encontré tu nombre en WhatsApp, así que tomé la decisión de registrarte como *{nombre}*.\n\nPuedes ver tu perfil actual con *.perfil* o cambiarlo cuando quieras con *.setperfil*, no te quedes con algo que no te gusta. Que disfrutes el grupo.',
+  autoRegistered:       '> Hola, soy Midori-Hana🌴\n\nTe escribo porque usas el bot por primera vez, así que tomé la decisión de registrarte como *{nombre}*.\n\nPuedes ver tu perfil actual con *.perfil* o cambiarlo cuando quieras con *.setperfil*, no te quedes con algo que no te gusta.',
+  autoRegisteredRandom: 'Hola, soy Midori 🌸\n\nNo encontré tu nombre en WhatsApp, así que tomé la decisión de registrarte como *{nombre}*.\n\nPuedes ver tu perfil actual con *.perfil* o cambiarlo cuando quieras con *.setperfil*, no te quedes con algo que no te gusta.',
 
   // ─── Economía ───────────────────────────────────────────────────────────────
   ecoDisabled:      'La economía está desactivada en este grupo, así que por ahora no puedo procesar eso.',
