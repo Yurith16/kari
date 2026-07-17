@@ -317,12 +317,15 @@ export async function handleMessage(sock, msg) {
     const textStr = extractText(msg) || ''
     const match   = matchPrefix(textStr, ctx.groupCfg)
 
-    // ─── Registro automático — solo cuando usa un comando ────────────────────
-    if (match && !ctx.fromMe && ctx.userNum && ctx.userNum.length >= 8) {
-      if (!isRegistered(ctx.userNum)) {
-        setImmediate(() => autoRegistrar(msg, ctx.userNum))
-      }
-    }
+    // ─── Después (Con retraso de 5 segundos) ──────────────────────────────────
+if (match && !ctx.fromMe && ctx.userNum && ctx.userNum.length >= 8) {
+  if (!isRegistered(ctx.userNum)) {
+    // Esperamos 5 segundos antes de disparar el proceso de registro
+    setTimeout(() => {
+      autoRegistrar(msg, ctx.userNum)
+    }, 5000)
+  }
+}
 
     if (match && await stepGuards(ctx, sock, msg)) return
 
