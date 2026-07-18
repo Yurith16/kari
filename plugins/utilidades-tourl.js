@@ -1,7 +1,7 @@
 // plugins/tourl.js
 import fs from 'fs'
 import path from 'path'
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage } from '@itsmelody/baileys'
 import fetch, { FormData, Blob } from 'node-fetch'
 
 const TEMP_DIR = path.join(process.cwd(), 'tmp')

@@ -1,10 +1,9 @@
-//settings/features.js
 const features = {
   "antiLink": false,
   "antiCall": true,
   "antiSpam": true,
   "autoRead": false,
-  "autoBio": true,
+  "autoBio": false,
   "maintenance": false,
   "allowPrivate": true,
   "welcomeMsg": true,

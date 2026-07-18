@@ -1,6 +1,6 @@
 // plugins/toimg.js
 
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage } from '@itsmelody/baileys'
 import { exec } from 'child_process'
 import { writeFile, readFile, unlink, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'

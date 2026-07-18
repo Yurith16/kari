@@ -5,7 +5,7 @@ import makeWASocket, {
   Browsers,
   generateWAMessageFromContent,
   generateWAMessage
-} from '@whiskeysockets/baileys'
+} from '@itsmelody/baileys'
 import pino     from 'pino'
 import readline from 'readline'
 import { parsePhoneNumber } from 'awesome-phonenumber'

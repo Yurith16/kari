@@ -1,4 +1,4 @@
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage } from '@itsmelody/baileys'
 
 export default {
   command:     ['setfoto', 'setpp'],

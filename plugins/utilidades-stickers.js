@@ -1,4 +1,4 @@
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage } from '@itsmelody/baileys'
 import { Sticker } from 'wa-sticker-formatter'
 import { execFile } from 'child_process'
 import { promisify } from 'util'

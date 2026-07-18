@@ -1,6 +1,6 @@
 // plugins/extraer-audio.js
 
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage } from '@itsmelody/baileys'
 import { execFile } from 'child_process'
 import { writeFile, unlink } from 'fs/promises'
 import { join } from 'path'

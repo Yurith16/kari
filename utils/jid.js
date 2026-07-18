@@ -1,4 +1,4 @@
-import { jidNormalizedUser } from '@whiskeysockets/baileys'
+import { jidNormalizedUser } from '@itsmelody/baileys'
 
 export async function getRealJid(sock, jid, m) {
   let target = jid || (m?.key?.participant || m?.key?.remoteJid || m?.participant || sock.user.id)

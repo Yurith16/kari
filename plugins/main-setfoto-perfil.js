@@ -1,7 +1,7 @@
 // plugins/pfoto.js
 import fs from 'fs'
 import path from 'path'
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage } from '@itsmelody/baileys'
 import { setUserField, isRegistered } from '../core/sqlite.js'
 import { getRealJid, cleanNumber } from '../utils/jid.js'
 

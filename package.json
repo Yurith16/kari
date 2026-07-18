@@ -8,7 +8,7 @@
     "dev": "node --watch index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "github:WhiskeySockets/Baileys",
+    "@itsmelody/baileys": "^0.2.11",
     "acrcloud": "^1.4.0",
     "archiver": "^7.0.1",
     "awesome-phonenumber": "^7.8.0",

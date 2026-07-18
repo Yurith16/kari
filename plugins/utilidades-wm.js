@@ -1,6 +1,6 @@
 // plugins/wm.js
 
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage } from '@itsmelody/baileys'
 import { Sticker, StickerTypes } from 'wa-sticker-formatter'
 
 export default {

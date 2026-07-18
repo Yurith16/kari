@@ -1,6 +1,6 @@
 // plugins/tovideo.js
 
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage } from '@itsmelody/baileys'
 import ffmpeg from 'fluent-ffmpeg'
 import ffmpegPath from 'ffmpeg-static'
 import ffprobeStatic from 'ffprobe-static'

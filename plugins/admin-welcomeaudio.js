@@ -1,4 +1,4 @@
-import { downloadMediaMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage } from '@itsmelody/baileys'
 import fs   from 'fs'
 import path from 'path'
 import { setGroupField } from '../core/sqlite.js'
