@@ -67,16 +67,30 @@ function resolveNum(pid, lidCache) {
   return cleanNumber(pid)
 }
 
+function nombreDisconnect(code) {
+  const nombres = {
+    [DisconnectReason.badSession]:       'badSession',
+    [DisconnectReason.connectionClosed]: 'connectionClosed',
+    [DisconnectReason.connectionLost]:   'connectionLost',
+    [DisconnectReason.connectionReplaced]: 'connectionReplaced',
+    [DisconnectReason.loggedOut]:        'loggedOut',
+    [DisconnectReason.restartRequired]:  'restartRequired',
+    [DisconnectReason.timedOut]:         'timedOut',
+    [DisconnectReason.multideviceMismatch]: 'multideviceMismatch',
+    [DisconnectReason.forbidden]:        'forbidden',
+    [DisconnectReason.unavailableService]: 'unavailableService',
+  }
+  return nombres[code] || `desconocido (${code})`
+}
+
 const WELCOME_AUDIO_DEFAULT = 'https://www.image2url.com/r2/default/files/1781992178205-d92321c5-ab62-48a1-9e6b-e06e96f78c83.ogg'
 
 // ─── Sistema de saludos por horario ──────────────────────────────────────────
 
-// Zona horaria Honduras UTC-6
 function getHoraHonduras() {
   const ahora = new Date()
-  // Convertir a UTC-6
-  const utcMs    = ahora.getTime() + ahora.getTimezoneOffset() * 60000
-  const hn       = new Date(utcMs - 6 * 3600000)
+  const utcMs = ahora.getTime() + ahora.getTimezoneOffset() * 60000
+  const hn    = new Date(utcMs - 6 * 3600000)
   return { hora: hn.getHours(), fecha: hn.toISOString().slice(0, 10), ts: Math.floor(hn.getTime() / 1000) }
 }
 
@@ -91,14 +105,11 @@ function yaSeMandoboy(grupo, tipo) {
   const col    = `ultimo_saludo_${tipo}`
   const ultimo = grupo[col] || 0
   if (!ultimo) return false
-
-  // Comparar fecha del último envío con fecha actual en UTC-6
   const { fecha } = getHoraHonduras()
   const fechaUltimo = new Date((ultimo - 6 * 3600) * 1000).toISOString().slice(0, 10)
   return fechaUltimo === fecha
 }
 
-// Último índice usado por tipo para no repetir la misma frase dos veces seguidas
 const ultimoIndice = { manana: -1, tarde: -1, noche: -1 }
 
 function elegirFrase(frases, tipo) {
@@ -111,7 +122,6 @@ function elegirFrase(frases, tipo) {
 }
 
 function startSaludosChecker(sock) {
-  // Corre cada minuto
   setInterval(async () => {
     try {
       const { frases, tipo } = getFrasesYTipo()
@@ -126,7 +136,6 @@ function startSaludosChecker(sock) {
         try {
           await sock.sendMessage(grupo.group_id, { text: frase })
           setSaludoTimestamp(grupo.group_id, tipo)
-          // Pequeño delay entre grupos para no saturar
           await new Promise(r => setTimeout(r, 1500))
         } catch {}
       }
@@ -136,6 +145,22 @@ function startSaludosChecker(sock) {
   }, 60 * 1000)
 
   logger.info('Saludos', 'Checker de saludos iniciado ✦')
+}
+
+// ─── Backoff de reconexión ────────────────────────────────────────────────────
+
+let intentosReconexion = 0
+const BACKOFF_BASE = 3000
+const BACKOFF_MAX  = 60000
+
+function calcularBackoff() {
+  const tiempo = Math.min(BACKOFF_BASE * Math.pow(2, intentosReconexion), BACKOFF_MAX)
+  intentosReconexion++
+  return tiempo
+}
+
+function resetBackoff() {
+  intentosReconexion = 0
 }
 
 // ─── Bot principal ────────────────────────────────────────────────────────────
@@ -167,24 +192,13 @@ export async function startBot() {
 
   store.bind(sock.ev)
 
-  // ─── Pairing code si no hay sesión ───────────────────────────────────────
+  // ─── Pairing code si no hay sesión — siempre pide el número manualmente ──
   if (!hasSession) {
     await new Promise(r => setTimeout(r, 1500))
 
-    let numero = bot.botNumber ? normalizeNumber(String(bot.botNumber)) : ''
-
-    if (numero) {
-      process.stdout.write(`\n`)
-      const usar = await ask(`  📱 Número detectado en config: ${numero}\n  ¿Usar este número? (s/n): `)
-      if (!['s', 'si', 'sí', 'y', 'yes'].includes(usar.toLowerCase())) {
-        const nuevo = await ask('  Ingresa el número con código de país (ej: 50412345678): ')
-        numero = normalizeNumber(nuevo)
-      }
-    } else {
-      process.stdout.write(`\n`)
-      const ingresado = await ask('  Ingresa el número del bot con código de país (ej: 50412345678): ')
-      numero = normalizeNumber(ingresado)
-    }
+    process.stdout.write(`\n`)
+    const ingresado = await ask('  Ingresa el número del bot con código de país (ej: 50412345678): ')
+    const numero    = normalizeNumber(ingresado)
 
     if (!numero || numero.length < 8) {
       logger.error('Pairing', 'Número inválido. Reiniciando...')
@@ -315,7 +329,6 @@ export async function startBot() {
             await sock.sendMessage(id, { text: texto, mentions: [jidFinal] })
           }
 
-          // Audio de bienvenida — solo en add
           if (isAdd) {
             const audioUrl = cfg.welcomeAudio || WELCOME_AUDIO_DEFAULT
             try {
@@ -335,7 +348,6 @@ export async function startBot() {
             } catch {}
           }
 
-          // Audio de despedida — solo en remove
           if (!isAdd && cfg.goodbyeAudio) {
             try {
               let audioBuffer
@@ -403,16 +415,24 @@ export async function startBot() {
   // ─── Conexión ────────────────────────────────────────────────────────────
   sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'close') {
-      const code = lastDisconnect?.error?.output?.statusCode
-      if (code !== DisconnectReason.loggedOut) {
-        logger.warn('Conexión', global.messages?.reconnecting)
-        setTimeout(startBot, 4000)
-      } else {
-        logger.error('Conexión', 'Sesión cerrada, vuelve a emparejar.')
+      const code       = lastDisconnect?.error?.output?.statusCode
+      const nombreCode = nombreDisconnect(code)
+
+      logger.error('Conexión', `Desconectado — código: ${code} (${nombreCode})`)
+
+      if (code === DisconnectReason.loggedOut) {
+        logger.error('Conexión', 'Sesión cerrada por WhatsApp. Debes vincular de nuevo.')
+        resetBackoff()
+        return
       }
+
+      const tiempoEspera = calcularBackoff()
+      logger.warn('Conexión', `Reconectando en ${Math.round(tiempoEspera / 1000)}s... (intento ${intentosReconexion})`)
+      setTimeout(startBot, tiempoEspera)
     }
 
     if (connection === 'open') {
+      resetBackoff()
       global.connectionStartTime = Date.now()
       logger.info('Conexión', `${global.messages?.online} — ${sock.user.id.split(':')[0]}`)
       logger.info('Config', `Prefix: ${global.bot?.prefix?.join(' ')} | Grupos: activos`)

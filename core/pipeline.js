@@ -14,47 +14,7 @@ const LINK_RE = /(?:https?:\/\/)?(?:www\.)?(?:chat\.whatsapp\.com|wa\.me|t\.me|t
 
 if (!global.lidCache) global.lidCache = new Map()
 
-// ─── Cola de bienvenidas ──────────────────────────────────────────────────────
-
-const colaWelcome = []
-let   colaActiva  = false
-let   sockGlobal  = null
-
-async function procesarColaWelcome() {
-  if (colaActiva || colaWelcome.length === 0) return
-  colaActiva = true
-
-  while (colaWelcome.length > 0) {
-    const { jid, texto } = colaWelcome.shift()
-    let intentos = 0
-
-    while (intentos < 2) {
-      try {
-        await sockGlobal.sendMessage(jid, { text: texto })
-        break
-      } catch {
-        intentos++
-        if (intentos < 2) await new Promise(r => setTimeout(r, 2000))
-      }
-    }
-
-    if (colaWelcome.length > 0) await new Promise(r => setTimeout(r, 1500))
-  }
-
-  colaActiva = false
-}
-
-function encolarBienvenida(userNum, nombre, tienePushName) {
-  const jid   = `${userNum}@s.whatsapp.net`
-  const texto = tienePushName
-    ? (global.messages?.autoRegistered       || '').replace('{nombre}', nombre)
-    : (global.messages?.autoRegisteredRandom || '').replace('{nombre}', nombre)
-
-  colaWelcome.push({ jid, texto })
-  procesarColaWelcome().catch(() => {})
-}
-
-// ─── Registro automático ──────────────────────────────────────────────────────
+// ─── Registro automático — completamente silencioso, sin tocar Baileys ──────
 
 function autoRegistrar(msg, userNum) {
   try {
@@ -65,7 +25,6 @@ function autoRegistrar(msg, userNum) {
       : `Alma Errante-${countUsers() + 1}`
 
     registerUser(userNum, { nombre, apodo: '', edad: 0, genero: '', pais: '' })
-    encolarBienvenida(userNum, nombre, tienePushName)
 
     logger.info('AutoRegistro', `${userNum} → ${nombre}`)
   } catch (err) {
@@ -301,8 +260,6 @@ async function dispatch(ctx, sock, msg, match) {
 
 export async function handleMessage(sock, msg) {
   try {
-    if (!sockGlobal) sockGlobal = sock
-
     const ctx = await resolveContext(sock, msg)
 
     if (ctx.isGroup && !ctx.fromMe) {
@@ -317,15 +274,12 @@ export async function handleMessage(sock, msg) {
     const textStr = extractText(msg) || ''
     const match   = matchPrefix(textStr, ctx.groupCfg)
 
-    // ─── Después (Con retraso de 5 segundos) ──────────────────────────────────
-if (match && !ctx.fromMe && ctx.userNum && ctx.userNum.length >= 8) {
-  if (!isRegistered(ctx.userNum)) {
-    // Esperamos 5 segundos antes de disparar el proceso de registro
-    setTimeout(() => {
-      autoRegistrar(msg, ctx.userNum)
-    }, 5000)
-  }
-}
+    // ─── Registro automático — solo cuando usa un comando, sin tocar Baileys ──
+    if (match && !ctx.fromMe && ctx.userNum && ctx.userNum.length >= 8) {
+      if (!isRegistered(ctx.userNum)) {
+        autoRegistrar(msg, ctx.userNum)
+      }
+    }
 
     if (match && await stepGuards(ctx, sock, msg)) return
 
