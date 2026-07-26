@@ -75,7 +75,7 @@ export function getToxicResponse(userTag, warningCount) {
   
   if (warningCount === 2) {
     const frases = [
-      `⚠️ @${userTag}, segunda advertencia. Una más y te silencio 3 minutos. Sé buenito.`,
+      `⚠️ @${userTag}, segunda advertencia. Una más y te silencio 3 minutos.`,
       `😔 @${userTag}, ya te lo dije antes... borré tu mensaje otra vez. Una más y hay castigo.`,
       `💢 @${userTag}, van dos. La tercera no te va a gustar. Te silenciaré un rato.`
     ]
